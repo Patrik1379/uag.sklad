@@ -1,0 +1,96 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sklad
+      POSTGRES_USER: sklad
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sklad}
+      TZ: Europe/Bratislava
+      PGTZ: Europe/Bratislava
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sklad -d sklad"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://sklad:${DB_PASSWORD:-sklad}@db:5432/sklad?options=-c%20timezone%3DEurope%2FBratislava
+      SECRET_KEY: ${SECRET_KEY:-zmen-ma-na-nahodny-retazec}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      UPLOAD_FOLDER: /data/uploads
+      WORKERS: ${WORKERS:-3}
+      BEHIND_PROXY: ${BEHIND_PROXY:-0}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      # na serveri nastavte BIND=127.0.0.1 – aplikácia bude dostupná len cez HTTPS (Caddy)
+      - "${BIND:-0.0.0.0}:${PORT:-8000}:8000"
+
+  # ---------------------------------------------------------------------------
+  # Služby len pre server na internete – spúšťajú sa s:  docker compose --profile server up -d
+  # ---------------------------------------------------------------------------
+
+  # Caddy: HTTPS s automatickým certifikátom (Let's Encrypt) pre doménu z .env (DOMAIN)
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["server"]
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Nočná záloha databázy a obrázkov do priečinka ./zalohy (uchováva posledných 14 dní)
+  backup:
+    image: postgres:16-alpine
+    profiles: ["server"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-sklad}
+      TZ: Europe/Bratislava
+    volumes:
+      - ./zalohy:/zalohy
+      - uploads:/data/uploads:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Zálohovanie spustené – prvá záloha o 2:30, potom každú noc."
+        while true; do
+          now=$$(date +%s)
+          next=$$(date -d "$$(date +%Y-%m-%d) 02:30" +%s 2>/dev/null || echo 0)
+          [ "$$next" -le "$$now" ] && next=$$((next + 86400))
+          [ "$$next" -le "$$now" ] && next=$$((now + 86400))
+          sleep $$((next - now))
+          d=$$(date +%Y-%m-%d_%H%M)
+          pg_dump -h db -U sklad sklad | gzip > /zalohy/databaza_$$d.sql.gz \
+            && tar czf /zalohy/obrazky_$$d.tar.gz -C /data uploads \
+            && echo "Záloha $$d hotová." || echo "CHYBA zálohy $$d"
+          find /zalohy -type f -mtime +14 -delete
+        done
+
+volumes:
+  db_data:
+  uploads:
+  caddy_data:
+  caddy_config:

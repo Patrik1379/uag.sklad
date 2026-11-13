@@ -1,0 +1,57 @@
+{#
+  Miniatúra obrázka.
+  kind:   'part' (diel) alebo 'project' (projekt – ikonka výrobnej linky, kým nemá obrázok)
+  upload: URL na nahratie obrázka → miniatúra prijíma pretiahnutý súbor, klik na prázdnu ikonu otvorí výber súboru
+  paste:  na stránke sa dá obrázok vložiť aj zo schránky (Ctrl+V)
+#}
+{% macro thumb(image, alt='', size='', upload=None, kind='part', paste=False) -%}
+  {%- if upload -%}
+  <span class="imgdrop" data-upload="{{ upload }}" data-size="{{ size }}"{{ ' data-paste' if paste }}
+        title="{{ 'Pretiahnite sem nový obrázok' if image else 'Kliknite alebo sem pretiahnite obrázok' }}{{ ' (alebo Ctrl+V)' if paste }}">
+  {%- endif -%}
+  {%- if image -%}
+    <img class="thumb {{ size }}" src="{{ url_for('main.media', name='t_' ~ image) }}" data-full="{{ url_for('main.media', name=image) }}" alt="{{ alt }}" loading="lazy">
+  {%- elif kind == 'project' -%}
+    <span class="thumb ph proj {{ size }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5h20"/><path d="M15 3.5V7"/><path d="M13.3 9.2 15 7l1.7 2.2"/><rect x="13" y="10.5" width="4" height="4" rx=".5"/><rect x="4" y="10.5" width="4" height="4" rx=".5"/><rect x="2" y="15.5" width="20" height="4" rx="2"/><path d="M5 17.5h.01M9 17.5h.01M13 17.5h.01M17 17.5h.01"/></svg></span>
+  {%- else -%}
+    <span class="thumb ph {{ size }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg></span>
+  {%- endif -%}
+  {%- if upload -%}
+    <button type="button" class="imgdrop-btn" title="Zmeniť obrázok" aria-label="Zmeniť obrázok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></button>
+    <input type="file" accept="image/*" hidden>
+  </span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro state_badge(state) -%}
+  {%- if state == 'ok' -%}
+    <span class="badge ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>Naskladnené</span>
+  {%- elif state == 'partial' -%}
+    <span class="badge partial"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 6v6l4 2"/></svg>Čiastočne</span>
+  {%- else -%}
+    <span class="badge missing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18M6 6l12 12"/></svg>Chýba</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro progress(s, big=False, name='') -%}
+  {%- set req = s.required or 0 -%}
+  <div class="progress {{ 'big' if big }}" data-tip="{% if name %}<b>{{ name|t }}</b><br>{% endif %}<b>{{ s.covered }}</b> z {{ req }} ks naskladnených ({{ s.pct }} %)<br>Chýba {{ s.missing }} ks · položky: {{ s.items_ok }} kompletné, {{ s.items_partial }} čiastočne, {{ s.items_missing }} chýba">
+    {%- if req -%}
+      {%- if s.covered %}<div class="seg ok" style="width: {{ 100 * s.covered / req }}%"></div>{% endif -%}
+      {%- if s.missing %}<div class="seg missing" style="flex: 1"></div>{% endif -%}
+    {%- endif -%}
+  </div>
+{%- endmacro %}
+
+
+{# Umiestnenie dielu: regál (kód + vlastný názov) · polica · iné #}
+{% macro location(part, empty='') -%}
+  {%- set rack, shelf, other = loc_parts(part) -%}
+  {%- if rack or shelf or other -%}
+  <span class="loc">
+    {%- if rack %}<a class="rack" href="{{ url_for('main.parts', regal=rack.id) }}" title="Všetky diely v regáli {{ rack.code }}">{{ rack.code }}</a>{% if rack.title %}<span class="rack-name">{{ rack.title }}</span>{% endif %}{% endif -%}
+    {%- if shelf %}<span class="shelf">{{ ('polica ' ~ shelf) if shelf[:1].isdigit() else shelf }}</span>{% endif -%}
+    {%- if other %}<span class="muted">{{ other }}</span>{% endif -%}
+  </span>
+  {%- else -%}{{ empty }}{%- endif -%}
+{%- endmacro %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Upraviť projekt' if project.id else 'Nový projekt' }}{% endblock %}
+{% from '_macros.html' import thumb %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Upraviť projekt' if project.id else 'Nový projekt' }}</h1></div>
+<form class="card" method="post" enctype="multipart/form-data" style="max-width:820px">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="form-grid">
+    <div><label>Názov projektu *</label><input type="text" name="name" value="{{ project.name or '' }}" required autofocus></div>
+    <div><label>Číslo zakázky *</label><input type="text" name="order_no" value="{{ project.order_no or '' }}" required></div>
+    <div><label>Zákazník</label><input type="text" name="customer" value="{{ project.customer or '' }}"></div>
+    <div><label>Termín</label><input type="date" name="deadline" value="{{ project.deadline|iso }}"></div>
+    <div><label>Stav</label>
+      <select name="status">
+        <option value="aktivny" {{ 'selected' if project.status == 'aktivny' }}>Aktívny</option>
+        <option value="ukonceny" {{ 'selected' if project.status == 'ukonceny' }}>Ukončený</option>
+      </select></div>
+    <div class="full"><label>Poznámka</label><textarea name="note">{{ project.note or '' }}</textarea></div>
+    <div class="full">
+      <label>Obrázok projektu (nepovinné)</label>
+      <div style="display:flex;gap:14px;align-items:center">
+        {{ thumb(project.image, project.name, kind='project') }}
+        {% if project.image %}<label style="margin:0;font-weight:500"><input type="checkbox" name="remove_image" value="1"> odstrániť</label>{% endif %}
+        <input type="file" name="image" accept="image/*">
+      </div>
+      <div class="hint">Bez obrázka sa zobrazí ikonka výrobnej linky. Obrázok môžete neskôr aj pretiahnuť priamo na ikonku v zozname projektov.</div>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn primary">Uložiť</button>
+    <a class="btn" href="{{ url_for('main.project_detail', pid=project.id) if project.id else url_for('main.projects') }}">Zrušiť</a>
+  </div>
+</form>
+{% if project.id %}
+<form class="card" method="post" action="{{ url_for('main.project_delete', pid=project.id) }}" style="max-width:820px" data-confirm="Naozaj zmazať projekt? Naskladnené kusy sa presunú do voľného skladu.">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <h3>Zmazanie projektu</h3>
+  <p class="small muted">Kusovník projektu sa odstráni, už naskladnené kusy sa presunú do voľného skladu.</p>
+  <button class="btn danger">Zmazať projekt</button>
+</form>
+{% endif %}
+{% endblock %}

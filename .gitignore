@@ -1,0 +1,8 @@
+data/
+__pycache__/
+*.pyc
+.env
+zalohy/
+Claude outputs/
+zaloha.sql
+uploads_zaloha/

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf" content="{{ csrf_token() }}">
+  <title>{% block title %}Sklad dielov{% endblock %} · Sklad dielov</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%232563c9'/><path d='M6 9l6-3 6 3v6l-6 3-6-3z' fill='none' stroke='white' stroke-width='1.8'/></svg>">
+  <script>try{var s=localStorage.getItem("fontsize");if(s)document.documentElement.dataset.size=s;}catch(e){}</script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg width="28" height="28" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#2563c9"/><path d="M6 9l6-3 6 3v6l-6 3-6-3zM6 9l6 3 6-3M12 12v6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      Sklad dielov
+    </div>
+    {% set ep = request.endpoint or '' %}
+    <nav class="nav">
+      <a href="{{ url_for('main.receive') }}" class="primary-action {{ 'active' if ep.startswith('main.receive') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M11 8v8M15 8v8M18 8v8"/></svg><span>Príjem tovaru</span></a>
+      <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if ep == 'main.dashboard' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>Dashboard</span></a>
+      <a href="{{ url_for('main.projects') }}" class="{{ 'active' if ep.startswith('main.project') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Projekty</span></a>
+      <a href="{{ url_for('main.parts') }}" class="{{ 'active' if (ep.startswith('main.part') and ep != 'main.parts_api') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg><span>Skladové karty</span></a>
+      <a href="{{ url_for('main.free_stock_view') }}" class="{{ 'active' if ep == 'main.free_stock_view' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 21v-7h8v7"/></svg><span>Voľný sklad</span></a>
+      <a href="{{ url_for('main.racks') }}" class="{{ 'active' if ep in ('main.racks', 'main.rack_update') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3v18M20 3v18M4 8h16M4 14h16M4 20h16"/></svg><span>Regály</span></a>
+      {% if current_user and current_user.role == 'admin' %}
+      <a href="{{ url_for('auth.users') }}" class="{{ 'active' if ep == 'auth.users' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Používatelia</span></a>
+      {% endif %}
+    </nav>
+    {% if current_user %}
+    <div class="user">
+      <div class="fontsize" title="Veľkosť písma">
+        <span>Písmo:</span>
+        <button type="button" data-size="" style="font-size:13px">A</button>
+        <button type="button" data-size="l" style="font-size:16px">A</button>
+        <button type="button" data-size="xl" style="font-size:19px">A</button>
+      </div>
+      <b>{{ current_user.full_name or current_user.username }}</b>
+      <span class="muted" style="color:#8b98a6">{{ 'Administrátor' if current_user.role == 'admin' else 'Technik' }}</span><br>
+      <a href="{{ url_for('auth.my_password') }}">Heslo</a><a href="{{ url_for('auth.logout') }}">Odhlásiť</a>
+    </div>
+    {% endif %}
+  </aside>
+  <main class="main">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}?v=5"></script>
+</body>
+</html>

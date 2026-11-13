@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb, state_badge, progress, location %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+{% set is_admin = current_user.role == 'admin' %}
+<div class="page-head">
+  <div>
+    <div class="small muted"><a href="{{ url_for('main.projects') }}">Projekty</a> /</div>
+    <div class="title-with-img">
+      {{ thumb(project.image, project.name, 'md', kind='project', upload=url_for('main.project_image', pid=project.id) if is_admin else None, paste=is_admin) }}
+      <div>
+    <h1>{{ project.name }} {% if project.status == 'ukonceny' %}<span class="badge neutral">ukončený</span>{% endif %}</h1>
+    <div class="muted">Zákazka <b class="mono">{{ project.order_no }}</b>{% if project.customer %} · {{ project.customer }}{% endif %}{% if project.deadline %} · termín {{ project.deadline|d }}{% endif %}</div>
+      </div>
+    </div>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.project_export', pid=project.id) }}">Export do Excelu</a>
+    {% if is_admin %}<a class="btn" href="{{ url_for('main.project_edit', pid=project.id) }}">Upraviť projekt</a>{% endif %}
+  </div>
+</div>
+{% if project.note %}<div class="card small" style="margin-bottom:18px;white-space:pre-line">{{ project.note }}</div>{% endif %}
+
+<div class="grid kpi">
+  <div class="card"><div class="label">Kompletnosť</div><div class="value">{{ stats.pct }} %</div>
+    <div style="margin-top:8px">{{ progress(stats, big=True) }}</div></div>
+  <div class="card"><div class="label">Naskladnené položky</div><div class="value good">{{ stats.items_ok }}</div><div class="sub">z {{ stats.n_items }} položiek{% if stats.items_partial %} · {{ stats.items_partial }} čiastočne{% endif %}</div></div>
+  <div class="card"><div class="label">Naskladnené kusy</div><div class="value">{{ stats.covered }}</div><div class="sub">z {{ stats.required }} potrebných</div></div>
+  <div class="card"><div class="label">Chýba</div><div class="value {{ 'bad' if stats.missing else 'good' }}">{{ stats.missing }}</div><div class="sub">ks · nekompletné položky: {{ stats.items_missing + stats.items_partial }}</div></div>
+</div>
+
+<div class="card">
+  <div class="page-head" style="margin-bottom:12px">
+    <h2 style="margin:0">Diely projektu</h2>
+    <div class="filters" id="filters">
+      <a href="#" data-f="vsetky" class="on">Všetky ({{ lines|length }})</a>
+      <a href="#" data-f="missing">Chýbajúce ({{ stats.items_missing + stats.items_partial }})</a>
+      <a href="#" data-f="ok">Naskladnené ({{ stats.items_ok }})</a>
+    </div>
+  </div>
+  <div class="table-wrap">
+  <table class="data" id="lines">
+    <thead><tr><th></th><th>Označenie / obj. číslo</th><th>Názov</th><th>Umiestnenie</th><th class="num">Potrebné</th><th class="num">Naskladnené</th><th class="num">Chýba</th><th>Stav</th><th></th></tr></thead>
+    <tbody>
+    {% for l in lines %}
+      <tr class="row-{{ l.state }}" data-state="{{ 'ok' if l.state == 'ok' else 'missing' }}">
+        <td style="width:54px">{{ thumb(l.image, l.name, upload=url_for('main.part_image', part_id=l.part_id)) }}</td>
+        <td class="mono"><a href="{{ url_for('main.part_detail', part_id=l.part_id) }}"><b>{{ l.code }}</b></a>
+          {% if l.order_code %}<div class="small" style="color:var(--ink-2)">{{ l.order_code }}</div>{% endif %}</td>
+        <td>{{ l.name }}{% if l.manufacturer %}<div class="small muted">{{ l.manufacturer }}</div>{% endif %}</td>
+        <td>{{ location(l) }}</td>
+        <td class="num">
+          {% if is_admin %}
+          <form method="post" action="{{ url_for('main.project_line_update', pid=project.id, pp_id=l.pp_id) }}" class="inline-form">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <input type="number" name="qty" min="1" value="{{ l.qty_required }}" style="width:76px;text-align:right;padding:5px 7px" onchange="this.form.submit()">
+          </form>
+          {% else %}{{ l.qty_required }}{% endif %}
+        </td>
+        <td class="num"><b>{{ l.received }}</b>{% if l.surplus %}<div class="small muted">+{{ l.surplus }} navyše</div>{% endif %}</td>
+        <td class="num">{{ l.missing or '' }}</td>
+        <td>{{ state_badge(l.state) }}
+          {% if l.missing and l.free %}
+          <form method="post" action="{{ url_for('main.assign_from_free', pid=project.id, part_id=l.part_id) }}" class="inline-form">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button class="btn sm" title="Vo voľnom sklade je {{ l.free }} ks">Priradiť z voľného ({{ [l.free, l.missing]|min }})</button>
+          </form>
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if is_admin %}
+          <form method="post" action="{{ url_for('main.project_line_update', pid=project.id, pp_id=l.pp_id) }}" class="inline-form" data-confirm="Odobrať {{ l.code }} z projektu?">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="remove">
+            <button class="btn-link" style="color:var(--bad-ink)" title="Odobrať z projektu">✕</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="empty">Projekt zatiaľ nemá žiadne diely.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+{% if is_admin %}
+<div class="grid half" style="margin-top:18px">
+  <form class="card" method="post" action="{{ url_for('main.project_add_part', pid=project.id) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h2>Pridať diel do projektu</h2>
+    <div class="form-grid" style="grid-template-columns: 1fr 110px">
+      <div><label>Skladová karta (označenie / obj. číslo / názov)</label>
+        <input type="text" id="part-ac" name="part" list="part-ac-list" autocomplete="off" placeholder="Začnite písať…" required>
+        <datalist id="part-ac-list"></datalist></div>
+      <div><label>Množstvo</label><input type="number" name="qty" min="1" value="1"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn primary">Pridať</button>
+      <a class="btn" href="{{ url_for('main.part_new', projekt=project.id) }}">+ Nový diel</a>
+    </div>
+  </form>
+  <form class="card" method="post" action="{{ url_for('main.project_import', pid=project.id) }}" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h2>Import kusovníka (Excel / CSV)</h2>
+    <p class="small muted" style="margin-top:0">Stĺpce: <b>Označenie</b>, <b>Objednávacie číslo</b>, Názov, Výrobca, Dodávateľ, <b>Množstvo</b>. Chýbajúce skladové karty sa vytvoria automaticky. <a href="{{ url_for('main.bom_template') }}">Stiahnuť šablónu</a></p>
+    <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required>
+    <div class="form-actions"><button class="btn primary">Importovať</button></div>
+  </form>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('#filters a').forEach(a => a.addEventListener('click', e => {
+  e.preventDefault();
+  document.querySelectorAll('#filters a').forEach(x => x.classList.toggle('on', x === a));
+  const f = a.dataset.f;
+  document.querySelectorAll('#lines tbody tr[data-state]').forEach(tr => {
+    tr.style.display = (f === 'vsetky' || tr.dataset.state === f) ? '' : 'none';
+  });
+}));
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Používatelia{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Používatelia</h1><div class="muted">Administrátor spravuje projekty, kusovníky a používateľov. Technik prijíma tovar a spravuje skladové karty.</div></div></div>
+<div class="grid two">
+  <div class="card table-wrap">
+    <table class="data">
+      <thead><tr><th>Používateľ</th><th>Rola</th><th>Stav</th><th>Nové heslo</th><th></th></tr></thead>
+      <tbody>
+      {% for u in users %}
+        <tr style="{{ 'opacity:.55' if not u.active }}">
+          <td><b>{{ u.username }}</b><div class="small muted">{{ u.full_name or '' }}</div></td>
+          <td>
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" class="inline-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="role">
+              <select name="role" onchange="this.form.submit()" style="width:auto;padding:4px 8px">
+                {% for k, v in roles.items() %}<option value="{{ k }}" {{ 'selected' if u.role == k }}>{{ v }}</option>{% endfor %}
+              </select></form>
+            {% else %}<span class="badge admin">{{ roles[u.role] }}</span>{% endif %}
+          </td>
+          <td>{% if u.active %}<span class="badge ok">aktívny</span>{% else %}<span class="badge neutral">zablokovaný</span>{% endif %}</td>
+          <td>
+            <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" style="display:flex;gap:6px">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="password">
+              <input type="password" name="password" placeholder="nové heslo" style="width:130px;padding:5px 8px" autocomplete="new-password">
+              <button class="btn sm">Zmeniť</button></form>
+          </td>
+          <td class="num">
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" class="inline-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle">
+              <button class="btn sm {{ 'danger' if u.active }}">{{ 'Zablokovať' if u.active else 'Aktivovať' }}</button></form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <form class="card" method="post">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h2>Nový používateľ</h2>
+    <label>Prihlasovacie meno *</label><input type="text" name="username" required>
+    <div style="height:10px"></div><label>Celé meno</label><input type="text" name="full_name">
+    <div style="height:10px"></div><label>Heslo *</label><input type="password" name="password" required autocomplete="new-password">
+    <div style="height:10px"></div><label>Rola</label>
+    <select name="role">{% for k, v in roles.items() %}<option value="{{ k }}" {{ 'selected' if k == 'technik' }}>{{ v }}</option>{% endfor %}</select>
+    <div class="form-actions"><button class="btn primary">Vytvoriť</button></div>
+  </form>
+</div>
+{% endblock %}

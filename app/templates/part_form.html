@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb %}
+{% block title %}{{ 'Upraviť kartu' if part.id else 'Nová skladová karta' }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Upraviť skladovú kartu ' ~ part.code if part.id else 'Nová skladová karta' }}</h1></div>
+<form class="card" method="post" enctype="multipart/form-data" style="max-width:900px">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
+  <div class="form-grid">
+    <div><label>Označenie (unikátne)</label><input type="text" name="code" value="{{ part.code or '' }}" placeholder="nevyplnené = vygeneruje sa (D-00001)">
+      </div>
+    <div><label>Objednávacie číslo</label><input type="text" name="order_code" value="{{ part.order_code or '' }}" class="mono"></div>
+    <div class="full"><label>Názov *</label><input type="text" name="name" value="{{ part.name or '' }}" required {{ 'autofocus' if not part.id }}></div>
+    <div><label>Výrobca</label><input type="text" name="manufacturer" value="{{ part.manufacturer or '' }}"></div>
+    <div><label>Dodávateľ</label><input type="text" name="supplier" value="{{ part.supplier or '' }}"></div>
+    <div><label>Kategória</label><input type="text" name="category" value="{{ part.category or '' }}" placeholder="napr. Elektro, Pneumatika, Mechanika"></div>
+    <div><label>Jednotka</label><input type="text" name="unit" value="{{ part.unit or 'ks' }}" style="max-width:120px"></div>
+    <div class="full">
+      <label>Umiestnenie v sklade</label>
+      <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.4fr);gap:2px 12px">
+        <span class="hint" style="margin:0">Regál</span><span class="hint" style="margin:0">Polica</span><span class="hint" style="margin:0">Iné umiestnenie</span>
+        {% set racks = racks_map().values()|list %}
+        <select name="rack_id" id="rack-select" aria-label="Regál">
+          <option value="">{{ '— vyberte regál —' if racks else '— zatiaľ žiadne regály —' }}</option>
+          {% for r in racks %}<option value="{{ r.id }}" {{ 'selected' if r.id == part.rack_id }}>{{ r.label }}</option>{% endfor %}
+          <option value="new">+ Nový regál…</option>
+        </select>
+        <input type="text" name="shelf" value="{{ part.shelf or '' }}" placeholder="polica, napr. 3" aria-label="Polica">
+        <input type="text" name="location" value="{{ part.location or '' }}" placeholder="iné (napr. skriňa pri lise)" aria-label="Iné umiestnenie">
+      </div>
+      <div id="new-rack" class="qty-total" style="display:none;margin:10px 0 0">
+        <b>Nový regál:</b>
+        <input type="text" name="new_rack_code" placeholder="označenie, napr. R1" class="mono" style="width:11em">
+        <input type="text" name="new_rack_name" placeholder="vlastný názov, napr. Linka balenia L3" style="width:auto;flex:1;min-width:14em">
+        <span class="small muted">Vytvorí sa pri uložení karty.</span>
+      </div>
+      {% if not racks %}<div class="hint">Zatiaľ nemáte žiadne regály – vyberte „+ Nový regál…“ a vytvorte ho priamo tu, alebo ich pridajte na stránke <a href="{{ url_for('main.racks') }}">Regály</a>.</div>{% endif %}
+      <div class="hint">Regály a ich vlastné názvy (napr. podľa projektu) spravujete na stránke <a href="{{ url_for('main.racks') }}">Regály</a>.</div>
+    </div>
+    <div class="full"><label>Technické parametre</label><textarea name="params" placeholder="napr. 24 V DC, 10 A, IP65">{{ part.params or '' }}</textarea></div>
+    <div class="full"><label>Poznámka</label><textarea name="note" style="min-height:60px">{{ part.note or '' }}</textarea></div>
+    <div class="full">
+      <label>Obrázok</label>
+      <div style="display:flex;gap:14px;align-items:center">
+        {% if part.image %}{{ thumb(part.image, part.name) }}
+          <label style="margin:0;font-weight:500"><input type="checkbox" name="remove_image" value="1"> odstrániť</label>{% endif %}
+        <input type="file" name="image" accept="image/*">
+      </div>
+      <div class="hint">Obrázok sa automaticky zmenší; v zoznamoch sa zobrazuje ako malá ikona, kliknutím sa zväčší.</div>
+    </div>
+    {% if projects and current_user.role == 'admin' %}
+    <div><label>Priradiť do projektu (nepovinné)</label>
+      <select name="project_id"><option value="">—</option>
+        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if preset_project == p.id }}>{{ p.name }} ({{ p.order_no }})</option>{% endfor %}
+      </select></div>
+    <div><label>Potrebné množstvo v projekte</label><input type="number" name="project_qty" min="1" value="1"></div>
+    {% endif %}
+  </div>
+  <div class="form-actions">
+    <button class="btn primary">Uložiť</button>
+    <a class="btn" href="{{ url_for('main.part_detail', part_id=part.id) if part.id else url_for('main.parts') }}">Zrušiť</a>
+  </div>
+</form>
+<script>
+(function () {
+  const sel = document.getElementById("rack-select"), box = document.getElementById("new-rack");
+  if (!sel) return;
+  function upd() { box.style.display = sel.value === "new" ? "flex" : "none"; if (sel.value === "new") box.querySelector("input").focus(); }
+  sel.addEventListener("change", upd);
+})();
+</script>
+{% endblock %}

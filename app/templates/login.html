@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prihlásenie · Sklad dielov</title>
+  <script>try{var s=localStorage.getItem("fontsize");if(s)document.documentElement.dataset.size=s;}catch(e){}</script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+</head>
+<body class="login-page">
+  <form class="card login-card" method="post">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#2563c9"/><path d="M6 9l6-3 6 3v6l-6 3-6-3zM6 9l6 3 6-3M12 12v6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      Sklad dielov
+    </div>
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+    {% endwith %}
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label for="u">Používateľ</label>
+    <input type="text" id="u" name="username" autofocus autocomplete="username" required>
+    <div style="height:12px"></div>
+    <label for="p">Heslo</label>
+    <input type="password" id="p" name="password" autocomplete="current-password" required>
+    <div class="form-actions"><button class="btn primary" style="width:100%;justify-content:center">Prihlásiť sa</button></div>
+  </form>
+</body>
+</html>

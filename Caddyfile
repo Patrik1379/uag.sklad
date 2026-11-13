@@ -1,0 +1,9 @@
+# HTTPS pre aplikáciu Sklad dielov.
+# Doména sa berie z premennej DOMAIN v súbore .env (napr. sklad.vasafirma.sk).
+{$DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy web:8000
+}

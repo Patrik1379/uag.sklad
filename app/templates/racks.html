@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Regály{% endblock %}
+{% block content %}
+{% set is_admin = current_user.role == 'admin' %}
+<div class="page-head">
+  <div><h1>Regály</h1><div class="muted">Označenie regálu a jeho vlastný názov – napríklad podľa projektu, ktorého diely sú v ňom uložené</div></div>
+</div>
+<form class="card" method="post" style="margin-bottom:18px">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <h2>Nový regál</h2>
+  <div class="rack-row new">
+    <div><label>Označenie *</label><input type="text" name="code" required placeholder="R4" class="mono"></div>
+    <div><label>Vlastný názov</label><input type="text" name="name" placeholder="napr. Linka balenia L3"></div>
+    <div><label>Projekt (nepovinné)</label>
+      <select name="project_id"><option value="">—</option>
+        {% for p in projects %}<option value="{{ p.id }}">{{ p.name }} ({{ p.order_no }})</option>{% endfor %}</select></div>
+    <div><label>Poznámka</label><input type="text" name="note" placeholder="napr. hala B"></div>
+    <div></div>
+    <div><button class="btn primary">Pridať</button></div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="rack-row head">
+    <span>Označenie</span><span>Vlastný názov</span><span>Projekt</span><span>Poznámka</span><span class="num">Dielov</span><span></span>
+  </div>
+  {% for r in racks %}
+    <form method="post" action="{{ url_for('main.rack_update', rack_id=r.id) }}" class="rack-row">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="text" name="code" value="{{ r.code }}" class="mono" style="font-weight:700" aria-label="Označenie" required>
+      <input type="text" name="name" value="{{ r.name or '' }}" placeholder="{{ r.project_name or 'vlastný názov' }}" aria-label="Vlastný názov">
+      <select name="project_id" aria-label="Projekt">
+        <option value="">—</option>
+        {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if p.id == r.project_id }}>{{ p.name }} ({{ p.order_no }})</option>{% endfor %}
+      </select>
+      <input type="text" name="note" value="{{ r.note or '' }}" placeholder="poznámka" aria-label="Poznámka">
+      <a class="num" href="{{ url_for('main.parts', regal=r.id) }}" title="Zobraziť diely v regáli"><b>{{ r.parts }}</b></a>
+      <span style="display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn sm">Uložiť</button>
+        {% if is_admin %}<button class="btn sm danger" name="action" value="delete" formnovalidate title="Zmazať regál"
+          onclick="return confirm('Zmazať regál {{ r.code }}? Diely v ňom zostanú bez regálu.')">✕</button>{% endif %}
+      </span>
+    </form>
+  {% else %}
+    <div class="empty">Zatiaľ žiadne regály – pridajte prvý vyššie.</div>
+  {% endfor %}
+  <p class="small muted" style="margin:12px 0 0">Ak regálu priradíte projekt a vlastný názov necháte prázdny, zobrazí sa pri ňom názov projektu.</p>
+</div>
+{% endblock %}

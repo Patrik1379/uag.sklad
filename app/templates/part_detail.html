@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb, state_badge, location %}
+{% block title %}{{ part.code }}{% endblock %}
+{% block content %}
+{% set is_admin = current_user.role == 'admin' %}
+<div class="page-head">
+  <div>
+    <div class="small muted"><a href="{{ url_for('main.parts') }}">Skladové karty</a> /</div>
+    <h1><span class="mono">{{ part.code }}</span> – {{ part.name }}</h1>
+  </div>
+  <div class="actions">
+    <a class="btn success" href="{{ url_for('main.receive', diel=part.id) }}">Prijať</a>
+    <a class="btn" href="{{ url_for('main.part_edit', part_id=part.id) }}">Upraviť</a>
+    {% if is_admin %}
+    <form method="post" action="{{ url_for('main.part_delete', part_id=part.id) }}" class="inline-form" data-confirm="Naozaj zmazať skladovú kartu {{ part.code }}?">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn danger">Zmazať</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <div class="part-head">
+      {{ thumb(part.image, part.name, 'lg', upload=url_for('main.part_image', part_id=part.id), paste=True) }}
+      <dl class="meta" style="margin-top:0">
+        <dt>Označenie</dt><dd class="mono">{{ part.code }}</dd>
+        <dt>Objednávacie číslo</dt><dd class="mono">{{ part.order_code or '—' }}</dd>
+        <dt>Výrobca</dt><dd>{{ part.manufacturer or '—' }}</dd>
+        <dt>Dodávateľ</dt><dd>{{ part.supplier or '—' }}</dd>
+        <dt>Kategória</dt><dd>{{ part.category or '—' }}</dd>
+        <dt>Umiestnenie</dt><dd>{{ location(part, '—') }}</dd>
+        <dt>Jednotka</dt><dd>{{ part.unit }}</dd>
+      </dl>
+    </div>
+    {% if part.params %}<h3 style="margin-top:16px">Technické parametre</h3><div style="white-space:pre-line">{{ part.params }}</div>{% endif %}
+    {% if part.note %}<h3 style="margin-top:16px">Poznámka</h3><div class="muted" style="white-space:pre-line">{{ part.note }}</div>{% endif %}
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;gap:18px;align-content:start">
+    <div class="card kpi"><div class="label">Spolu na sklade</div><div class="value">{{ part.stock }}</div><div class="sub">{{ part.unit }}</div></div>
+    <div class="card kpi"><div class="label">Voľný sklad</div><div class="value">{{ part.free }}</div><div class="sub">nepriradené</div></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <h2>Naplánované v projektoch</h2>
+  <table class="data">
+    <thead><tr><th>Projekt</th><th>Zákazka</th><th class="num">Potrebné</th><th class="num">Naskladnené</th><th class="num">Chýba</th><th>Stav</th></tr></thead>
+    <tbody>
+    {% for l in lines %}
+      <tr class="row-{{ l.state }}">
+        <td><div style="display:flex;align-items:center;gap:10px">{{ thumb(l.project.image, l.project.name, 'sm', kind='project') }}<span><a href="{{ url_for('main.project_detail', pid=l.project_id) }}"><b>{{ l.project.name }}</b></a>{% if l.project.status == 'ukonceny' %} <span class="badge neutral">ukončený</span>{% endif %}</span></div></td>
+        <td class="mono">{{ l.project.order_no }}</td>
+        <td class="num">{{ l.qty_required }}</td><td class="num">{{ l.received }}</td><td class="num">{{ l.missing or '' }}</td>
+        <td>{{ state_badge(l.state) }}</td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="empty">Diel nie je priradený do žiadneho projektu.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>História pohybov</h2>
+  <table class="data">
+    <thead><tr><th>Dátum</th><th>Projekt</th><th class="num">Množstvo</th><th>Dodací list</th><th>Poznámka</th><th>Používateľ</th>{% if is_admin %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+    {% for h in history %}
+      <tr>
+        <td>{{ h.created_at|d(True) }}</td>
+        <td>{{ (h.project_name ~ ' (' ~ h.order_no ~ ')') if h.project_name else 'Voľný sklad' }}</td>
+        <td class="num"><b>{{ '+' if h.qty > 0 }}{{ h.qty }}</b></td>
+        <td>{{ h.delivery_note or '' }}</td><td>{{ h.note or '' }}</td><td>{{ h.username or '' }}</td>
+        {% if is_admin %}<td class="num">
+          <form method="post" action="{{ url_for('main.receipt_delete', rid=h.id) }}" class="inline-form" data-confirm="Stornovať tento záznam?">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn sm danger">Storno</button></form></td>{% endif %}
+      </tr>
+    {% else %}<tr><td colspan="7" class="empty">Zatiaľ žiadne pohyby.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

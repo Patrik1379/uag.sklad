@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb, progress %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <div class="muted">Stav naskladnenia dielov pre aktívne projekty</div>
+  </div>
+  <div class="actions">
+    <a class="btn success lg" href="{{ url_for('main.receive') }}">Príjem tovaru</a>
+  </div>
+</div>
+
+<div class="grid kpi">
+  <div class="card">
+    <div class="label">Aktívne projekty</div>
+    <div class="value">{{ projects|length }}</div>
+    <div class="sub">{{ total.n_items }} položiek v kusovníkoch</div>
+  </div>
+  <div class="card">
+    <div class="label">Kompletnosť</div>
+    <div class="value">{{ total.pct }} %</div>
+    <div class="sub">{{ total.items_ok }} z {{ total.n_items }} položiek kompletných</div>
+  </div>
+  <div class="card">
+    <div class="label">Naskladnené</div>
+    <div class="value good">{{ total.covered }}</div>
+    <div class="sub">kusov z {{ total.required }} potrebných</div>
+  </div>
+  <div class="card">
+    <div class="label">Chýba</div>
+    <div class="value bad">{{ total.missing }}</div>
+    <div class="sub">kusov · <a href="{{ url_for('main.free_stock_view') }}">voľný sklad: {{ free_total }} ks</a></div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div>
+    <div class="card">
+      <h2>Celkový stav položiek</h2>
+      {% set n = total.n_items %}
+      {% if n %}
+      {% set C = 2 * 3.14159265 * 70 %}
+      {% set segs = [
+          ('Kompletné', total.items_ok, '#0ca30c'),
+          ('Čiastočne', total.items_partial, '#fab219'),
+          ('Chýba', total.items_missing, '#d03b3b')] %}
+      <div class="donut-wrap">
+        <div class="donut">
+          <svg viewBox="0 0 180 180">
+            <circle cx="90" cy="90" r="70" fill="none" stroke="#eeeee9" stroke-width="18"/>
+            {% set ns = namespace(off=0) %}
+            {% set active = segs|selectattr(1)|list|length %}
+            {% for label, val, color in segs if val %}
+              {% set len = C * val / n %}
+              {% set gap = 3 if active > 1 else 0 %}
+              <circle class="seg" cx="90" cy="90" r="70" fill="none" stroke="{{ color }}" stroke-width="18"
+                      stroke-dasharray="{{ [len - gap, 0.1]|max }} {{ C }}" stroke-dashoffset="{{ -ns.off }}"
+                      data-tip="<b>{{ label }}</b>: {{ val }} položiek ({{ (100 * val / n)|round|int }} %)"/>
+              {% set ns.off = ns.off + len %}
+            {% endfor %}
+          </svg>
+          <div class="center"><b>{{ total.items_ok }}/{{ n }}</b><span>kompletných</span></div>
+        </div>
+        <div class="legend">
+          {% for label, val, color in segs %}
+          <div class="item"><span class="sw" style="background: {{ color }}"></span>{{ label }}<span class="val">{{ val }}</span></div>
+          {% endfor %}
+          <div class="small muted" style="margin-top:4px">Počet položiek (dielov) v kusovníkoch<br>všetkých aktívnych projektov</div>
+        </div>
+      </div>
+      {% else %}
+        <div class="empty">Zatiaľ žiadne aktívne projekty s dielmi.<br><a href="{{ url_for('main.projects') }}">Prejsť na projekty</a></div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Projekty – naskladnené vs. chýbajúce kusy</h2>
+      {% for p in projects %}
+        <div class="proj-row">
+          <div class="pimg">{{ thumb(p.image, p.name, 'md', kind='project') }}</div>
+          <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <a class="title" href="{{ url_for('main.project_detail', pid=p.id) }}">{{ p.name }}</a>
+            <span class="muted small">· zákazka {{ p.order_no }}{% if p.deadline %} · termín {{ p.deadline|d }}{% endif %}</span>
+          </div>
+          <div class="pct">{{ p.stats.pct }} %</div>
+          <div class="bar">{{ progress(p.stats, name=p.name) }}</div>
+          <div class="small muted foot">
+            {{ p.stats.covered }} / {{ p.stats.required }} ks · chýba {{ p.stats.missing }} ks
+          </div>
+        </div>
+      {% else %}
+        <div class="empty">Žiadne aktívne projekty.</div>
+      {% endfor %}
+      {% if projects %}
+      <div class="legend small" style="flex-direction:row;gap:18px;margin-top:12px">
+        <div class="item"><span class="sw" style="background:#0ca30c"></span>Naskladnené</div>
+        <div class="item"><span class="sw" style="background:#e8a3a3"></span>Chýba</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Najviac chýbajúce diely</h2>
+      {% set maxm = (top_missing|map(attribute='missing')|max) if top_missing else 1 %}
+      {% for t in top_missing %}
+        <div class="hbar" data-tip="<b>{{ t.code|t }}</b> {{ t.name|t }}<br>Chýba {{ t.missing }} ks v {{ t.projects }} projekt{{ 'e' if t.projects == 1 else 'och' }}">
+          {{ thumb(t.image, t.name) }}
+          <div>
+            <div class="name"><a href="{{ url_for('main.part_detail', part_id=t.part_id) }}">{{ t.code }}</a> <span class="muted">{{ t.name }}</span></div>
+            <div class="track"><div class="fill" style="width: {{ 100 * t.missing / maxm }}%"></div></div>
+          </div>
+          <div class="num"><b>{{ t.missing }}</b> ks</div>
+        </div>
+      {% else %}
+        <div class="empty">Nič nechýba – všetko je naskladnené.</div>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <h2>Posledné príjmy</h2>
+      <table class="data">
+        <tbody>
+        {% for r in recent %}
+          <tr>
+            <td style="width:46px">{{ thumb(r.image, r.part_name) }}</td>
+            <td>
+              <a href="{{ url_for('main.part_detail', part_id=r.part_id) }}">{{ r.code }}</a>
+              <div class="small muted">{{ r.project_name or 'Voľný sklad' }} · {{ r.username or '' }} · {{ r.created_at|d(True) }}</div>
+            </td>
+            <td class="num"><b>+{{ r.qty }}</b></td>
+          </tr>
+        {% else %}
+          <tr><td class="empty">Zatiaľ žiadne príjmy.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

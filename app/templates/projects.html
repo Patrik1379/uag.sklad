@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import progress, thumb %}
+{% block title %}Projekty{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Projekty</h1><div class="muted">Plánované projekty a stav ich dielov</div></div>
+  <div class="actions">
+    {% if current_user.role == 'admin' %}<a class="btn primary" href="{{ url_for('main.project_new') }}">+ Nový projekt</a>{% endif %}
+  </div>
+</div>
+<form class="card" method="get" style="margin-bottom:18px">
+  <div style="display:grid;grid-template-columns:minmax(0,2fr) repeat(4,minmax(0,1fr)) auto;gap:12px;align-items:end">
+    <div><label>Hľadať</label>
+      <input type="search" name="q" value="{{ f.q }}" placeholder="Číslo zakázky, názov, zákazník…" autofocus></div>
+    <div><label>Zákazník</label>
+      <select name="zakaznik" onchange="this.form.submit()"><option value="">Všetci</option>
+        {% for c in customers %}<option {{ 'selected' if c == f.zakaznik }}>{{ c }}</option>{% endfor %}</select></div>
+    <div><label>Stav projektu</label>
+      <select name="stav" onchange="this.form.submit()">
+        <option value="aktivny" {{ 'selected' if f.stav == 'aktivny' }}>Aktívne</option>
+        <option value="ukonceny" {{ 'selected' if f.stav == 'ukonceny' }}>Ukončené</option>
+        <option value="vsetky" {{ 'selected' if f.stav == 'vsetky' }}>Všetky</option></select></div>
+    <div><label>Naskladnenie</label>
+      <select name="kompletnost" onchange="this.form.submit()">
+        <option value="">Všetky</option>
+        <option value="chyba" {{ 'selected' if f.kompletnost == 'chyba' }}>Niečo chýba</option>
+        <option value="hotove" {{ 'selected' if f.kompletnost == 'hotove' }}>Kompletné</option></select></div>
+    <div><label>Zoradiť podľa</label>
+      <select name="zoradit" onchange="this.form.submit()">
+        {% for k, v in [('termin','Termínu'),('zakazka','Čísla zakázky'),('nazov','Názvu'),('zakaznik','Zákazníka'),('kompletnost','Kompletnosti'),('chyba','Počtu chýbajúcich')] %}
+        <option value="{{ k }}" {{ 'selected' if f.zoradit == k }}>{{ v }}</option>{% endfor %}</select></div>
+    <div style="display:flex;gap:8px"><button class="btn primary">Filtrovať</button>
+      {% if f.q or f.zakaznik or f.kompletnost or f.stav != 'aktivny' or f.zoradit != 'termin' %}<a class="btn" href="{{ url_for('main.projects') }}">Zrušiť</a>{% endif %}</div>
+  </div>
+  {% if projects|length != total_count %}<div class="small muted" style="margin-top:10px">Zobrazených {{ projects|length }} z {{ total_count }} projektov</div>{% endif %}
+</form>
+
+<div class="card table-wrap">
+  <table class="data">
+    <thead><tr><th></th><th>Projekt</th><th>Číslo zakázky</th><th>Zákazník</th><th>Termín</th><th class="num">Položky</th><th style="width:26%">Naskladnené</th><th class="num">Chýba ks</th></tr></thead>
+    <tbody>
+    {% for p in projects %}
+      <tr>
+        <td style="width:54px">{{ thumb(p.image, p.name, kind='project', upload=url_for('main.project_image', pid=p.id) if current_user.role == 'admin' else None) }}</td>
+        <td><a href="{{ url_for('main.project_detail', pid=p.id) }}"><b>{{ p.name }}</b></a>
+          {% if p.status == 'ukonceny' %}<span class="badge neutral">ukončený</span>{% endif %}</td>
+        <td class="mono">{{ p.order_no }}</td>
+        <td>{% if p.customer %}<a href="{{ url_for('main.projects', zakaznik=p.customer, stav=f.stav) }}" style="color:inherit" title="Zobraziť projekty zákazníka">{{ p.customer }}</a>{% endif %}</td>
+        <td>{{ p.deadline|d }}</td>
+        <td class="num">{{ p.stats.items_ok }} / {{ p.stats.n_items }}</td>
+        <td><div style="display:flex;align-items:center;gap:10px"><div style="flex:1">{{ progress(p.stats, name=p.name) }}</div><b class="num" style="width:44px">{{ p.stats.pct }} %</b></div></td>
+        <td class="num">{% if p.stats.missing %}<span class="badge missing">{{ p.stats.missing }}</span>{% else %}<span class="badge ok">0</span>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8" class="empty">Žiadne projekty{% if f.q or f.zakaznik or f.kompletnost %} pre zvolený filter{% endif %}.{% if current_user.role == 'admin' %} <a href="{{ url_for('main.project_new') }}">Vytvoriť prvý projekt</a>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb, location %}
+{% block title %}Skladové karty{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Skladové karty</h1><div class="muted">{% if rack %}Diely v regáli <b>{{ rack.label }}</b> · <a href="{{ url_for('main.parts') }}">zobraziť všetky</a>{% else %}Evidencia všetkých dielov{% endif %}</div></div>
+  <div class="actions">
+    <form method="get" style="display:flex;gap:8px;align-items:center">
+      <input type="search" name="q" value="{{ q }}" placeholder="Hľadať vo všetkých údajoch…" style="width:280px">
+      {% if rack %}<input type="hidden" name="regal" value="{{ rack.id }}">{% endif %}
+      <label style="margin:0;font-weight:500;white-space:nowrap"><input type="checkbox" name="volne" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()"> len voľný sklad</label>
+      <button class="btn">Hľadať</button></form>
+    <a class="btn primary" href="{{ url_for('main.part_new') }}">+ Nová karta</a>
+  </div>
+</div>
+<div class="card table-wrap">
+  <table class="data">
+    <thead><tr><th></th><th>Označenie</th><th>Objednávacie číslo</th><th>Názov</th><th>Výrobca</th><th>Kategória</th><th>Umiestnenie</th><th class="num">Plánované</th><th class="num">Na sklade</th><th class="num">Voľné</th></tr></thead>
+    <tbody>
+    {% for p in parts %}
+      <tr>
+        <td style="width:54px">{{ thumb(p.image, p.name, upload=url_for('main.part_image', part_id=p.id)) }}</td>
+        <td class="mono"><a href="{{ url_for('main.part_detail', part_id=p.id) }}"><b>{{ p.code }}</b></a></td>
+        <td class="mono">{{ p.order_code or '' }}</td>
+        <td>{{ p.name }}{% if q and p.matched %}<div class="small muted">nájdené v: {{ p.matched|join(', ') }}</div>{% endif %}</td>
+        <td>{{ p.manufacturer or '' }}</td>
+        <td>{{ p.category or '' }}</td>
+        <td>{{ location(p) }}</td>
+        <td class="num">{{ p.planned }}</td>
+        <td class="num"><b>{{ p.stock }}</b></td>
+        <td class="num">{% if p.free %}<span class="badge ok">{{ p.free }}</span>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="10" class="empty">Žiadne skladové karty{% if q %} pre „{{ q }}“{% endif %}.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

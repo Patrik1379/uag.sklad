@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb, state_badge, location %}
+{% block title %}Príjem tovaru{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Príjem tovaru</h1>
+    <div class="muted">Zadajte alebo naskenujte objednávacie číslo dielu</div>
+  </div>
+</div>
+
+<form class="card" method="get" action="{{ url_for('main.receive') }}">
+  <div class="scan-box">
+    <input type="search" name="q" value="{{ q }}" placeholder="Objednávacie číslo, označenie alebo názov…" autofocus autocomplete="off" {% if not part %}onfocus="this.select()"{% endif %}>
+    <button class="btn primary lg">Hľadať</button>
+  </div>
+</form>
+
+{% if candidates %}
+<div class="card">
+  <h2>Presné objednávacie číslo sa nenašlo – podobné diely ({{ candidates|length }})</h2>
+  <p class="small muted" style="margin-top:-6px">Hľadané vo všetkých údajoch skladovej karty (názov, výrobca, parametre, poznámka…). Vyberte správny diel.</p>
+  <table class="data">
+    <thead><tr><th></th><th>Označenie</th><th>Objednávacie číslo</th><th>Názov</th><th>Výrobca</th><th></th></tr></thead>
+    <tbody>
+    {% for c in candidates %}
+      <tr>
+        <td style="width:50px">{{ thumb(c.image, c.name) }}</td>
+        <td class="mono">{{ c.code }}</td>
+        <td class="mono">{{ c.order_code or '' }}</td>
+        <td>{{ c.name }}{% if c.matched %}<div class="small muted">nájdené v: {{ c.matched|join(', ') }}</div>{% endif %}</td>
+        <td>{{ c.manufacturer or '' }}</td>
+        <td class="num"><a class="btn sm primary" href="{{ url_for('main.receive', diel=c.id) }}">Vybrať</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif q and not part %}
+<div class="card empty">
+  <h2>Diel „{{ q }}“ nie je v evidencii</h2>
+  <p>Nenašla sa žiadna skladová karta – ani podľa objednávacieho čísla, ani v názvoch, parametroch či poznámkach.<br>Skúste zadať len časť čísla alebo kľúčové slovo (napr. „ventil festo“).</p>
+  <a class="btn primary" href="{{ url_for('main.part_new', order_code=q, back='prijem') }}">Vytvoriť skladovú kartu</a>
+</div>
+{% endif %}
+
+{% if part %}
+<div class="card">
+  <div class="part-head">
+    {{ thumb(part.image, part.name, 'lg', upload=url_for('main.part_image', part_id=part.id), paste=True) }}
+    <div style="flex:1">
+      <h2 style="margin-bottom:2px"><a href="{{ url_for('main.part_detail', part_id=part.id) }}">{{ part.code }}</a> – {{ part.name }}</h2>
+      <dl class="meta">
+        <dt>Objednávacie číslo</dt><dd class="mono">{{ part.order_code or '—' }}</dd>
+        {% if part.manufacturer %}<dt>Výrobca</dt><dd>{{ part.manufacturer }}</dd>{% endif %}
+        {% if part.supplier %}<dt>Dodávateľ</dt><dd>{{ part.supplier }}</dd>{% endif %}
+        {% if part|loc %}<dt>Umiestnenie</dt><dd>{{ location(part) }}</dd>{% endif %}
+        <dt>Voľný sklad</dt><dd>{{ part.free }} {{ part.unit }}</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+{% set open_lines = demand|selectattr('missing')|list %}
+<form class="card" method="post" action="{{ url_for('main.receive_save', part_id=part.id) }}">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <h2>Kam zaradiť prijaté kusy</h2>
+  {% if open_lines %}
+    <div class="flash ok" style="margin-bottom:14px">
+      Diel je naplánovaný do:
+      {% for d in open_lines %}<b>{{ d.project.name }}</b> {{ d.missing }} {{ part.unit }}{{ ', ' if not loop.last }}{% endfor %}
+    </div>
+  {% else %}
+    <div class="flash error" style="margin-bottom:14px">Diel momentálne nechýba v žiadnom aktívnom projekte – kusy môžete zaradiť do voľného skladu.</div>
+  {% endif %}
+
+  <div class="qty-total">
+    <label for="qty-total" style="margin:0;font-size:1rem;color:var(--ink)">Počet prijatých kusov:</label>
+    <input type="number" id="qty-total" min="0" value="{{ open_lines|sum(attribute='missing') or '' }}">
+    <span class="small muted">Kusy sa automaticky rozdelia podľa termínu projektov – rozdelenie môžete upraviť ručne.</span>
+  </div>
+
+  <div class="table-wrap">
+  <table class="data">
+    <thead><tr><th>Projekt</th><th>Zákazka</th><th>Termín</th><th class="num">Potrebné</th><th class="num">Naskladnené</th><th class="num">Chýba</th><th>Stav</th><th class="num">Zaradiť ks</th></tr></thead>
+    <tbody>
+    {% for d in demand %}
+      <tr class="row-{{ d.state }}">
+        <td><div style="display:flex;align-items:center;gap:10px">{{ thumb(d.project.image, d.project.name, 'sm', kind='project') }}<a href="{{ url_for('main.project_detail', pid=d.project_id) }}"><b>{{ d.project.name }}</b></a></div></td>
+        <td class="mono">{{ d.project.order_no }}</td>
+        <td>{{ d.project.deadline|d }}</td>
+        <td class="num">{{ d.qty_required }}</td>
+        <td class="num">{{ d.received }}</td>
+        <td class="num"><b>{{ d.missing }}</b></td>
+        <td>{{ state_badge(d.state) }}</td>
+        <td class="num"><input class="alloc-input" type="number" min="0" name="alloc_{{ d.project_id }}" data-missing="{{ d.missing }}"></td>
+      </tr>
+    {% endfor %}
+      <tr>
+        <td colspan="7"><b>Voľný sklad</b> <span class="small muted">– nadbytočné kusy, neskôr ich možno priradiť do projektu</span></td>
+        <td class="num"><input class="alloc-input" type="number" min="0" name="alloc_free" data-free></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="sum-line">Spolu zaraďujete: <span id="alloc-sum">0</span> {{ part.unit }}</div>
+
+  <div class="form-grid" style="margin-top:16px">
+    <div><label>Dodací list (nepovinné)</label><input type="text" name="delivery_note"></div>
+    <div><label>Poznámka (nepovinné)</label><input type="text" name="note"></div>
+  </div>
+  <div class="form-actions">
+    <button class="btn success lg">Naskladniť</button>
+    <a class="btn lg" href="{{ url_for('main.receive') }}">Zrušiť</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

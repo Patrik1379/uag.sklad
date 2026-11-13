@@ -1,0 +1,8 @@
+# Skripty a konfigurácie pre Linux server vždy s koncami riadkov LF
+* text=auto
+*.sh text eol=lf
+Caddyfile text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.png binary
+*.jpg binary

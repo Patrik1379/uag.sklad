@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb, location %}
+{% block title %}Voľný sklad{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Voľný sklad</h1><div class="muted">Diely, ktoré sú na sklade, ale nie sú priradené k žiadnemu projektu</div></div>
+</div>
+
+<div class="grid kpi" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
+  <div class="card"><div class="label">Druhov dielov</div><div class="value">{{ parts|length }}</div></div>
+  <div class="card"><div class="label">Kusov spolu</div><div class="value">{{ total }}</div></div>
+  <div class="card"><div class="label">Využiteľné v projektoch</div><div class="value good">{{ usable }}</div><div class="sub">druhov dielov chýba v aktívnych projektoch</div></div>
+</div>
+
+<div class="card table-wrap">
+  <table class="data">
+    <thead><tr><th></th><th>Označenie</th><th>Objednávacie číslo</th><th>Názov</th><th>Umiestnenie</th><th class="num">Voľné ks</th><th>Chýba v projektoch</th></tr></thead>
+    <tbody>
+    {% for p in parts %}
+      <tr>
+        <td style="width:50px">{{ thumb(p.image, p.name) }}</td>
+        <td class="mono"><a href="{{ url_for('main.part_detail', part_id=p.id) }}"><b>{{ p.code }}</b></a></td>
+        <td class="mono">{{ p.order_code or '' }}</td>
+        <td>{{ p.name }}{% if p.manufacturer %}<div class="small muted">{{ p.manufacturer }}</div>{% endif %}</td>
+        <td>{{ location(p) }}</td>
+        <td class="num"><b>{{ p.free }}</b> {{ p.unit }}</td>
+        <td>
+          {% for l in p.needed_in %}
+            <form method="post" action="{{ url_for('main.assign_from_free', pid=l.project_id, part_id=p.id) }}" style="display:flex;align-items:center;gap:8px;margin:3px 0">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <input type="hidden" name="back" value="{{ url_for('main.free_stock_view') }}">
+              <span><a href="{{ url_for('main.project_detail', pid=l.project_id) }}">{{ l.project.name }}</a>
+                <span class="small muted">chýba {{ l.missing }}</span></span>
+              <button class="btn sm success" style="margin-left:auto">Priradiť {{ [p.free, l.missing]|min }} ks</button>
+            </form>
+          {% else %}
+            <span class="small muted">nikde nechýba</span>
+          {% endfor %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="empty">Voľný sklad je prázdny.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
