@@ -19,18 +19,18 @@
     {% if is_admin %}<a class="btn" href="{{ url_for('main.project_edit', pid=project.id) }}">Upraviť projekt</a>{% endif %}
   </div>
 </div>
-{% if project.note %}<div class="card small" style="margin-bottom:18px;white-space:pre-line">{{ project.note }}</div>{% endif %}
+{% if project.note %}<div class="card small" style="margin-bottom:1.2rem;white-space:pre-line">{{ project.note }}</div>{% endif %}
 
 <div class="grid kpi">
   <div class="card"><div class="label">Kompletnosť</div><div class="value">{{ stats.pct }} %</div>
-    <div style="margin-top:8px">{{ progress(stats, big=True) }}</div></div>
+    <div style="margin-top:0.533rem">{{ progress(stats, big=True) }}</div></div>
   <div class="card"><div class="label">Naskladnené položky</div><div class="value good">{{ stats.items_ok }}</div><div class="sub">z {{ stats.n_items }} položiek{% if stats.items_partial %} · {{ stats.items_partial }} čiastočne{% endif %}</div></div>
   <div class="card"><div class="label">Naskladnené kusy</div><div class="value">{{ stats.covered }}</div><div class="sub">z {{ stats.required }} potrebných</div></div>
   <div class="card"><div class="label">Chýba</div><div class="value {{ 'bad' if stats.missing else 'good' }}">{{ stats.missing }}</div><div class="sub">ks · nekompletné položky: {{ stats.items_missing + stats.items_partial }}</div></div>
 </div>
 
 <div class="card">
-  <div class="page-head" style="margin-bottom:12px">
+  <div class="page-head" style="margin-bottom:0.8rem">
     <h2 style="margin:0">Diely projektu</h2>
     <div class="filters" id="filters">
       <a href="#" data-f="vsetky" class="on">Všetky ({{ lines|length }})</a>
@@ -44,7 +44,7 @@
     <tbody>
     {% for l in lines %}
       <tr class="row-{{ l.state }}" data-state="{{ 'ok' if l.state == 'ok' else 'missing' }}">
-        <td style="width:54px">{{ thumb(l.image, l.name, upload=url_for('main.part_image', part_id=l.part_id)) }}</td>
+        <td style="width:3.6rem">{{ thumb(l.image, l.name, upload=url_for('main.part_image', part_id=l.part_id)) }}</td>
         <td class="mono"><a href="{{ url_for('main.part_detail', part_id=l.part_id) }}"><b>{{ l.code }}</b></a>
           {% if l.order_code %}<div class="small" style="color:var(--ink-2)">{{ l.order_code }}</div>{% endif %}</td>
         <td>{{ l.name }}{% if l.manufacturer %}<div class="small muted">{{ l.manufacturer }}</div>{% endif %}</td>
@@ -53,7 +53,7 @@
           {% if is_admin %}
           <form method="post" action="{{ url_for('main.project_line_update', pid=project.id, pp_id=l.pp_id) }}" class="inline-form">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-            <input type="number" name="qty" min="1" value="{{ l.qty_required }}" style="width:76px;text-align:right;padding:5px 7px" onchange="this.form.submit()">
+            <input type="number" name="qty" min="1" value="{{ l.qty_required }}" style="width:5.067rem;text-align:right;padding:0.333rem 0.467rem" onchange="this.form.submit()">
           </form>
           {% else %}{{ l.qty_required }}{% endif %}
         </td>
@@ -85,11 +85,11 @@
 </div>
 
 {% if is_admin %}
-<div class="grid half" style="margin-top:18px">
+<div class="grid half" style="margin-top:1.2rem">
   <form class="card" method="post" action="{{ url_for('main.project_add_part', pid=project.id) }}">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <h2>Pridať diel do projektu</h2>
-    <div class="form-grid" style="grid-template-columns: 1fr 110px">
+    <div class="form-grid" style="grid-template-columns: 1fr 7.333rem">
       <div><label>Skladová karta (označenie / obj. číslo / názov)</label>
         <input type="text" id="part-ac" name="part" list="part-ac-list" autocomplete="off" placeholder="Začnite písať…" required>
         <datalist id="part-ac-list"></datalist></div>

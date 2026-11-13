@@ -18,7 +18,7 @@
     <tbody>
     {% for p in parts %}
       <tr>
-        <td style="width:54px">{{ thumb(p.image, p.name, upload=url_for('main.part_image', part_id=p.id)) }}</td>
+        <td style="width:3.6rem">{{ thumb(p.image, p.name, upload=url_for('main.part_image', part_id=p.id)) }}</td>
         <td class="mono"><a href="{{ url_for('main.part_detail', part_id=p.id) }}"><b>{{ p.code }}</b></a></td>
         <td class="mono">{{ p.order_code or '' }}</td>
         <td>{{ p.name }}{% if p.manufacturer %}<div class="small muted">{{ p.manufacturer }}</div>{% endif %}</td>
@@ -26,7 +26,7 @@
         <td class="num"><b>{{ p.free }}</b> {{ p.unit }}</td>
         <td>
           {% for l in p.needed_in %}
-            <form method="post" action="{{ url_for('main.assign_from_free', pid=l.project_id, part_id=p.id) }}" style="display:flex;align-items:center;gap:8px;margin:3px 0">
+            <form method="post" action="{{ url_for('main.assign_from_free', pid=l.project_id, part_id=p.id) }}" style="display:flex;align-items:center;gap:0.533rem;margin:0.2rem 0">
               <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
               <input type="hidden" name="back" value="{{ url_for('main.free_stock_view') }}">
               <span><a href="{{ url_for('main.project_detail', pid=l.project_id) }}">{{ l.project.name }}</a>

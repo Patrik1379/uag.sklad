@@ -19,13 +19,13 @@
 {% if candidates %}
 <div class="card">
   <h2>Presné objednávacie číslo sa nenašlo – podobné diely ({{ candidates|length }})</h2>
-  <p class="small muted" style="margin-top:-6px">Hľadané vo všetkých údajoch skladovej karty (názov, výrobca, parametre, poznámka…). Vyberte správny diel.</p>
+  <p class="small muted" style="margin-top:-0.4rem">Hľadané vo všetkých údajoch skladovej karty (názov, výrobca, parametre, poznámka…). Vyberte správny diel.</p>
   <table class="data">
     <thead><tr><th></th><th>Označenie</th><th>Objednávacie číslo</th><th>Názov</th><th>Výrobca</th><th></th></tr></thead>
     <tbody>
     {% for c in candidates %}
       <tr>
-        <td style="width:54px">{{ thumb(c.image, c.name, upload=url_for('main.part_image', part_id=c.id)) }}</td>
+        <td style="width:3.6rem">{{ thumb(c.image, c.name, upload=url_for('main.part_image', part_id=c.id)) }}</td>
         <td class="mono">{{ c.code }}</td>
         <td class="mono">{{ c.order_code or '' }}</td>
         <td>{{ c.name }}{% if c.matched %}<div class="small muted">nájdené v: {{ c.matched|join(', ') }}</div>{% endif %}</td>
@@ -66,12 +66,12 @@
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <h2>Kam zaradiť prijaté kusy</h2>
   {% if open_lines %}
-    <div class="flash ok" style="margin-bottom:14px">
+    <div class="flash ok" style="margin-bottom:0.933rem">
       Diel je naplánovaný do:
       {% for d in open_lines %}<b>{{ d.project.name }}</b> {{ d.missing }} {{ part.unit }}{{ ', ' if not loop.last }}{% endfor %}
     </div>
   {% else %}
-    <div class="flash error" style="margin-bottom:14px">Diel momentálne nechýba v žiadnom aktívnom projekte – kusy môžete zaradiť do voľného skladu.</div>
+    <div class="flash error" style="margin-bottom:0.933rem">Diel momentálne nechýba v žiadnom aktívnom projekte – kusy môžete zaradiť do voľného skladu.</div>
   {% endif %}
 
   <div class="qty-total">
@@ -86,7 +86,7 @@
     <tbody>
     {% for d in demand %}
       <tr class="row-{{ d.state }}">
-        <td><div style="display:flex;align-items:center;gap:10px">{{ thumb(d.project.image, d.project.name, 'sm', kind='project') }}<a href="{{ url_for('main.project_detail', pid=d.project_id) }}"><b>{{ d.project.name }}</b></a></div></td>
+        <td><div style="display:flex;align-items:center;gap:0.667rem">{{ thumb(d.project.image, d.project.name, 'sm', kind='project') }}<a href="{{ url_for('main.project_detail', pid=d.project_id) }}"><b>{{ d.project.name }}</b></a></div></td>
         <td class="mono">{{ d.project.order_no }}</td>
         <td>{{ d.project.deadline|d }}</td>
         <td class="num">{{ d.qty_required }}</td>
@@ -105,7 +105,7 @@
   </div>
   <div class="sum-line">Spolu zaraďujete: <span id="alloc-sum">0</span> {{ part.unit }}</div>
 
-  <div class="form-grid" style="margin-top:16px">
+  <div class="form-grid" style="margin-top:1.067rem">
     <div><label>Dodací list (nepovinné)</label><input type="text" name="delivery_note"></div>
     <div><label>Poznámka (nepovinné)</label><input type="text" name="note"></div>
   </div>

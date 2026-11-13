@@ -67,7 +67,7 @@
           {% for label, val, color in segs %}
           <div class="item"><span class="sw" style="background: {{ color }}"></span>{{ label }}<span class="val">{{ val }}</span></div>
           {% endfor %}
-          <div class="small muted" style="margin-top:4px">Počet položiek (dielov) v kusovníkoch<br>všetkých aktívnych projektov</div>
+          <div class="small muted" style="margin-top:0.267rem">Počet položiek (dielov) v kusovníkoch<br>všetkých aktívnych projektov</div>
         </div>
       </div>
       {% else %}
@@ -94,7 +94,7 @@
         <div class="empty">Žiadne aktívne projekty.</div>
       {% endfor %}
       {% if projects %}
-      <div class="legend small" style="flex-direction:row;gap:18px;margin-top:12px">
+      <div class="legend small" style="flex-direction:row;gap:1.2rem;margin-top:0.8rem">
         <div class="item"><span class="sw" style="background:#0ca30c"></span>Naskladnené</div>
         <div class="item"><span class="sw" style="background:#e8a3a3"></span>Chýba</div>
       </div>
@@ -126,7 +126,7 @@
         <tbody>
         {% for r in recent %}
           <tr>
-            <td style="width:46px">{{ thumb(r.image, r.part_name) }}</td>
+            <td style="width:3.067rem">{{ thumb(r.image, r.part_name) }}</td>
             <td>
               <a href="{{ url_for('main.part_detail', part_id=r.part_id) }}">{{ r.code }}</a>
               <div class="small muted">{{ r.project_name or 'Voľný sklad' }} · {{ r.username or '' }} · {{ r.created_at|d(True) }}</div>

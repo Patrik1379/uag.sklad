@@ -5,8 +5,8 @@
 <div class="page-head">
   <div><h1>Skladové karty</h1><div class="muted">{% if rack %}Diely v regáli <b>{{ rack.label }}</b> · <a href="{{ url_for('main.parts') }}">zobraziť všetky</a>{% else %}Evidencia všetkých dielov{% endif %}</div></div>
   <div class="actions">
-    <form method="get" style="display:flex;gap:8px;align-items:center">
-      <input type="search" name="q" value="{{ q }}" placeholder="Hľadať vo všetkých údajoch…" style="width:280px">
+    <form method="get" style="display:flex;gap:0.533rem;align-items:center">
+      <input type="search" name="q" value="{{ q }}" placeholder="Hľadať vo všetkých údajoch…" style="width:18.667rem">
       {% if rack %}<input type="hidden" name="regal" value="{{ rack.id }}">{% endif %}
       <label style="margin:0;font-weight:500;white-space:nowrap"><input type="checkbox" name="volne" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()"> len voľný sklad</label>
       <button class="btn">Hľadať</button></form>
@@ -19,7 +19,7 @@
     <tbody>
     {% for p in parts %}
       <tr>
-        <td style="width:54px">{{ thumb(p.image, p.name, upload=url_for('main.part_image', part_id=p.id)) }}</td>
+        <td style="width:3.6rem">{{ thumb(p.image, p.name, upload=url_for('main.part_image', part_id=p.id)) }}</td>
         <td class="mono"><a href="{{ url_for('main.part_detail', part_id=p.id) }}"><b>{{ p.code }}</b></a></td>
         <td class="mono">{{ p.order_code or '' }}</td>
         <td>{{ p.name }}{% if q and p.matched %}<div class="small muted">nájdené v: {{ p.matched|join(', ') }}</div>{% endif %}</td>

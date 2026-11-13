@@ -5,7 +5,7 @@
 <div class="page-head">
   <div><h1>Regály</h1><div class="muted">Označenie regálu a jeho vlastný názov – napríklad podľa projektu, ktorého diely sú v ňom uložené</div></div>
 </div>
-<form class="card" method="post" style="margin-bottom:18px">
+<form class="card" method="post" style="margin-bottom:1.2rem">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <h2>Nový regál</h2>
   <div class="rack-row new">
@@ -35,7 +35,7 @@
       </select>
       <input type="text" name="note" value="{{ r.note or '' }}" placeholder="poznámka" aria-label="Poznámka">
       <a class="num" href="{{ url_for('main.parts', regal=r.id) }}" title="Zobraziť diely v regáli"><b>{{ r.parts }}</b></a>
-      <span style="display:flex;gap:6px;justify-content:flex-end">
+      <span style="display:flex;gap:0.4rem;justify-content:flex-end">
         <button class="btn sm">Uložiť</button>
         {% if is_admin %}<button class="btn sm danger" name="action" value="delete" formnovalidate title="Zmazať regál"
           onclick="return confirm('Zmazať regál {{ r.code }}? Diely v ňom zostanú bez regálu.')">✕</button>{% endif %}
@@ -44,6 +44,6 @@
   {% else %}
     <div class="empty">Zatiaľ žiadne regály – pridajte prvý vyššie.</div>
   {% endfor %}
-  <p class="small muted" style="margin:12px 0 0">Ak regálu priradíte projekt a vlastný názov necháte prázdny, zobrazí sa pri ňom názov projektu.</p>
+  <p class="small muted" style="margin:0.8rem 0 0">Ak regálu priradíte projekt a vlastný názov necháte prázdny, zobrazí sa pri ňom názov projektu.</p>
 </div>
 {% endblock %}

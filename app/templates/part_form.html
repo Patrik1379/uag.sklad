@@ -3,7 +3,7 @@
 {% block title %}{{ 'Upraviť kartu' if part.id else 'Nová skladová karta' }}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ 'Upraviť skladovú kartu ' ~ part.code if part.id else 'Nová skladová karta' }}</h1></div>
-<form class="card" method="post" enctype="multipart/form-data" style="max-width:900px">
+<form class="card" method="post" enctype="multipart/form-data" style="max-width:60rem">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   {% if back %}<input type="hidden" name="back" value="{{ back }}">{% endif %}
   <div class="form-grid">
@@ -14,10 +14,10 @@
     <div><label>Výrobca</label><input type="text" name="manufacturer" value="{{ part.manufacturer or '' }}"></div>
     <div><label>Dodávateľ</label><input type="text" name="supplier" value="{{ part.supplier or '' }}"></div>
     <div><label>Kategória</label><input type="text" name="category" value="{{ part.category or '' }}" placeholder="napr. Elektro, Pneumatika, Mechanika"></div>
-    <div><label>Jednotka</label><input type="text" name="unit" value="{{ part.unit or 'ks' }}" style="max-width:120px"></div>
+    <div><label>Jednotka</label><input type="text" name="unit" value="{{ part.unit or 'ks' }}" style="max-width:8rem"></div>
     <div class="full">
       <label>Umiestnenie v sklade</label>
-      <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.4fr);gap:2px 12px">
+      <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.4fr);gap:2px 0.8rem">
         <span class="hint" style="margin:0">Regál</span><span class="hint" style="margin:0">Polica</span><span class="hint" style="margin:0">Iné umiestnenie</span>
         {% set racks = racks_map().values()|list %}
         <select name="rack_id" id="rack-select" aria-label="Regál">
@@ -28,7 +28,7 @@
         <input type="text" name="shelf" value="{{ part.shelf or '' }}" placeholder="polica, napr. 3" aria-label="Polica">
         <input type="text" name="location" value="{{ part.location or '' }}" placeholder="iné (napr. skriňa pri lise)" aria-label="Iné umiestnenie">
       </div>
-      <div id="new-rack" class="qty-total" style="display:none;margin:10px 0 0">
+      <div id="new-rack" class="qty-total" style="display:none;margin:0.667rem 0 0">
         <b>Nový regál:</b>
         <input type="text" name="new_rack_code" placeholder="označenie, napr. R1" class="mono" style="width:11em">
         <input type="text" name="new_rack_name" placeholder="vlastný názov, napr. Linka balenia L3" style="width:auto;flex:1;min-width:14em">
@@ -38,7 +38,7 @@
       <div class="hint">Regály a ich vlastné názvy (napr. podľa projektu) spravujete na stránke <a href="{{ url_for('main.racks') }}">Regály</a>.</div>
     </div>
     <div class="full"><label>Technické parametre</label><textarea name="params" placeholder="napr. 24 V DC, 10 A, IP65">{{ part.params or '' }}</textarea></div>
-    <div class="full"><label>Poznámka</label><textarea name="note" style="min-height:60px">{{ part.note or '' }}</textarea></div>
+    <div class="full"><label>Poznámka</label><textarea name="note" style="min-height:4rem">{{ part.note or '' }}</textarea></div>
     <div class="full">
       <label>Obrázok</label>
       {{ image_field(part.image, part.name) }}

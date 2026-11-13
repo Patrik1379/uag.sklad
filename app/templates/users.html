@@ -14,16 +14,16 @@
             {% if u.id != current_user.id %}
             <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" class="inline-form">
               <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="role">
-              <select name="role" onchange="this.form.submit()" style="width:auto;padding:4px 8px">
+              <select name="role" onchange="this.form.submit()" style="width:auto;padding:0.267rem 0.533rem">
                 {% for k, v in roles.items() %}<option value="{{ k }}" {{ 'selected' if u.role == k }}>{{ v }}</option>{% endfor %}
               </select></form>
             {% else %}<span class="badge admin">{{ roles[u.role] }}</span>{% endif %}
           </td>
           <td>{% if u.active %}<span class="badge ok">aktívny</span>{% else %}<span class="badge neutral">zablokovaný</span>{% endif %}</td>
           <td>
-            <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" style="display:flex;gap:6px">
+            <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" style="display:flex;gap:0.4rem">
               <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="password">
-              <input type="password" name="password" placeholder="nové heslo" style="width:130px;padding:5px 8px" autocomplete="new-password">
+              <input type="password" name="password" placeholder="nové heslo" style="width:8.667rem;padding:0.333rem 0.533rem" autocomplete="new-password">
               <button class="btn sm">Zmeniť</button></form>
           </td>
           <td class="num">
@@ -42,9 +42,9 @@
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <h2>Nový používateľ</h2>
     <label>Prihlasovacie meno *</label><input type="text" name="username" required>
-    <div style="height:10px"></div><label>Celé meno</label><input type="text" name="full_name">
-    <div style="height:10px"></div><label>Heslo *</label><input type="password" name="password" required autocomplete="new-password">
-    <div style="height:10px"></div><label>Rola</label>
+    <div style="height:0.667rem"></div><label>Celé meno</label><input type="text" name="full_name">
+    <div style="height:0.667rem"></div><label>Heslo *</label><input type="password" name="password" required autocomplete="new-password">
+    <div style="height:0.667rem"></div><label>Rola</label>
     <select name="role">{% for k, v in roles.items() %}<option value="{{ k }}" {{ 'selected' if k == 'technik' }}>{{ v }}</option>{% endfor %}</select>
     <div class="form-actions"><button class="btn primary">Vytvoriť</button></div>
   </form>

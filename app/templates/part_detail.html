@@ -32,23 +32,23 @@
         <dt>Jednotka</dt><dd>{{ part.unit }}</dd>
       </dl>
     </div>
-    {% if part.params %}<h3 style="margin-top:16px">Technické parametre</h3><div style="white-space:pre-line">{{ part.params }}</div>{% endif %}
-    {% if part.note %}<h3 style="margin-top:16px">Poznámka</h3><div class="muted" style="white-space:pre-line">{{ part.note }}</div>{% endif %}
+    {% if part.params %}<h3 style="margin-top:1.067rem">Technické parametre</h3><div style="white-space:pre-line">{{ part.params }}</div>{% endif %}
+    {% if part.note %}<h3 style="margin-top:1.067rem">Poznámka</h3><div class="muted" style="white-space:pre-line">{{ part.note }}</div>{% endif %}
   </div>
-  <div class="grid" style="grid-template-columns:1fr 1fr;gap:18px;align-content:start">
+  <div class="grid" style="grid-template-columns:1fr 1fr;gap:1.2rem;align-content:start">
     <div class="card kpi"><div class="label">Spolu na sklade</div><div class="value">{{ part.stock }}</div><div class="sub">{{ part.unit }}</div></div>
     <div class="card kpi"><div class="label">Voľný sklad</div><div class="value">{{ part.free }}</div><div class="sub">nepriradené</div></div>
   </div>
 </div>
 
-<div class="card" style="margin-top:18px">
+<div class="card" style="margin-top:1.2rem">
   <h2>Naplánované v projektoch</h2>
   <table class="data">
     <thead><tr><th>Projekt</th><th>Zákazka</th><th class="num">Potrebné</th><th class="num">Naskladnené</th><th class="num">Chýba</th><th>Stav</th></tr></thead>
     <tbody>
     {% for l in lines %}
       <tr class="row-{{ l.state }}">
-        <td><div style="display:flex;align-items:center;gap:10px">{{ thumb(l.project.image, l.project.name, 'sm', kind='project') }}<span><a href="{{ url_for('main.project_detail', pid=l.project_id) }}"><b>{{ l.project.name }}</b></a>{% if l.project.status == 'ukonceny' %} <span class="badge neutral">ukončený</span>{% endif %}</span></div></td>
+        <td><div style="display:flex;align-items:center;gap:0.667rem">{{ thumb(l.project.image, l.project.name, 'sm', kind='project') }}<span><a href="{{ url_for('main.project_detail', pid=l.project_id) }}"><b>{{ l.project.name }}</b></a>{% if l.project.status == 'ukonceny' %} <span class="badge neutral">ukončený</span>{% endif %}</span></div></td>
         <td class="mono">{{ l.project.order_no }}</td>
         <td class="num">{{ l.qty_required }}</td><td class="num">{{ l.received }}</td><td class="num">{{ l.missing or '' }}</td>
         <td>{{ state_badge(l.state) }}</td>

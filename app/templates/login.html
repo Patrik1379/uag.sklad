@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Prihlásenie · Sklad dielov</title>
   <script>try{var p=parseInt(localStorage.getItem("fontpx"),10),s=localStorage.getItem("fontsize");if(!p&&(s==="l"||s==="xl"))p=17;if(p>=10&&p<=24)document.documentElement.style.fontSize=p+"px";}catch(e){}</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=10">
 </head>
 <body class="login-page">
   <form class="card login-card" method="post">
@@ -18,7 +18,7 @@
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <label for="u">Používateľ</label>
     <input type="text" id="u" name="username" autofocus autocomplete="username" required>
-    <div style="height:12px"></div>
+    <div style="height:0.8rem"></div>
     <label for="p">Heslo</label>
     <input type="password" id="p" name="password" autocomplete="current-password" required>
     <div class="form-actions"><button class="btn primary" style="width:100%;justify-content:center">Prihlásiť sa</button></div>
