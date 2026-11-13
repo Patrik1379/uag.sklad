@@ -27,6 +27,8 @@
   color: var(--ink);
 }
 /* Veľkosť písma – prepína sa v menu (A / A+ / A++), pamätá si ju prehliadač */
+html[data-size="xs"] { font-size: 13px; }
+html[data-size="s"] { font-size: 15px; }
 html[data-size="l"] { font-size: 19px; }
 html[data-size="xl"] { font-size: 21px; }
 * { box-sizing: border-box; }
@@ -250,9 +252,9 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 550; 
 }
 
 /* prepínač veľkosti písma */
-.fontsize { display: flex; align-items: center; gap: 6px; margin: 0 0 12px; }
+.fontsize { display: flex; align-items: center; gap: 5px; margin: 0 0 12px; }
 .fontsize span { margin-right: 4px; }
-.fontsize button { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.15); border-radius: 6px; cursor: pointer; font-weight: 700; line-height: 1; padding: 6px 9px; font-family: inherit; }
+.fontsize button { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.15); border-radius: 6px; cursor: pointer; font-weight: 700; line-height: 1; padding: 0; width: 28px; height: 28px; font-family: inherit; }
 .fontsize button:hover { background: rgba(255,255,255,.18); }
 .fontsize button.on { background: var(--accent); border-color: var(--accent); }
 @media (max-width: 760px) { .fontsize { margin: 0 8px 0 0; } .fontsize span { display: none; } }

@@ -7,7 +7,7 @@
   <title>{% block title %}Sklad dielov{% endblock %} · Sklad dielov</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%232563c9'/><path d='M6 9l6-3 6 3v6l-6 3-6-3z' fill='none' stroke='white' stroke-width='1.8'/></svg>">
   <script>try{var s=localStorage.getItem("fontsize");if(s)document.documentElement.dataset.size=s;}catch(e){}</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
 </head>
 <body>
 <div class="layout">
@@ -39,9 +39,11 @@
     <div class="user">
       <div class="fontsize" title="Veľkosť písma">
         <span>Písmo:</span>
-        <button type="button" data-size="" style="font-size:13px">A</button>
-        <button type="button" data-size="l" style="font-size:16px">A</button>
-        <button type="button" data-size="xl" style="font-size:19px">A</button>
+        <button type="button" data-size="xs" style="font-size:10px" title="Najmenšie písmo">A</button>
+        <button type="button" data-size="s" style="font-size:12px" title="Menšie písmo">A</button>
+        <button type="button" data-size="" style="font-size:14px" title="Normálne písmo">A</button>
+        <button type="button" data-size="l" style="font-size:16px" title="Väčšie písmo">A</button>
+        <button type="button" data-size="xl" style="font-size:19px" title="Najväčšie písmo">A</button>
       </div>
       <b>{{ current_user.full_name or current_user.username }}</b>
       <span class="muted" style="color:#8b98a6">{{ 'Administrátor' if current_user.role == 'admin' else 'Technik' }}</span><br>
@@ -56,6 +58,6 @@
     {% block content %}{% endblock %}
   </main>
 </div>
-<script src="{{ url_for('static', filename='app.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=6"></script>
 </body>
 </html>
