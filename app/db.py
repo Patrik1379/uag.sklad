@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS projects (
     name VARCHAR(200) NOT NULL,
     order_no VARCHAR(100) NOT NULL,
     customer VARCHAR(200),
+    start_date DATE,
     deadline DATE,
     note TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'aktivny',
@@ -215,6 +216,7 @@ def init_db(retries: int = 30):
 
     # --- migrácie existujúcich databáz (doplnenie nových stĺpcov) ---
     _add_column(db, "projects", "image", "VARCHAR(255)")
+    _add_column(db, "projects", "start_date", "DATE")
     _add_column(db, "parts", "shelf", "VARCHAR(50)")
     if _add_column(db, "parts", "rack_id", "INTEGER"):
         _migrate_locations(db)

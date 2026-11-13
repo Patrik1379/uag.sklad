@@ -35,8 +35,7 @@
   </div>
 </div>
 
-<div class="grid two">
-  <div>
+<div class="grid charts">
     <div class="card">
       <h2>Celkový stav položiek</h2>
       {% set n = total.n_items %}
@@ -74,7 +73,60 @@
         <div class="empty">Zatiaľ žiadne aktívne projekty s dielmi.<br><a href="{{ url_for('main.projects') }}">Prejsť na projekty</a></div>
       {% endif %}
     </div>
+    {% if timeline %}
+    <div class="card">
+      <h2>Časová os projektov</h2>
+      <div class="tl">
+        <div class="tl-row tl-head">
+          <div></div>
+          <div class="tl-track">
+            {% for t in timeline.ticks %}<span class="tl-tick" style="left: {{ t.left }}%">{{ t.label }}</span>{% endfor %}
+          </div>
+          <div></div>
+        </div>
+        {% for r in timeline.rows %}
+        {% set p = r.p %}
+        <div class="tl-row">
+          <a class="tl-name" href="{{ url_for('main.project_detail', pid=p.id) }}" title="{{ p.name }}">{{ p.name }}</a>
+          <div class="tl-track">
+            {% for t in timeline.ticks %}<span class="tl-grid" style="left: {{ t.left }}%"></span>{% endfor %}
+            {% if r.width %}
+            <div class="tl-bar {{ r.state }}" style="left: {{ r.left }}%; width: {{ r.width }}%"
+                 data-tip="<b>{{ p.name|t }}</b><br>Zákazka {{ p.order_no|t }}<br>{{ r.start|d }} – {{ r.end|d }}<br>Naskladnené {{ p.stats.pct }} % · chýba {{ p.stats.missing }} ks">
+              <div class="tl-fill" style="width: {{ p.stats.pct }}%"></div>
+            </div>
+            {% else %}
+            <div class="tl-open" style="left: {{ r.left }}%"
+                 data-tip="<b>{{ p.name|t }}</b><br>Bez termínu · naskladnené {{ p.stats.pct }} %"></div>
+            {% endif %}
+            <span class="tl-today" style="left: {{ timeline.today }}%"></span>
+          </div>
+          <div class="tl-label {{ r.state }}">
+            {%- if r.state == 'ok' %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+            {%- elif r.state in ('late', 'warn') %}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            {%- endif %}{{ r.label }}
+          </div>
+        </div>
+        {% endfor %}
+        <div class="tl-row tl-foot">
+          <div></div>
+          <div class="tl-track"><span class="tl-today-label" style="left: {{ timeline.today }}%">dnes {{ timeline.today_label }}</span></div>
+          <div></div>
+        </div>
+      </div>
+      <div class="legend small" style="flex-direction:row;flex-wrap:wrap;gap:0.4rem 1.2rem;margin-top:0.6rem">
+        <div class="item"><span class="sw" style="background:#2563c9"></span>V pláne</div>
+        <div class="item"><span class="sw" style="background:#fab219"></span>Termín do {{ timeline.warn_days }} dní a niečo chýba</div>
+        <div class="item"><span class="sw" style="background:#d03b3b"></span>Po termíne</div>
+        <div class="item"><span class="sw" style="background:#0ca30c"></span>Kompletné</div>
+        <div class="item muted">Tmavšia časť pruhu = podiel naskladnených kusov</div>
+      </div>
+    </div>
+    {% endif %}
+</div>
 
+<div class="grid two">
+  <div>
     <div class="card">
       <h2>Projekty – naskladnené vs. chýbajúce kusy</h2>
       {% for p in projects %}

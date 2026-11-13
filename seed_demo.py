@@ -38,6 +38,9 @@ PROJECTS = [
 ]
 
 
+START = {"Z-2026-041": "2026-09-15", "Z-2026-047": "2026-10-20", "Z-2026-052": "2026-11-10"}
+
+
 def make_icon(path_big, path_small, color, label):
     img = Image.new("RGB", (400, 400), (248, 248, 245))
     d = ImageDraw.Draw(img)
@@ -81,8 +84,8 @@ def main():
             part_ids.append(pid)
         for name, order_no, cust, deadline, bom in PROJECTS:
             prj = db.execute(
-                "INSERT INTO projects (name, order_no, customer, deadline) VALUES (?, ?, ?, ?) RETURNING id",
-                (name, order_no, cust, deadline))
+                "INSERT INTO projects (name, order_no, customer, start_date, deadline) VALUES (?, ?, ?, ?, ?) RETURNING id",
+                (name, order_no, cust, START.get(order_no), deadline))
             for idx, qty in bom.items():
                 db.execute("INSERT INTO project_parts (project_id, part_id, qty_required) VALUES (?, ?, ?)",
                            (prj, part_ids[idx], qty))

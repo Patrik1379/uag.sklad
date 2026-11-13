@@ -9,7 +9,10 @@
     <div><label>Názov projektu *</label><input type="text" name="name" value="{{ project.name or '' }}" required autofocus></div>
     <div><label>Číslo zakázky *</label><input type="text" name="order_no" value="{{ project.order_no or '' }}" required></div>
     <div><label>Zákazník</label><input type="text" name="customer" value="{{ project.customer or '' }}"></div>
-    <div><label>Termín</label><input type="date" name="deadline" value="{{ project.deadline|iso }}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
+      <div><label>Začiatok</label><input type="date" name="start_date" value="{{ project.start_date|iso }}"></div>
+      <div><label>Termín</label><input type="date" name="deadline" value="{{ project.deadline|iso }}"></div>
+    </div>
     <div><label>Stav</label>
       <select name="status">
         <option value="aktivny" {{ 'selected' if project.status == 'aktivny' }}>Aktívny</option>

@@ -16,7 +16,7 @@ bp = Blueprint("main", __name__)
 
 PART_FIELDS = ["code", "order_code", "name", "manufacturer", "supplier", "category",
                "unit", "location", "shelf", "params", "note"]
-PROJECT_FIELDS = ["name", "order_no", "customer", "deadline", "note", "status"]
+PROJECT_FIELDS = ["name", "order_no", "customer", "start_date", "deadline", "note", "status"]
 
 
 def to_int(value, default=0):
@@ -69,7 +69,87 @@ def dashboard():
         ORDER BY r.created_at DESC, r.id DESC LIMIT 8""")
     free_total = sum(free_stock_map().values())
     return render_template("dashboard.html", projects=projects, total=total,
-                           top_missing=top_missing, recent=recent, free_total=free_total)
+                           top_missing=top_missing, recent=recent, free_total=free_total,
+                           timeline=build_timeline(projects))
+
+
+MONTHS_SK = ["jan", "feb", "mar", "apr", "máj", "jún", "júl", "aug", "sep", "okt", "nov", "dec"]
+WARN_DAYS = 14
+
+
+def _as_date(value):
+    from datetime import date as _date, datetime as _dt
+
+    if not value:
+        return None
+    if isinstance(value, _dt):
+        return value.date()
+    if isinstance(value, _date):
+        return value
+    try:
+        return _dt.fromisoformat(str(value)[:10]).date()
+    except ValueError:
+        return None
+
+
+def build_timeline(projects):
+    """Údaje pre časovú os projektov na dashboarde (pozície v % šírky)."""
+    from datetime import date as _date, timedelta
+
+    today = _date.today()
+    rows = []
+    for p in projects:
+        start = _as_date(p.get("start_date")) or _as_date(p.get("created_at")) or today
+        end = _as_date(p.get("deadline"))
+        if end and end < start:
+            start = end
+        rows.append({"p": p, "start": start, "end": end})
+    if not rows:
+        return None
+    lo = min([r["start"] for r in rows] + [today])
+    hi = max([r["end"] for r in rows if r["end"]] + [today + timedelta(days=14)])
+    lo = lo.replace(day=1)
+    hi = hi + timedelta(days=7)
+    span = max((hi - lo).days, 1)
+
+    def pos(d):
+        return round(100 * (d - lo).days / span, 2)
+
+    for r in rows:
+        p, s = r["p"], r["p"]["stats"]
+        complete = s["n_items"] > 0 and s["missing"] == 0
+        if r["end"]:
+            days = (r["end"] - today).days
+            r["days_left"] = days
+            if complete:
+                r["state"], r["label"] = "ok", "kompletné"
+            elif days < 0:
+                r["state"], r["label"] = "late", f"po termíne {-days} d · chýba {s['missing']} ks"
+            elif days <= WARN_DAYS:
+                r["state"], r["label"] = "warn", f"o {days} d · chýba {s['missing']} ks"
+            else:
+                r["state"], r["label"] = "plan", f"o {days} d"
+            r["left"] = pos(r["start"])
+            r["width"] = max(pos(r["end"]) - r["left"], 1.2)
+        else:
+            r["state"], r["label"] = ("ok", "kompletné") if complete else ("none", "bez termínu")
+            r["left"] = pos(r["start"])
+            r["width"] = None
+    rows.sort(key=lambda r: (r["end"] is None, r["end"] or today, r["p"]["name"]))
+
+    # značky mesiacov
+    ticks, d = [], lo
+    months = (hi.year - lo.year) * 12 + hi.month - lo.month + 1
+    step = 1 if months <= 8 else 2 if months <= 16 else 3
+    i = 0
+    while d <= hi:
+        if i % step == 0:
+            label = MONTHS_SK[d.month - 1] + (f" {d.year}" if d.month == 1 or not ticks else "")
+            ticks.append({"left": pos(d), "label": label})
+        d = (d.replace(day=28) + timedelta(days=4)).replace(day=1)
+        i += 1
+    return {"rows": rows, "ticks": ticks, "today": pos(today), "today_label": today.strftime("%d.%m."),
+            "warn_days": WARN_DAYS}
 
 
 # =============================================================================
