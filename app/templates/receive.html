@@ -25,7 +25,7 @@
     <tbody>
     {% for c in candidates %}
       <tr>
-        <td style="width:50px">{{ thumb(c.image, c.name) }}</td>
+        <td style="width:54px">{{ thumb(c.image, c.name, upload=url_for('main.part_image', part_id=c.id)) }}</td>
         <td class="mono">{{ c.code }}</td>
         <td class="mono">{{ c.order_code or '' }}</td>
         <td>{{ c.name }}{% if c.matched %}<div class="small muted">nájdené v: {{ c.matched|join(', ') }}</div>{% endif %}</td>

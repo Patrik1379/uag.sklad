@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import thumb %}
+{% from '_macros.html' import thumb, image_field %}
 {% block title %}{{ 'Upraviť kartu' if part.id else 'Nová skladová karta' }}{% endblock %}
 {% block content %}
 <div class="page-head"><h1>{{ 'Upraviť skladovú kartu ' ~ part.code if part.id else 'Nová skladová karta' }}</h1></div>
@@ -41,12 +41,8 @@
     <div class="full"><label>Poznámka</label><textarea name="note" style="min-height:60px">{{ part.note or '' }}</textarea></div>
     <div class="full">
       <label>Obrázok</label>
-      <div style="display:flex;gap:14px;align-items:center">
-        {% if part.image %}{{ thumb(part.image, part.name) }}
-          <label style="margin:0;font-weight:500"><input type="checkbox" name="remove_image" value="1"> odstrániť</label>{% endif %}
-        <input type="file" name="image" accept="image/*">
-      </div>
-      <div class="hint">Obrázok sa automaticky zmenší; v zoznamoch sa zobrazuje ako malá ikona, kliknutím sa zväčší.</div>
+      {{ image_field(part.image, part.name) }}
+      <div class="hint">Obrázok sa automaticky zmenší; v zoznamoch sa zobrazuje ako malá ikona, kliknutím sa zväčší. Obrázok môžete kedykoľvek pretiahnuť aj priamo na ikonku dielu v zoznamoch.</div>
     </div>
     {% if projects and current_user.role == 'admin' %}
     <div><label>Priradiť do projektu (nepovinné)</label>

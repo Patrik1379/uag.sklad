@@ -108,7 +108,7 @@
       {% set maxm = (top_missing|map(attribute='missing')|max) if top_missing else 1 %}
       {% for t in top_missing %}
         <div class="hbar" data-tip="<b>{{ t.code|t }}</b> {{ t.name|t }}<br>Chýba {{ t.missing }} ks v {{ t.projects }} projekt{{ 'e' if t.projects == 1 else 'och' }}">
-          {{ thumb(t.image, t.name) }}
+          {{ thumb(t.image, t.name, upload=url_for('main.part_image', part_id=t.part_id)) }}
           <div>
             <div class="name"><a href="{{ url_for('main.part_detail', part_id=t.part_id) }}">{{ t.code }}</a> <span class="muted">{{ t.name }}</span></div>
             <div class="track"><div class="fill" style="width: {{ 100 * t.missing / maxm }}%"></div></div>

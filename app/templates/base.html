@@ -6,8 +6,8 @@
   <meta name="csrf" content="{{ csrf_token() }}">
   <title>{% block title %}Sklad dielov{% endblock %} · Sklad dielov</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%232563c9'/><path d='M6 9l6-3 6 3v6l-6 3-6-3z' fill='none' stroke='white' stroke-width='1.8'/></svg>">
-  <script>try{var s=localStorage.getItem("fontsize");if(s==="l"||s==="xl")document.documentElement.dataset.size="l";}catch(e){}</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
+  <script>try{var p=parseInt(localStorage.getItem("fontpx"),10),s=localStorage.getItem("fontsize");if(!p&&(s==="l"||s==="xl"))p=17;if(p>=10&&p<=24)document.documentElement.style.fontSize=p+"px";}catch(e){}</script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
 </head>
 <body>
 <div class="layout">
@@ -39,8 +39,9 @@
     <div class="user">
       <div class="fontsize" title="Veľkosť písma">
         <span>Písmo:</span>
-        <button type="button" data-size="" style="font-size:11px" title="Normálne písmo">A</button>
-        <button type="button" data-size="l" style="font-size:17px" title="Väčšie písmo">A</button>
+        <button type="button" data-step="-1" title="Zmenšiť písmo" aria-label="Zmenšiť písmo">A&minus;</button>
+        <button type="button" data-step="0" class="fs-val" title="Pôvodná veľkosť (kliknutím obnovíte)">13</button>
+        <button type="button" data-step="1" title="Zväčšiť písmo" aria-label="Zväčšiť písmo">A+</button>
       </div>
       <b>{{ current_user.full_name or current_user.username }}</b>
       <span class="muted" style="color:#8b98a6">{{ 'Administrátor' if current_user.role == 'admin' else 'Technik' }}</span><br>
@@ -55,6 +56,6 @@
     {% block content %}{% endblock %}
   </main>
 </div>
-<script src="{{ url_for('static', filename='app.js') }}?v=7"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=9"></script>
 </body>
 </html>

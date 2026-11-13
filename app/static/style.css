@@ -26,8 +26,7 @@
   line-height: 1.45;
   color: var(--ink);
 }
-/* Veľkosť písma – prepína sa v menu (malé / veľké A), pamätá si ju prehliadač */
-html[data-size="l"] { font-size: 17px; }
+/* Veľkosť písma – mení sa v menu tlačidlami A− / A+ po 1 px (10–24 px), pamätá si ju prehliadač */
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); }
 a { color: var(--accent); text-decoration: none; }
@@ -251,9 +250,10 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 550; 
 /* prepínač veľkosti písma */
 .fontsize { display: flex; align-items: center; gap: 5px; margin: 0 0 12px; }
 .fontsize span { margin-right: 4px; }
-.fontsize button { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.15); border-radius: 6px; cursor: pointer; font-weight: 700; line-height: 1; padding: 0; width: 28px; height: 28px; font-family: inherit; }
+.fontsize button { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.15); border-radius: 6px; cursor: pointer; font-weight: 700; line-height: 1; padding: 0; width: 32px; height: 28px; font-family: inherit; font-size: 13px; }
+.fontsize button.fs-val { width: 36px; background: transparent; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fontsize button:disabled { opacity: .35; cursor: default; }
 .fontsize button:hover { background: rgba(255,255,255,.18); }
-.fontsize button.on { background: var(--accent); border-color: var(--accent); }
 @media (max-width: 760px) { .fontsize { margin: 0 8px 0 0; } .fontsize span { display: none; } }
 
 /* umiestnenie v sklade */
@@ -268,3 +268,10 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 550; 
 .rack-row.head { font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); font-weight: 600; border-bottom: 1px solid var(--line-2); padding-top: 0; }
 @media (max-width: 1100px) { .rack-row { grid-template-columns: 1fr 1fr; } .rack-row.head { display: none; } }
 .rack-row input, .rack-row select { padding: 6px 8px; }
+
+/* pole na obrázok vo formulári */
+.formdrop { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border: 2px dashed var(--line-2); border-radius: 10px; cursor: pointer; background: #fafaf7; }
+.formdrop:hover { border-color: var(--accent); }
+.formdrop.over { border-color: var(--accent); background: #eef3fc; }
+.formdrop .thumb { cursor: pointer; }
+.formdrop-name { color: var(--good-ink); font-weight: 600; margin-top: 2px; }

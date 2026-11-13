@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}{{ 'Upraviť projekt' if project.id else 'Nový projekt' }}{% endblock %}
-{% from '_macros.html' import thumb %}
+{% from '_macros.html' import thumb, image_field %}
 {% block content %}
 <div class="page-head"><h1>{{ 'Upraviť projekt' if project.id else 'Nový projekt' }}</h1></div>
 <form class="card" method="post" enctype="multipart/form-data" style="max-width:820px">
@@ -18,11 +18,7 @@
     <div class="full"><label>Poznámka</label><textarea name="note">{{ project.note or '' }}</textarea></div>
     <div class="full">
       <label>Obrázok projektu (nepovinné)</label>
-      <div style="display:flex;gap:14px;align-items:center">
-        {{ thumb(project.image, project.name, kind='project') }}
-        {% if project.image %}<label style="margin:0;font-weight:500"><input type="checkbox" name="remove_image" value="1"> odstrániť</label>{% endif %}
-        <input type="file" name="image" accept="image/*">
-      </div>
+      {{ image_field(project.image, project.name, kind='project') }}
       <div class="hint">Bez obrázka sa zobrazí ikonka výrobnej linky. Obrázok môžete neskôr aj pretiahnuť priamo na ikonku v zozname projektov.</div>
     </div>
   </div>

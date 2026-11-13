@@ -1,16 +1,27 @@
 (function () {
-  // --- Prepínač veľkosti písma ----------------------------------------------
-  function markSize() {
-    const cur = document.documentElement.dataset.size || "";
-    document.querySelectorAll(".fontsize button").forEach((b) => b.classList.toggle("on", b.dataset.size === cur));
+  // --- Veľkosť písma: A− / A+ po 1 px, klik na číslo vráti pôvodnú ------------
+  const FS_DEFAULT = 13, FS_MIN = 10, FS_MAX = 24;
+  function curSize() { return parseInt(getComputedStyle(document.documentElement).fontSize, 10) || FS_DEFAULT; }
+  function setSize(px) {
+    px = Math.max(FS_MIN, Math.min(FS_MAX, px));
+    document.documentElement.style.fontSize = px === FS_DEFAULT ? "" : px + "px";
+    try {
+      if (px === FS_DEFAULT) localStorage.removeItem("fontpx"); else localStorage.setItem("fontpx", px);
+      localStorage.removeItem("fontsize");
+    } catch (e) {}
+    showSize();
   }
-  document.querySelectorAll(".fontsize button").forEach((b) => b.addEventListener("click", () => {
-    const v = b.dataset.size;
-    if (v) document.documentElement.dataset.size = v; else delete document.documentElement.dataset.size;
-    try { localStorage.setItem("fontsize", v); } catch (e) {}
-    markSize();
+  function showSize() {
+    const px = curSize();
+    document.querySelectorAll(".fontsize .fs-val").forEach((b) => { b.textContent = px; });
+    document.querySelectorAll('.fontsize [data-step="-1"]').forEach((b) => { b.disabled = px <= FS_MIN; });
+    document.querySelectorAll('.fontsize [data-step="1"]').forEach((b) => { b.disabled = px >= FS_MAX; });
+  }
+  document.querySelectorAll(".fontsize button[data-step]").forEach((b) => b.addEventListener("click", () => {
+    const step = parseInt(b.dataset.step, 10);
+    setSize(step === 0 ? FS_DEFAULT : curSize() + step);
   }));
-  markSize();
+  showSize();
 
   // --- Nahrávanie obrázkov ťahaním / klikom / zo schránky -----------------
   const csrf = (document.querySelector('meta[name="csrf"]') || {}).content || "";
@@ -59,18 +70,54 @@
     }, true);
     input.addEventListener("change", () => { if (input.files[0]) uploadTo(zone, input.files[0]); input.value = ""; });
   });
+  // --- Pole na obrázok vo formulári (uloží sa spolu s formulárom) ----------
+  function formdropSet(zone, file) {
+    if (!file || !file.type.startsWith("image/")) { toast("Toto nie je obrázok.", "error"); return; }
+    const input = zone.querySelector("input[type=file]");
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    formdropShow(zone, file);
+  }
+  function formdropShow(zone, file) {
+    const prev = zone.querySelector(".formdrop-preview");
+    const img = document.createElement("img");
+    img.className = "thumb md";
+    img.alt = "";
+    img.src = URL.createObjectURL(file);
+    prev.innerHTML = "";
+    prev.appendChild(img);
+    zone.querySelector(".formdrop-name").textContent = "✓ " + (file.name || "obrázok") + " – uloží sa po kliknutí na Uložiť";
+    const rm = zone.parentElement.querySelector('input[name="remove_image"]');
+    if (rm) rm.checked = false;
+  }
+  document.querySelectorAll(".formdrop").forEach((zone) => {
+    const input = zone.querySelector("input[type=file]");
+    zone.addEventListener("dragenter", (e) => { e.preventDefault(); zone.classList.add("over"); });
+    zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
+    zone.addEventListener("dragleave", (e) => { if (!zone.contains(e.relatedTarget)) zone.classList.remove("over"); });
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault(); e.stopPropagation(); zone.classList.remove("over");
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) formdropSet(zone, f);
+    });
+    zone.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); input.click(); }, true);
+    input.addEventListener("change", () => { if (input.files[0]) formdropShow(zone, input.files[0]); });
+  });
+
   // súbor pustený mimo miniatúry nesmie otvoriť obrázok namiesto aplikácie
-  window.addEventListener("dragover", (e) => { if (!e.target.closest || !e.target.closest(".imgdrop, input[type=file]")) e.preventDefault(); });
-  window.addEventListener("drop", (e) => { if (!e.target.closest || !e.target.closest(".imgdrop, input[type=file]")) e.preventDefault(); });
+  window.addEventListener("dragover", (e) => { if (!e.target.closest || !e.target.closest(".imgdrop, .formdrop, input[type=file]")) e.preventDefault(); });
+  window.addEventListener("drop", (e) => { if (!e.target.closest || !e.target.closest(".imgdrop, .formdrop, input[type=file]")) e.preventDefault(); });
   // Ctrl+V: vloženie obrázka zo schránky (napr. screenshot) na stránke s jednou "paste" miniatúrou
   document.addEventListener("paste", (e) => {
-    const zone = document.querySelector(".imgdrop[data-paste]");
-    if (!zone || (e.target.closest && e.target.closest("input, textarea"))) return;
-    const item = Array.from(e.clipboardData.items || []).find((i) => i.type.startsWith("image/"));
-    if (!item) return;
-    e.preventDefault();
+    const item = Array.from((e.clipboardData && e.clipboardData.items) || []).find((i) => i.type.startsWith("image/"));
+    if (!item) return;  // bežný text sa vkladá normálne
     const f = item.getAsFile();
-    uploadTo(zone, new File([f], "schranka." + (f.type.split("/")[1] || "png"), { type: f.type }));
+    const file = new File([f], "schranka." + (f.type.split("/")[1] || "png"), { type: f.type });
+    const form = document.querySelector(".formdrop");
+    const zone = document.querySelector(".imgdrop[data-paste]");
+    if (form) { e.preventDefault(); formdropSet(form, file); }
+    else if (zone) { e.preventDefault(); uploadTo(zone, file); }
   });
 
   // --- Lightbox pre obrázky dielov ------------------------------------------

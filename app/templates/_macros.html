@@ -55,3 +55,20 @@
   </span>
   {%- else -%}{{ empty }}{%- endif -%}
 {%- endmacro %}
+
+
+{# Pole na obrázok vo formulári: klik, pretiahnutie súboru alebo Ctrl+V. Uloží sa spolu s formulárom. #}
+{% macro image_field(image, alt='', kind='part') -%}
+  <div class="formdrop" title="Kliknite, pretiahnite sem obrázok alebo ho vložte cez Ctrl+V">
+    <span class="formdrop-preview">{{ thumb(image, alt, 'md', kind=kind) }}</span>
+    <div>
+      <b>{{ 'Zmeniť obrázok' if image else 'Pridať obrázok' }}</b> – pretiahnite sem súbor alebo kliknite
+      <div class="small muted">Obrázok zo schránky (napr. výrez obrazovky) vložíte klávesmi Ctrl+V.</div>
+      <div class="formdrop-name small"></div>
+    </div>
+    <input type="file" name="image" accept="image/*" hidden>
+  </div>
+  {%- if image %}
+  <label style="margin:8px 0 0;font-weight:500"><input type="checkbox" name="remove_image" value="1"> odstrániť obrázok</label>
+  {%- endif %}
+{%- endmacro %}
