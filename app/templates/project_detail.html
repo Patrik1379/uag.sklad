@@ -47,7 +47,8 @@
         <td style="width:3.6rem">{{ thumb(l.image, l.name, upload=url_for('main.part_image', part_id=l.part_id)) }}</td>
         <td class="mono"><a href="{{ url_for('main.part_detail', part_id=l.part_id) }}"><b>{{ l.code }}</b></a>
           {% if l.order_code %}<div class="small" style="color:var(--ink-2)">{{ l.order_code }}</div>{% endif %}</td>
-        <td>{{ l.name }}{% if l.manufacturer %}<div class="small muted">{{ l.manufacturer }}</div>{% endif %}</td>
+        <td>{{ l.name }}{% if l.manufacturer %}<div class="small muted">{{ l.manufacturer }}</div>{% endif %}
+          {%- if l.pp_note %}<div class="small muted pp-note" title="{{ l.pp_note }}">{{ l.pp_note }}</div>{% endif %}</td>
         <td>{{ location(l) }}</td>
         <td class="num">
           {% if is_admin %}
@@ -103,8 +104,8 @@
   <form class="card" method="post" action="{{ url_for('main.project_import', pid=project.id) }}" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <h2>Import kusovníka (Excel / CSV)</h2>
-    <p class="small muted" style="margin-top:0">Stĺpce: <b>Označenie</b> alebo <b>Objednávacie číslo / Part Number</b>, Názov / Description, Výrobca / Vendor, <b>Množstvo / QTY</b>. Funguje aj priamo export z Inventora vrátane náhľadov dielov. Chýbajúce skladové karty sa vytvoria automaticky. <a href="{{ url_for('main.bom_template') }}">Stiahnuť šablónu</a></p>
-    <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required>
+    <p class="small muted" style="margin-top:0">Stĺpce: <b>Označenie</b> alebo <b>Objednávacie číslo / Part Number</b>, Názov / Description, Výrobca / Vendor, <b>Množstvo / QTY</b>. Funguje aj priamo export z Inventora vrátane náhľadov dielov a <b>EPLAN XML</b> (zoznam dielov) – pred importom sa zobrazí náhľad. Chýbajúce skladové karty sa vytvoria automaticky. <a href="{{ url_for('main.bom_template') }}">Stiahnuť šablónu</a></p>
+    <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt,.xml" required>
     <div class="form-actions"><button class="btn primary">Importovať</button></div>
   </form>
 </div>

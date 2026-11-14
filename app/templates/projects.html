@@ -15,11 +15,11 @@
 <form class="card" id="bom-new" method="post" action="{{ url_for('main.project_import_new') }}" enctype="multipart/form-data" hidden style="margin-bottom:1.2rem">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <h2>Nový projekt z kusovníka (BOM)</h2>
-  <p class="small muted" style="margin-top:0">Nahrajte kusovník z Inventora alebo Excelu. Názov projektu a číslo zakázky sa načítajú z hlavičky súboru
+  <p class="small muted" style="margin-top:0">Nahrajte kusovník z Inventora, Excelu alebo <b>EPLAN XML</b> (pri EPLAN sa najprv zobrazí náhľad). Názov projektu a číslo zakázky sa načítajú z hlavičky súboru
     (<i>Device name</i>, <i>Serial number</i>) – ak ich chcete inak, vyplňte ich nižšie. Chýbajúce skladové karty sa vytvoria aj s náhľadmi dielov.
     Ak aktívny projekt s rovnakým číslom zakázky už existuje, diely sa pridajú doň.</p>
   <div class="form-grid" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) auto;align-items:end">
-    <div><label>Súbor s kusovníkom *</label><input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required></div>
+    <div><label>Súbor s kusovníkom *</label><input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt,.xml" required></div>
     <div><label>Názov projektu (nepovinné)</label><input type="text" name="name" placeholder="z kusovníka"></div>
     <div><label>Číslo zakázky (nepovinné)</label><input type="text" name="order_no" placeholder="z kusovníka"></div>
     <div><button class="btn primary">Importovať</button></div>

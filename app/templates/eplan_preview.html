@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Import z EPLAN{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="small muted"><a href="{{ url_for('main.projects') }}">Projekty</a> /</div>
+    <h1>Import z EPLAN – náhľad</h1>
+    <div class="muted">Súbor <b>{{ p.filename }}</b> · {{ p.articles|length }} rôznych artiklov.
+      {% if project %}Diely sa pridajú do projektu <b>{{ project.name }}</b> ({{ project.order_no }}).{% else %}Vytvorí sa nový projekt.{% endif %}</div>
+  </div>
+</div>
+
+<form method="post" id="eplan-form">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="grid half">
+    <div class="card">
+      <h2>1. Ktoré časti projektu započítať?</h2>
+      <p class="small muted" style="margin-top:0">EPLAN rozdeľuje stránky do štruktúr (napr. <b>=ND+R1</b> = zariadenie/umiestnenie).
+        Štruktúra začínajúca <b>&amp;</b> (napr. <b>&amp;DOK</b>) sú dokumentačné stránky – často obsahujú <b>kópie</b> iných stránok,
+        takže by sa diely mohli započítať viackrát. Skontrolujte počty v tabuľke nižšie.</p>
+      {% for s, n in p.structures.items() %}
+        <label class="fb-kind" style="margin:0 0.5rem 0.5rem 0">
+          <input type="checkbox" name="s_{{ s }}" value="1" class="struct" data-s="{{ s }}" checked>
+          <b>{{ s }}</b> <span class="muted">({{ n }} záznamov)</span>
+          {% if s.startswith('&') %}<span class="badge partial">dokumentácia</span>{% endif %}
+        </label>
+      {% endfor %}
+    </div>
+    <div class="card">
+      <h2>2. Projekt</h2>
+      {% if project %}
+        <p>Diely sa pridajú do existujúceho projektu <b>{{ project.name }}</b> (zákazka {{ project.order_no }}).</p>
+      {% else %}
+        <div class="form-grid">
+          <div><label>Názov projektu</label><input type="text" name="name" value="{{ p.name }}"></div>
+          <div><label>Číslo zakázky</label><input type="text" name="order_no" value="{{ p.order_no }}"></div>
+        </div>
+        <div class="hint">Ak aktívny projekt s týmto číslom zakázky už existuje, diely sa pridajú doň.</div>
+      {% endif %}
+      <div class="form-actions">
+        <button class="btn primary lg">Importovať <span id="sum-items">{{ p.articles|length }}</span> položiek</button>
+        <a class="btn lg" href="{{ url_for('main.project_detail', pid=project.id) if project else url_for('main.projects') }}">Zrušiť</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.2rem">
+    <div class="page-head" style="margin-bottom:0.6rem">
+      <h2 style="margin:0">3. Zoznam dielov</h2>
+      <label style="margin:0;font-weight:500"><input type="checkbox" id="all-art" checked> vybrať všetky</label>
+    </div>
+    <div class="table-wrap">
+    <table class="data" id="eplan-table">
+      <thead><tr><th></th><th>Objednávacie číslo</th><th>Názov</th><th>Výrobca</th>
+        {% for s in p.structures %}<th class="num">{{ s }}</th>{% endfor %}
+        <th class="num">Spolu ks</th><th>Označenie v schéme</th></tr></thead>
+      <tbody>
+      {% for a in p.articles %}
+        <tr data-counts='{{ a.counts|tojson }}'>
+          <td><input type="checkbox" name="a_{{ loop.index0 }}" value="1" class="art" checked></td>
+          <td class="mono"><b>{{ a.order_code }}</b></td>
+          <td>{{ a.name }}</td>
+          <td>{{ a.manufacturer }}</td>
+          {% for s in p.structures %}<td class="num muted" data-col="{{ s }}">{{ (a.counts.get(s) or 0)|round|int or '' }}</td>{% endfor %}
+          <td class="num"><b class="qty">0</b></td>
+          <td class="small muted" style="max-width:16rem">
+            {%- set ns = namespace(t=[]) -%}
+            {%- for s, tags in a.tags.items() %}{% for t in tags %}{% if t not in ns.t %}{% set ns.t = ns.t + [t] %}{% endif %}{% endfor %}{% endfor -%}
+            {{ ns.t[:8]|join(', ') }}{% if ns.t|length > 8 %} …(+{{ ns.t|length - 8 }}){% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</form>
+<script>
+(function () {
+  const structs = Array.from(document.querySelectorAll(".struct"));
+  const rows = Array.from(document.querySelectorAll("#eplan-table tbody tr"));
+  const all = document.getElementById("all-art");
+  function recalc() {
+    const on = structs.filter((c) => c.checked).map((c) => c.dataset.s);
+    let n = 0;
+    rows.forEach((tr) => {
+      const counts = JSON.parse(tr.dataset.counts);
+      const q = Math.round(on.reduce((s, k) => s + (counts[k] || 0), 0));
+      tr.querySelector(".qty").textContent = q;
+      tr.querySelectorAll("[data-col]").forEach((td) => { td.style.opacity = on.includes(td.dataset.col) ? 1 : 0.35; });
+      const cb = tr.querySelector(".art");
+      tr.style.opacity = (q > 0 && cb.checked) ? 1 : 0.45;
+      if (q > 0 && cb.checked) n++;
+    });
+    document.getElementById("sum-items").textContent = n;
+  }
+  structs.forEach((c) => c.addEventListener("change", recalc));
+  rows.forEach((tr) => tr.querySelector(".art").addEventListener("change", recalc));
+  all.addEventListener("change", () => { rows.forEach((tr) => { tr.querySelector(".art").checked = all.checked; }); recalc(); });
+  recalc();
+})();
+</script>
+{% endblock %}

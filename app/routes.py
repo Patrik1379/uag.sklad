@@ -10,7 +10,7 @@ from .auth import admin_required, current_user, login_required
 from .db import get_db
 from .services import (location_label, location_parts, locations_map, racks_map, delete_image, demand_for_part, enrich, free_stock,
                        free_stock_map, next_part_code, project_lines,
-                       projects_with_stats, read_bom, import_bom_items, save_image, search_parts, summarize,
+                       projects_with_stats, read_bom, import_bom_items, parse_eplan_xml, eplan_items, save_image, search_parts, summarize,
                        LINES_SQL)
 
 bp = Blueprint("main", __name__)
@@ -444,8 +444,10 @@ def project_import(pid):
     db.query("SELECT id FROM projects WHERE id = ?", (pid,), one=True) or abort(404)
     f = request.files.get("file")
     if not f or not f.filename:
-        flash("Vyberte súbor (XLSX alebo CSV).", "error")
+        flash("Vyberte súbor (XLSX, CSV alebo EPLAN XML).", "error")
         return redirect(url_for("main.project_detail", pid=pid))
+    if f.filename.lower().endswith(".xml"):
+        return _eplan_upload(f, str(pid), fallback=url_for("main.project_detail", pid=pid))
     try:
         bom = read_bom(f)
     except Exception as exc:
@@ -465,8 +467,11 @@ def project_import_new():
     db = get_db()
     f = request.files.get("file")
     if not f or not f.filename:
-        flash("Vyberte súbor s kusovníkom (XLSX alebo CSV).", "error")
+        flash("Vyberte súbor s kusovníkom (XLSX, CSV alebo EPLAN XML).", "error")
         return redirect(url_for("main.projects"))
+    if f.filename.lower().endswith(".xml"):
+        return _eplan_upload(f, "novy", fallback=url_for("main.projects"),
+                             name=request.form.get("name", ""), order_no=request.form.get("order_no", ""))
     try:
         bom = read_bom(f)
     except Exception as exc:
@@ -497,6 +502,86 @@ def project_import_new():
           + f" „{name}“ (zákazka {order_no}): {st['linked']} položiek, {st['created']} nových skladových kariet"
           + (f", {st['images']} obrázkov" if st["images"] else "") + ".", "ok")
     return redirect(url_for("main.project_detail", pid=pid))
+
+
+# --- EPLAN XML: náhľad pred importom ------------------------------------------------
+
+def _eplan_path(token):
+    import re
+
+    if not re.fullmatch(r"[0-9a-f]{32}", token or ""):
+        abort(404)
+    return os.path.join(current_app.config["UPLOAD_FOLDER"], f"eplan_{token}.json")
+
+
+def _eplan_upload(f, target, fallback, name="", order_no=""):
+    import json
+    import uuid
+
+    try:
+        parsed = parse_eplan_xml(f.stream)
+    except Exception as exc:
+        flash(f"EPLAN súbor sa nepodarilo načítať: {exc}", "error")
+        return redirect(fallback)
+    if not parsed["articles"]:
+        flash("V súbore sa nenašli žiadne artikle (diely s číslom artikla).", "error")
+        return redirect(fallback)
+    base = os.path.splitext(os.path.basename(f.filename))[0]
+    parsed.update({"filename": f.filename, "target": target,
+                   "name": name.strip() or base, "order_no": order_no.strip() or base})
+    token = uuid.uuid4().hex
+    with open(_eplan_path(token), "w", encoding="utf-8") as fh:
+        json.dump(parsed, fh, ensure_ascii=False)
+    return redirect(url_for("main.eplan_preview", token=token))
+
+
+@bp.route("/import/eplan/<token>", methods=["GET", "POST"])
+@admin_required
+def eplan_preview(token):
+    import json
+
+    path = _eplan_path(token)
+    if not os.path.exists(path):
+        flash("Náhľad importu vypršal – nahrajte súbor znova.", "error")
+        return redirect(url_for("main.projects"))
+    with open(path, encoding="utf-8") as fh:
+        parsed = json.load(fh)
+    db = get_db()
+    target = parsed["target"]
+    project = None
+    if target != "novy":
+        project = db.query("SELECT * FROM projects WHERE id = ?", (to_int(target),), one=True)
+        if not project:
+            os.remove(path)
+            abort(404)
+    if request.method == "POST":
+        selected = [s for s in parsed["structures"] if request.form.get("s_" + s)]
+        if not selected:
+            flash("Vyberte aspoň jednu časť projektu (štruktúru), z ktorej sa majú diely započítať.", "error")
+            return redirect(url_for("main.eplan_preview", token=token))
+        excluded = {a["partno"] for i, a in enumerate(parsed["articles"]) if not request.form.get(f"a_{i}")}
+        items = eplan_items(parsed, selected, excluded)
+        if project is None:
+            name = request.form.get("name", "").strip() or parsed["name"]
+            order_no = request.form.get("order_no", "").strip() or parsed["order_no"]
+            existing = db.query("SELECT id FROM projects WHERE LOWER(order_no) = LOWER(?) AND status = 'aktivny'",
+                                (order_no,), one=True)
+            if existing:
+                pid = existing["id"]
+            else:
+                pid = db.execute(
+                    "INSERT INTO projects (name, order_no, note, status) VALUES (?, ?, ?, 'aktivny') RETURNING id",
+                    (name[:200], order_no[:100],
+                     f"Importované z EPLAN: {parsed['filename']}\nZapočítané časti: {', '.join(selected)}"))
+        else:
+            pid = project["id"]
+        st = import_bom_items(pid, items)
+        db.commit()
+        os.remove(path)
+        flash(f"EPLAN import hotový: {st['linked']} položiek v projekte, {st['created']} nových skladových kariet.", "ok")
+        return redirect(url_for("main.project_detail", pid=pid))
+    # predvolene započítame všetky časti; '&…' (dokumentačné stránky) označíme upozornením
+    return render_template("eplan_preview.html", p=parsed, token=token, project=project)
 
 
 @bp.route("/projekty/<int:pid>/export.xlsx")

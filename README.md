@@ -14,6 +14,7 @@ Webová aplikácia na evidenciu dielov pre plánované projekty (Python / Flask 
 - **Dashboard** – celková kompletnosť, naskladnené a chýbajúce kusy, priebeh po projektoch, najviac chýbajúce diely a posledné príjmy.
 - **Detail projektu** – naskladnené položky sú zelené, čiastočne naskladnené žlté a chýbajúce červené. Obsahuje filter, priradenie z voľného skladu a export do Excelu.
 - **Import kusovníka** z Excelu alebo CSV – vrátane priameho exportu z Autodesk Inventora (hlavička nemusí byť v 1. riadku, náhľady dielov sa uložia ako obrázky skladových kariet). Na stránke Projekty sa dá z kusovníka rovno založiť nový projekt – názov a číslo zakázky sa načítajú z hlavičky súboru (Device name, Serial number).
+- **Import z EPLAN** – XML export zoznamu dielov (partsList). Pred importom sa zobrazí náhľad: dá sa zvoliť, ktoré štruktúry stránok (napr. =ND+R1, &DOK) sa započítajú a ktoré artikle importovať. Označenia zo schémy (BMK) sa uložia k položke projektu.
 - **Pripomienky** – každý používateľ môže v aplikácii poslať návrh na vylepšenie, nahlásiť chybu alebo položiť otázku (aj s obrázkom). Administrátor vidí počet nových pripomienok v menu, odpovedá na ne a mení ich stav.
 - **Prihlásenie a role:**
   - *Administrátor* – projekty, kusovníky, používatelia, storno príjmov.

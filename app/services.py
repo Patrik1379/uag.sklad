@@ -363,11 +363,13 @@ def import_bom_items(project_id, items):
             continue
         ex = db.query("SELECT id FROM project_parts WHERE project_id = ? AND part_id = ?",
                       (project_id, part_id), one=True)
+        note = it.get("pp_note") or None
         if ex:
-            db.execute("UPDATE project_parts SET qty_required = ? WHERE id = ?", (it["qty"], ex["id"]))
+            db.execute("UPDATE project_parts SET qty_required = ?, note = COALESCE(?, note) WHERE id = ?",
+                       (it["qty"], note, ex["id"]))
         else:
-            db.execute("INSERT INTO project_parts (project_id, part_id, qty_required) VALUES (?, ?, ?)",
-                       (project_id, part_id, it["qty"]))
+            db.execute("INSERT INTO project_parts (project_id, part_id, qty_required, note) VALUES (?, ?, ?, ?)",
+                       (project_id, part_id, it["qty"], note))
         stats["linked"] += 1
     return stats
 
@@ -495,3 +497,120 @@ def location_label(part):
     if other:
         out.append(other)
     return " › ".join(out)
+
+
+# --- Import zoznamu dielov z EPLAN (XML export "partsList") ----------------------
+
+EPLAN_MANUFACTURERS = {
+    "PXC": "Phoenix Contact", "SE": "Schneider Electric", "SIE": "Siemens", "FES": "Festo", "KEY": "Keyence",
+    "HELU": "Helukabel", "SCHR": "Schrack", "WEI": "Weidmüller", "MWP": "Mean Well", "RIT": "Rittal",
+    "WAGO": "WAGO", "LAPP": "Lapp", "OMR": "Omron", "IFM": "ifm", "SICK": "SICK", "PIL": "Pilz",
+    "BAL": "Balluff", "ABB": "ABB", "EAT": "Eaton", "MUR": "Murrelektronik", "HAR": "Harting",
+    "BECK": "Beckhoff", "TUR": "Turck", "LEU": "Leuze", "PEP": "Pepperl+Fuchs", "SMC": "SMC", "FIN": "Finder",
+    "WEID": "Weidmüller", "OBO": "OBO Bettermann", "HAG": "Hager", "LEG": "Legrand", "BOS": "Bosch Rexroth",
+}
+
+
+def _eplan_text(value, prefer=("sk_SK", "cs_CZ", "en_US", "de_DE")):
+    """EPLAN viacjazyčný text 'de_DE@Text;en_US@Text;' → text v preferovanom jazyku."""
+    if not value:
+        return ""
+    if "@" not in value:
+        return value.strip()
+    texts = {}
+    for chunk in value.split(";"):
+        if "@" in chunk:
+            lang, text = chunk.split("@", 1)
+            if text.strip():
+                texts[lang.strip()] = " ".join(text.split())
+    for lang in prefer:
+        if texts.get(lang):
+            return texts[lang]
+    return next(iter(texts.values()), "")
+
+
+def parse_eplan_xml(stream):
+    """Načíta EPLAN export zoznamu dielov (XML <partsList><device><part …/>).
+
+    Vracia {"structures": {štruktúra: počet záznamov}, "articles": [...]} – pri každom artikli sú počty
+    kusov rozdelené podľa štruktúry stránok (napr. '=ND+R1', '&DOK'), aby si používateľ mohol vybrať,
+    ktoré časti projektu započítať (EPLAN často obsahuje aj kópie stránok v dokumentácii).
+    """
+    import xml.etree.ElementTree as ET
+
+    root = ET.parse(stream).getroot()
+    if root.tag != "partsList":
+        raise ValueError("Toto nie je EPLAN export zoznamu dielov (chýba <partsList>).")
+    structures, articles = {}, {}
+    for part in root.iter("part"):
+        pn = (part.get("P_ARTICLEREF_PARTNO") or "").strip()
+        if not pn:
+            continue
+        page = part.get("P_INSTANCE_PAGEFULLNAME") or ""
+        struct = page.split("/")[0] or "(bez štruktúry)"
+        structures[struct] = structures.get(struct, 0) + 1
+        try:
+            count = float((part.get("P_ARTICLEREF_COUNT") or "1").replace(",", "."))
+        except ValueError:
+            count = 1.0
+        a = articles.get(pn)
+        if a is None:
+            prefix, _, rest = pn.partition(".")
+            known = rest and prefix.isalpha() and len(prefix) <= 5
+            maker_code = part.get("P_ARTICLE_MANUFACTURER") or (prefix if known else "")
+            descr = _eplan_text(part.get("P_ARTICLE_DESCR1")) or _eplan_text(part.get("P_ARTICLE_DESCR2"))
+            typenr = (part.get("P_ARTICLE_TYPENR") or "").strip()
+            name = (descr if typenr and typenr.lower() in descr.lower() else
+                    " ".join(x for x in (descr, typenr) if x)) or pn
+            params = []
+            if typenr:
+                params.append("Typ: " + typenr)
+            if part.get("P_ARTICLE_ORDERNR"):
+                params.append("Obj. č. (EPLAN): " + part.get("P_ARTICLE_ORDERNR"))
+            params.append("EPLAN artikel: " + pn)
+            length = part.get("P_ARTICLE_PARTIAL_LENGTH_FULL")
+            if length and length not in ("0", "0 m"):
+                params.append("Dĺžka: " + length)
+            note = _eplan_text(part.get("P_ARTICLE_NOTE"))
+            if note:
+                params.append(note[:400])
+            a = articles[pn] = {
+                "partno": pn,
+                "order_code": rest if known else pn,
+                "name": name[:255],
+                "manufacturer": EPLAN_MANUFACTURERS.get(maker_code, maker_code),
+                "supplier": part.get("P_ARTICLE_SUPPLIER") or "",
+                "params": "\n".join(params),
+                "category": "Elektro",
+                "counts": {}, "tags": {},
+            }
+        a["counts"][struct] = a["counts"].get(struct, 0) + count
+        tag = (part.get("P_FUNC_DEVICETAG_FULLNAME") or "").strip()
+        if tag:
+            a["tags"].setdefault(struct, [])
+            if tag not in a["tags"][struct]:
+                a["tags"][struct].append(tag)
+    arts = sorted(articles.values(), key=lambda a: (a["manufacturer"].lower(), a["order_code"]))
+    return {"structures": structures, "articles": arts}
+
+
+def eplan_items(parsed, selected_structs, excluded=()):
+    """Z načítaného EPLAN súboru vytvorí položky pre import (len zvolené štruktúry a artikle)."""
+    items = []
+    for a in parsed["articles"]:
+        if a["partno"] in excluded:
+            continue
+        qty = sum(v for s, v in a["counts"].items() if s in selected_structs)
+        if qty <= 0:
+            continue
+        tags = []
+        for s in selected_structs:
+            for t in a["tags"].get(s, []):
+                if t not in tags:
+                    tags.append(t)
+        note = ("Označenie v schéme: " + ", ".join(tags)) if tags else ""
+        items.append({"code": "", "order_code": a["order_code"], "name": a["name"],
+                      "manufacturer": a["manufacturer"], "supplier": a["supplier"], "params": a["params"],
+                      "category": a["category"], "image": None, "qty": int(round(qty)),
+                      "pp_note": note[:500]})
+    return items
