@@ -161,11 +161,18 @@ def next_part_code():
 HEADER_MAP = {
     "code": ["oznacenie", "označenie", "kod", "kód", "code", "id", "interne cislo", "interné číslo"],
     "order_code": ["objednavacie cislo", "objednávacie číslo", "obj. cislo", "obj. číslo", "obj cislo",
-                   "order code", "order number", "part number", "pn", "objednavacie_cislo"],
-    "name": ["nazov", "názov", "popis", "name", "description"],
-    "manufacturer": ["vyrobca", "výrobca", "manufacturer"],
-    "supplier": ["dodavatel", "dodávateľ", "supplier"],
-    "qty": ["mnozstvo", "množstvo", "pocet", "počet", "ks", "qty", "quantity", "pocet ks", "počet ks"],
+                   "order code", "order number", "part number", "partnumber", "pn", "objednavacie_cislo",
+                   "číslo dielu", "cislo dielu", "artikel", "article"],
+    "name": ["nazov", "názov", "name", "nazov dielu", "názov dielu"],
+    "description": ["popis", "description", "beschreibung"],
+    "manufacturer": ["vyrobca", "výrobca", "manufacturer", "vendor", "hersteller"],
+    "supplier": ["dodavatel", "dodávateľ", "supplier", "lieferant"],
+    "qty": ["mnozstvo", "množstvo", "pocet", "počet", "ks", "qty", "quantity", "pocet ks", "počet ks", "menge",
+            "item qty", "total qty"],
+    "material": ["material", "materiál"],
+    "mass": ["mass", "hmotnost", "hmotnosť", "weight", "gewicht"],
+    "filename": ["filename", "file name", "subor", "súbor"],
+    "thumbnail": ["thumbnail", "nahlad", "náhľad", "obrazok", "obrázok", "image"],
 }
 
 
@@ -173,14 +180,80 @@ def _norm(h):
     return " ".join(str(h or "").strip().lower().replace("_", " ").split())
 
 
+def _cell(v):
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    return str(v).strip()
+
+
+def _find_header(rows):
+    """Nájde riadok s hlavičkou (nemusí byť prvý – napr. export z Inventora má nad ňou údaje o zostave)."""
+    best, best_idx = None, {}
+    for ri, r in enumerate(rows[:40]):
+        header = [_norm(h) for h in r]
+        idx = {}
+        for key, names in HEADER_MAP.items():
+            for i, h in enumerate(header):
+                if h in names:
+                    idx[key] = i
+                    break
+        if ("order_code" in idx or "code" in idx) and len(idx) > len(best_idx):
+            best, best_idx = ri, idx
+    return best, best_idx
+
+
+def _bom_meta(rows, header_row):
+    """Údaje o zostave nad hlavičkou (Inventor: 'Part list of Assemblie …', Device name, Serial number…)."""
+    meta = {}
+    above = rows[:header_row]
+    for ri, r in enumerate(above):
+        cells = [_cell(c) for c in r]
+        for c in cells:
+            low = c.lower()
+            for prefix in ("part list of assemblie", "part list of assembly", "kusovník zostavy", "kusovnik zostavy"):
+                if low.startswith(prefix):
+                    meta["assembly"] = c[len(prefix):].strip(" :")
+        # štítok v jednom riadku, hodnota pod ním (rovnaký stĺpec)
+        if ri + 1 < len(above):
+            below = [_cell(c) for c in above[ri + 1]]
+            for ci, c in enumerate(cells):
+                key = {"device name": "device", "názov zariadenia": "device", "nazov zariadenia": "device",
+                       "type": "type", "typ": "type", "serial number": "serial", "výrobné číslo": "serial",
+                       "zakazka": "serial", "zákazka": "serial", "manufacturing year": "year",
+                       "rok výroby": "year"}.get(c.lower())
+                if key and ci < len(below) and below[ci]:
+                    meta.setdefault(key, below[ci])
+            # štítok a hodnota v jednom riadku vedľa seba
+            for ci, c in enumerate(cells[:-1]):
+                if c.lower() in ("author", "autor", "date", "dátum") and cells[ci + 1:]:
+                    nxt = next((x for x in cells[ci + 1:] if x), "")
+                    if nxt and c.lower() in ("author", "autor"):
+                        meta.setdefault("author", nxt)
+    return meta
+
+
 def read_bom(file_storage):
+    """Načíta kusovník (XLSX/CSV). Vracia {"items": [...], "meta": {...}}.
+
+    Zvláda aj export z Autodesk Inventora: hlavička nemusí byť v prvom riadku,
+    údaje o zostave nad ňou sa načítajú do meta a náhľady dielov (stĺpec Thumbnail) sa priradia k riadkom.
+    """
     filename = (file_storage.filename or "").lower()
+    images = {}
     if filename.endswith((".xlsx", ".xlsm")):
         from openpyxl import load_workbook
 
-        wb = load_workbook(file_storage.stream, read_only=True, data_only=True)
+        wb = load_workbook(file_storage.stream, data_only=True)
         ws = wb.active
         rows = [list(r) for r in ws.iter_rows(values_only=True)]
+        for im in getattr(ws, "_images", []):
+            try:
+                fr = im.anchor._from
+                images[(fr.row, fr.col)] = im._data()
+            except Exception:
+                pass
     else:
         raw = file_storage.stream.read()
         for enc in ("utf-8-sig", "cp1250", "latin-1"):
@@ -191,39 +264,112 @@ def read_bom(file_storage):
                 continue
         dialect = csv.Sniffer().sniff(text[:2048], delimiters=";,\t") if text.strip() else csv.excel
         rows = list(csv.reader(io.StringIO(text), dialect))
-    rows = [r for r in rows if any(c not in (None, "") for c in r)]
-    if not rows:
-        return []
-    header = [_norm(h) for h in rows[0]]
-    idx = {}
-    for key, names in HEADER_MAP.items():
-        for i, h in enumerate(header):
-            if h in names:
-                idx[key] = i
-                break
-    if "order_code" not in idx and "code" not in idx:
-        raise ValueError("Súbor musí obsahovať stĺpec 'Objednávacie číslo' alebo 'Označenie'.")
-    items = []
-    for r in rows[1:]:
+    if not any(any(c not in (None, "") for c in r) for r in rows):
+        return {"items": [], "meta": {}}
+    hrow, idx = _find_header(rows)
+    if hrow is None:
+        raise ValueError("Nenašiel sa stĺpec 'Objednávacie číslo' / 'Part Number' ani 'Označenie'.")
+    meta = _bom_meta(rows, hrow)
+
+    items, by_key = [], {}
+    for ri in range(hrow + 1, len(rows)):
+        r = rows[ri]
+        if not any(c not in (None, "") for c in r):
+            continue
+
         def val(k):
             i = idx.get(k)
-            if i is None or i >= len(r) or r[i] is None:
-                return ""
-            v = r[i]
-            if isinstance(v, float) and v.is_integer():
-                v = int(v)
-            return str(v).strip()
+            return _cell(r[i]) if i is not None and i < len(r) else ""
 
+        code, order_code = val("code"), val("order_code")
+        if not code and not order_code:
+            continue
         q = val("qty")
         try:
-            qty = int(float(q.replace(",", "."))) if q else 1
+            qty = int(round(float(q.replace(",", ".")))) if q else 1
         except ValueError:
             qty = 1
-        item = {k: val(k) for k in ("code", "order_code", "name", "manufacturer", "supplier")}
-        item["qty"] = max(qty, 0)
-        if item["code"] or item["order_code"]:
-            items.append(item)
-    return items
+        desc, name = val("description"), val("name")
+        pn = order_code or code
+        if not name:
+            name = f"{desc} {pn}".strip() if desc and desc.lower() not in pn.lower() else (desc or pn)
+        params = []
+        material = val("material")
+        if material and material.lower() != "generic":
+            params.append("Materiál: " + material)
+        if val("mass"):
+            params.append("Hmotnosť: " + val("mass"))
+        if val("filename"):
+            params.append("CAD súbor: " + val("filename"))
+        up = pn.upper()
+        category = ""
+        if up.startswith(("DIN ", "DIN-", "ISO ", "ISO-", "EN ", "ČSN ", "CSN ")):
+            category = "Spojovací materiál"
+        elif "_P_" in up:
+            category = "Výrobný diel"
+        image = None
+        if "thumbnail" in idx:
+            image = images.get((ri, idx["thumbnail"]))
+        key = (code or "").lower(), (order_code or "").lower()
+        if key in by_key:                      # rovnaký diel viackrát v kusovníku → sčítame
+            by_key[key]["qty"] += max(qty, 0)
+            continue
+        item = {"code": code, "order_code": order_code, "name": name[:255],
+                "manufacturer": val("manufacturer"), "supplier": val("supplier"),
+                "params": "\n".join(params), "category": category, "image": image, "qty": max(qty, 0)}
+        by_key[key] = item
+        items.append(item)
+    return {"items": items, "meta": meta}
+
+
+class _BytesUpload:
+    """Obal, aby sa obrázok z kusovníka dal uložiť funkciou save_image."""
+    def __init__(self, data):
+        self.filename = "nahlad.png"
+        self.stream = io.BytesIO(data)
+
+
+def import_bom_items(project_id, items):
+    """Vloží položky kusovníka do projektu. Chýbajúce skladové karty vytvorí, náhľady doplní."""
+    db = get_db()
+    stats = {"linked": 0, "created": 0, "images": 0}
+    for it in items:
+        part = None
+        if it["code"]:
+            part = db.query("SELECT * FROM parts WHERE LOWER(code) = LOWER(?)", (it["code"],), one=True)
+        if not part and it["order_code"]:
+            part = db.query("SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?)", (it["order_code"],), one=True)
+        image = None
+        if it.get("image") and (not part or not part.get("image")):
+            try:
+                image = save_image(_BytesUpload(it["image"]))
+                stats["images"] += 1
+            except Exception:
+                image = None
+        if not part:
+            code = it["code"] or next_part_code()
+            part_id = db.execute(
+                """INSERT INTO parts (code, order_code, name, manufacturer, supplier, category, params, image)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (code, it["order_code"] or None, it["name"] or it["order_code"] or code,
+                 it["manufacturer"] or None, it["supplier"] or None, it.get("category") or None,
+                 it.get("params") or None, image))
+            stats["created"] += 1
+        else:
+            part_id = part["id"]
+            if image:
+                db.execute("UPDATE parts SET image = ? WHERE id = ?", (image, part_id))
+        if it["qty"] <= 0:
+            continue
+        ex = db.query("SELECT id FROM project_parts WHERE project_id = ? AND part_id = ?",
+                      (project_id, part_id), one=True)
+        if ex:
+            db.execute("UPDATE project_parts SET qty_required = ? WHERE id = ?", (it["qty"], ex["id"]))
+        else:
+            db.execute("INSERT INTO project_parts (project_id, part_id, qty_required) VALUES (?, ?, ?)",
+                       (project_id, part_id, it["qty"]))
+        stats["linked"] += 1
+    return stats
 
 
 # --- Fulltextové hľadanie dielov -----------------------------------------------

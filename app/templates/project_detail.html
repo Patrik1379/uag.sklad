@@ -103,7 +103,7 @@
   <form class="card" method="post" action="{{ url_for('main.project_import', pid=project.id) }}" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <h2>Import kusovníka (Excel / CSV)</h2>
-    <p class="small muted" style="margin-top:0">Stĺpce: <b>Označenie</b>, <b>Objednávacie číslo</b>, Názov, Výrobca, Dodávateľ, <b>Množstvo</b>. Chýbajúce skladové karty sa vytvoria automaticky. <a href="{{ url_for('main.bom_template') }}">Stiahnuť šablónu</a></p>
+    <p class="small muted" style="margin-top:0">Stĺpce: <b>Označenie</b> alebo <b>Objednávacie číslo / Part Number</b>, Názov / Description, Výrobca / Vendor, <b>Množstvo / QTY</b>. Funguje aj priamo export z Inventora vrátane náhľadov dielov. Chýbajúce skladové karty sa vytvoria automaticky. <a href="{{ url_for('main.bom_template') }}">Stiahnuť šablónu</a></p>
     <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required>
     <div class="form-actions"><button class="btn primary">Importovať</button></div>
   </form>

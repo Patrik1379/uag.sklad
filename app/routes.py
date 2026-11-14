@@ -1,4 +1,5 @@
 import io
+import os
 from datetime import datetime
 
 from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
@@ -9,7 +10,7 @@ from .auth import admin_required, current_user, login_required
 from .db import get_db
 from .services import (location_label, location_parts, locations_map, racks_map, delete_image, demand_for_part, enrich, free_stock,
                        free_stock_map, next_part_code, project_lines,
-                       projects_with_stats, read_bom, save_image, search_parts, summarize,
+                       projects_with_stats, read_bom, import_bom_items, save_image, search_parts, summarize,
                        LINES_SQL)
 
 bp = Blueprint("main", __name__)
@@ -446,38 +447,55 @@ def project_import(pid):
         flash("Vyberte súbor (XLSX alebo CSV).", "error")
         return redirect(url_for("main.project_detail", pid=pid))
     try:
-        items = read_bom(f)
+        bom = read_bom(f)
     except Exception as exc:
         flash(f"Súbor sa nepodarilo načítať: {exc}", "error")
         return redirect(url_for("main.project_detail", pid=pid))
-    created = linked = 0
-    for it in items:
-        part = None
-        if it["code"]:
-            part = db.query("SELECT * FROM parts WHERE LOWER(code) = LOWER(?)", (it["code"],), one=True)
-        if not part and it["order_code"]:
-            part = db.query("SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?)", (it["order_code"],), one=True)
-        if not part:
-            code = it["code"] or next_part_code()
-            part_id = db.execute(
-                """INSERT INTO parts (code, order_code, name, manufacturer, supplier)
-                   VALUES (?, ?, ?, ?, ?) RETURNING id""",
-                (code, it["order_code"] or None, it["name"] or it["order_code"] or code,
-                 it["manufacturer"] or None, it["supplier"] or None))
-            created += 1
-        else:
-            part_id = part["id"]
-        if it["qty"] <= 0:
-            continue
-        ex = db.query("SELECT id FROM project_parts WHERE project_id = ? AND part_id = ?", (pid, part_id), one=True)
-        if ex:
-            db.execute("UPDATE project_parts SET qty_required = ? WHERE id = ?", (it["qty"], ex["id"]))
-        else:
-            db.execute("INSERT INTO project_parts (project_id, part_id, qty_required) VALUES (?, ?, ?)",
-                       (pid, part_id, it["qty"]))
-        linked += 1
+    st = import_bom_items(pid, bom["items"])
     db.commit()
-    flash(f"Import hotový: {linked} položiek v projekte, {created} nových skladových kariet.", "ok")
+    flash(f"Import hotový: {st['linked']} položiek v projekte, {st['created']} nových skladových kariet"
+          + (f", {st['images']} obrázkov" if st["images"] else "") + ".", "ok")
+    return redirect(url_for("main.project_detail", pid=pid))
+
+
+@bp.route("/projekty/import", methods=["POST"])
+@admin_required
+def project_import_new():
+    """Nový projekt priamo z kusovníka – názov a číslo zakázky sa načítajú z hlavičky súboru."""
+    db = get_db()
+    f = request.files.get("file")
+    if not f or not f.filename:
+        flash("Vyberte súbor s kusovníkom (XLSX alebo CSV).", "error")
+        return redirect(url_for("main.projects"))
+    try:
+        bom = read_bom(f)
+    except Exception as exc:
+        flash(f"Súbor sa nepodarilo načítať: {exc}", "error")
+        return redirect(url_for("main.projects"))
+    meta = bom["meta"]
+    base = os.path.splitext(os.path.basename(f.filename))[0]
+    name = (request.form.get("name") or "").strip() or meta.get("device") or meta.get("assembly") or base
+    order_no = (request.form.get("order_no") or "").strip() or meta.get("serial") or meta.get("assembly") or base
+    existing = db.query("SELECT id, name FROM projects WHERE LOWER(order_no) = LOWER(?) AND status = 'aktivny'",
+                        (order_no,), one=True)
+    if existing:
+        pid, name = existing["id"], existing["name"]
+        note_new = False
+    else:
+        note = "\n".join(x for x in [
+            f"Importované z kusovníka: {f.filename}",
+            f"Zostava: {meta['assembly']}" if meta.get("assembly") else "",
+            f"Typ: {meta['type']}" if meta.get("type") else "",
+            f"Rok výroby: {meta['year']}" if meta.get("year") else "",
+            f"Autor kusovníka: {meta['author']}" if meta.get("author") else ""] if x)
+        pid = db.execute("INSERT INTO projects (name, order_no, note, status) VALUES (?, ?, ?, 'aktivny') RETURNING id",
+                         (name[:200], order_no[:100], note))
+        note_new = True
+    st = import_bom_items(pid, bom["items"])
+    db.commit()
+    flash(("Vytvorený projekt" if note_new else "Kusovník pridaný do existujúceho projektu")
+          + f" „{name}“ (zákazka {order_no}): {st['linked']} položiek, {st['created']} nových skladových kariet"
+          + (f", {st['images']} obrázkov" if st["images"] else "") + ".", "ok")
     return redirect(url_for("main.project_detail", pid=pid))
 
 
