@@ -115,6 +115,8 @@ textarea { min-height: 5.333rem; resize: vertical; }
 .table-wrap { overflow-x: auto; }
 table.data { width: 100%; border-collapse: collapse; }
 table.data th { text-align: left; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); font-weight: 600; padding: 0.6rem 0.667rem; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+table.data th.num { text-align: right; }
+table.data td.num .inline-form { display: inline-block; }
 table.data td { padding: 0.533rem 0.667rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 table.data td.mono { white-space: nowrap; }
 table.data tr:last-child td { border-bottom: none; }
