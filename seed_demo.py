@@ -68,9 +68,13 @@ def main():
             db.execute("INSERT INTO users (username, full_name, password_hash, role) VALUES (?, ?, ?, 'technik')",
                        ("technik", "Ján Technik", generate_password_hash("technik")))
         uid = db.scalar("SELECT id FROM users WHERE username = 'technik'")
+        sklad = db.execute("INSERT INTO locations (name, note) VALUES (?, ?) RETURNING id", ("Hlavný sklad", "hala A"))
+        dielna = db.execute("INSERT INTO locations (name) VALUES (?) RETURNING id", ("Dielňa",))
         racks = {}
-        for code, rname in (("R1", "Elektro"), ("R2", "Pneumatika a mechanika"), ("R3", None)):
-            racks[code] = db.execute("INSERT INTO racks (code, name) VALUES (?, ?) RETURNING id", (code, rname))
+        for code, rname, loc in (("R1", "Elektro", sklad), ("R2", "Pneumatika a mechanika", sklad), ("R3", None, dielna)):
+            racks[code] = db.execute(
+                "INSERT INTO racks (code, name, location_id, shelf_count) VALUES (?, ?, ?, 5) RETURNING id",
+                (code, rname, loc))
         part_ids = []
         for i, (oc, name, man, cat, color) in enumerate(PARTS):
             img = None

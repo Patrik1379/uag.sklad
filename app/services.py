@@ -11,7 +11,7 @@ from .db import get_db
 LINES_SQL = """
 SELECT pp.id AS pp_id, pp.project_id, pp.qty_required, pp.note AS pp_note,
        pa.id AS part_id, pa.code, pa.order_code, pa.name, pa.image, pa.unit,
-       pa.manufacturer, pa.supplier, pa.location, pa.rack_id, pa.shelf,
+       pa.manufacturer, pa.supplier, pa.location, pa.location_id, pa.rack_id, pa.shelf,
        COALESCE(r.qty, 0) AS received
 FROM project_parts pp
 JOIN parts pa ON pa.id = pp.part_id
@@ -291,7 +291,17 @@ def search_parts(q, limit=50):
     return results[:limit]
 
 
-# --- Regály a umiestnenie --------------------------------------------------------
+# --- Lokácie, regály a umiestnenie dielov -----------------------------------------
+
+def locations_map():
+    """Všetky lokácie {id: lokácia} (napr. Hlavný sklad, Dielňa) – načítané raz za požiadavku."""
+    from flask import g
+
+    if "locations" not in g:
+        rows = get_db().query("SELECT * FROM locations ORDER BY name")
+        g.locations = {r["id"]: r for r in rows}
+    return g.locations
+
 
 def racks_map():
     """Všetky regály {id: regál} – v rámci jednej požiadavky sa načítajú iba raz."""
@@ -301,27 +311,41 @@ def racks_map():
         rows = get_db().query("""
             SELECT r.*, p.name AS project_name, p.order_no AS project_order_no
             FROM racks r LEFT JOIN projects p ON p.id = r.project_id ORDER BY r.code""")
+        locs = locations_map()
         for r in rows:
             r["title"] = r["name"] or r["project_name"] or ""
             r["label"] = r["code"] + (" – " + r["title"] if r["title"] else "")
+            loc = locs.get(r["location_id"])
+            r["location_name"] = loc["name"] if loc else ""
+            r["full_label"] = (r["location_name"] + " › " if loc else "") + r["label"]
+            r["shelves"] = [str(i) for i in range(1, int(r["shelf_count"] or 0) + 1)]
+        rows.sort(key=lambda r: (r["location_name"] == "", r["location_name"].lower(), r["code"]))
         g.racks = {r["id"]: r for r in rows}
     return g.racks
 
 
 def location_parts(part):
-    """(regál, polica, iné) pre zobrazenie umiestnenia dielu."""
+    """(lokácia, regál, polica, vlastné pomenovanie) pre zobrazenie umiestnenia dielu."""
     rack = racks_map().get(part.get("rack_id")) if part.get("rack_id") else None
-    return rack, (part.get("shelf") or "").strip(), (part.get("location") or "").strip()
+    loc_id = (rack or {}).get("location_id") or part.get("location_id")
+    loc = locations_map().get(loc_id) if loc_id else None
+    return loc, rack, (part.get("shelf") or "").strip(), (part.get("location") or "").strip()
+
+
+def shelf_text(shelf):
+    return ("polica " + shelf) if shelf[:1].isdigit() else shelf
 
 
 def location_label(part):
-    """Umiestnenie dielu ako text, napr. 'R1 – Linka balenia L3, polica 3'."""
-    rack, shelf, other = location_parts(part)
+    """Umiestnenie dielu ako text, napr. 'Hlavný sklad › R1 – Elektro › polica 3'."""
+    loc, rack, shelf, other = location_parts(part)
     out = []
+    if loc:
+        out.append(loc["name"])
     if rack:
         out.append(rack["label"])
     if shelf:
-        out.append(("polica " + shelf) if shelf[:1].isdigit() else shelf)
+        out.append(shelf_text(shelf))
     if other:
         out.append(other)
-    return ", ".join(out)
+    return " › ".join(out)

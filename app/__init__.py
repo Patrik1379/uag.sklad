@@ -74,10 +74,12 @@ def create_app():
     app.jinja_env.filters["iso"] = iso_date
     app.jinja_env.globals["csrf_token"] = csrf_token
 
-    from .services import location_label, location_parts, racks_map
+    from .services import location_label, location_parts, locations_map, racks_map, shelf_text
     app.jinja_env.filters["loc"] = location_label
+    app.jinja_env.filters["shelf"] = shelf_text
     app.jinja_env.globals["loc_parts"] = location_parts
     app.jinja_env.globals["racks_map"] = racks_map
+    app.jinja_env.globals["locations_map"] = locations_map
 
     from .auth import bp as auth_bp, current_user
     from .routes import bp as main_bp

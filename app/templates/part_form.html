@@ -17,25 +17,41 @@
     <div><label>Jednotka</label><input type="text" name="unit" value="{{ part.unit or 'ks' }}" style="max-width:8rem"></div>
     <div class="full">
       <label>Umiestnenie v sklade</label>
-      <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1.4fr);gap:2px 0.8rem">
-        <span class="hint" style="margin:0">Regál</span><span class="hint" style="margin:0">Polica</span><span class="hint" style="margin:0">Iné umiestnenie</span>
-        {% set racks = racks_map().values()|list %}
+      {% set locs = locations_map().values()|list %}
+      {% set racks = racks_map().values()|list %}
+      {% set cur_rack = racks_map().get(part.rack_id) %}
+      {% set cur_loc = (cur_rack.location_id if cur_rack and cur_rack.location_id else part.location_id) %}
+      <div class="place-grid">
+        <span class="hint">1. Lokácia</span><span class="hint">2. Regál</span><span class="hint">3. Polica</span><span class="hint">Vlastné pomenovanie miesta (nepovinné)</span>
+        <select name="location_id" id="loc-select" aria-label="Lokácia">
+          <option value="">— lokácia —</option>
+          {% for l in locs %}<option value="{{ l.id }}" {{ 'selected' if l.id == cur_loc }}>{{ l.name }}</option>{% endfor %}
+          <option value="new">+ Nová lokácia…</option>
+        </select>
         <select name="rack_id" id="rack-select" aria-label="Regál">
-          <option value="">{{ '— vyberte regál —' if racks else '— zatiaľ žiadne regály —' }}</option>
-          {% for r in racks %}<option value="{{ r.id }}" {{ 'selected' if r.id == part.rack_id }}>{{ r.label }}</option>{% endfor %}
+          <option value="">— regál —</option>
+          {% for r in racks %}<option value="{{ r.id }}" data-loc="{{ r.location_id or '' }}" data-shelves="{{ r.shelf_count or 0 }}"
+            {{ 'selected' if r.id == part.rack_id }}>{{ r.label }}{% if r.location_name %} ({{ r.location_name }}){% endif %}</option>{% endfor %}
           <option value="new">+ Nový regál…</option>
         </select>
-        <input type="text" name="shelf" value="{{ part.shelf or '' }}" placeholder="polica, napr. 3" aria-label="Polica">
-        <input type="text" name="location" value="{{ part.location or '' }}" placeholder="iné (napr. skriňa pri lise)" aria-label="Iné umiestnenie">
+        <span>
+          <select name="shelf" id="shelf-select" aria-label="Polica" data-current="{{ part.shelf or '' }}"></select>
+          <input type="text" name="shelf_text" id="shelf-text" value="{{ part.shelf or '' }}" placeholder="napr. 3" aria-label="Polica">
+        </span>
+        <input type="text" name="location" value="{{ part.location or '' }}" placeholder="napr. modrá krabica, skriňa pri lise" aria-label="Vlastné pomenovanie miesta">
+      </div>
+      <div id="new-loc" class="qty-total" style="display:none;margin:0.667rem 0 0">
+        <b>Nová lokácia:</b>
+        <input type="text" name="new_location_name" placeholder="napr. Hlavný sklad" style="width:auto;flex:1;min-width:14em">
       </div>
       <div id="new-rack" class="qty-total" style="display:none;margin:0.667rem 0 0">
         <b>Nový regál:</b>
-        <input type="text" name="new_rack_code" placeholder="označenie, napr. R1" class="mono" style="width:11em">
-        <input type="text" name="new_rack_name" placeholder="vlastný názov, napr. Linka balenia L3" style="width:auto;flex:1;min-width:14em">
-        <span class="small muted">Vytvorí sa pri uložení karty.</span>
+        <input type="text" name="new_rack_code" placeholder="označenie, napr. R1" class="mono" style="width:9em">
+        <input type="text" name="new_rack_name" placeholder="vlastný názov (nepovinné)" style="width:auto;flex:1;min-width:12em">
+        <input type="number" name="new_rack_shelves" min="0" max="50" value="5" style="width:5.5em" title="Počet políc"> políc
+        <span class="small muted">Vytvorí sa pri uložení karty, v zvolenej lokácii.</span>
       </div>
-      {% if not racks %}<div class="hint">Zatiaľ nemáte žiadne regály – vyberte „+ Nový regál…“ a vytvorte ho priamo tu, alebo ich pridajte na stránke <a href="{{ url_for('main.racks') }}">Regály</a>.</div>{% endif %}
-      <div class="hint">Regály a ich vlastné názvy (napr. podľa projektu) spravujete na stránke <a href="{{ url_for('main.racks') }}">Regály</a>.</div>
+      <div class="hint">Lokácie, regály, ich vlastné názvy a počet políc spravujete na stránke <a href="{{ url_for('main.racks') }}">Lokácie a regály</a>.</div>
     </div>
     <div class="full"><label>Technické parametre</label><textarea name="params" placeholder="napr. 24 V DC, 10 A, IP65">{{ part.params or '' }}</textarea></div>
     <div class="full"><label>Poznámka</label><textarea name="note" style="min-height:4rem">{{ part.note or '' }}</textarea></div>
@@ -59,10 +75,54 @@
 </form>
 <script>
 (function () {
-  const sel = document.getElementById("rack-select"), box = document.getElementById("new-rack");
-  if (!sel) return;
-  function upd() { box.style.display = sel.value === "new" ? "flex" : "none"; if (sel.value === "new") box.querySelector("input").focus(); }
-  sel.addEventListener("change", upd);
+  const loc = document.getElementById("loc-select"), rack = document.getElementById("rack-select");
+  const shelfSel = document.getElementById("shelf-select"), shelfTxt = document.getElementById("shelf-text");
+  const newLoc = document.getElementById("new-loc"), newRack = document.getElementById("new-rack");
+  if (!rack) return;
+  const rackOpts = Array.from(rack.options).filter((o) => o.value && o.value !== "new");
+
+  function filterRacks() {
+    // regály zvolenej lokácie (+ regály bez lokácie); bez zvolenej lokácie sú vidieť všetky
+    const l = loc.value;
+    rackOpts.forEach((o) => {
+      const ok = !l || l === "new" || !o.dataset.loc || o.dataset.loc === l;
+      o.hidden = !ok; o.disabled = !ok;
+    });
+    if (rack.selectedOptions[0] && rack.selectedOptions[0].disabled) rack.value = "";
+  }
+  function updShelves() {
+    const o = rack.selectedOptions[0];
+    const n = o && o.value !== "new" ? parseInt(o.dataset.shelves || "0", 10) : 0;
+    const keep = shelfSel.value || shelfSel.dataset.current || shelfTxt.value;
+    if (n > 0) {
+      shelfSel.innerHTML = '<option value="">— polica —</option>' +
+        Array.from({ length: n }, (_, i) => '<option value="' + (i + 1) + '">' + (i + 1) + '</option>').join("");
+      if (keep && !/^\d+$/.test(keep) || parseInt(keep, 10) > n) {
+        shelfSel.insertAdjacentHTML("beforeend", '<option value="' + keep.replace(/"/g, "&quot;") + '">' + keep.replace(/</g, "&lt;") + '</option>');
+      }
+      shelfSel.value = keep || "";
+      shelfSel.style.display = ""; shelfSel.disabled = false;
+      shelfTxt.style.display = "none"; shelfTxt.disabled = true;
+    } else {
+      shelfTxt.value = keep || "";
+      shelfSel.style.display = "none"; shelfSel.disabled = true;
+      shelfTxt.style.display = ""; shelfTxt.disabled = false;
+    }
+    shelfSel.dataset.current = "";
+  }
+  loc.addEventListener("change", () => {
+    newLoc.style.display = loc.value === "new" ? "flex" : "none";
+    if (loc.value === "new") newLoc.querySelector("input").focus();
+    filterRacks(); updShelves();
+  });
+  rack.addEventListener("change", () => {
+    newRack.style.display = rack.value === "new" ? "flex" : "none";
+    if (rack.value === "new") newRack.querySelector("input").focus();
+    const o = rack.selectedOptions[0];
+    if (o && o.dataset.loc) loc.value = o.dataset.loc;   // regál určí lokáciu
+    updShelves();
+  });
+  filterRacks(); updShelves();
 })();
 </script>
 {% endblock %}

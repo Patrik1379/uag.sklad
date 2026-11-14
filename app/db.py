@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS parts (
     category VARCHAR(100),
     unit VARCHAR(20) NOT NULL DEFAULT 'ks',
     location VARCHAR(100),
+    location_id INTEGER,
     rack_id INTEGER,
     shelf VARCHAR(50),
     params TEXT,
@@ -129,10 +130,17 @@ CREATE TABLE IF NOT EXISTS parts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_parts_order_code ON parts (order_code);
+CREATE TABLE IF NOT EXISTS locations (
+    id {PK},
+    name VARCHAR(100) NOT NULL,
+    note TEXT
+);
 CREATE TABLE IF NOT EXISTS racks (
     id {PK},
-    code VARCHAR(30) NOT NULL UNIQUE,
+    code VARCHAR(30) NOT NULL,
     name VARCHAR(150),
+    location_id INTEGER,
+    shelf_count INTEGER,
     project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
     note TEXT
 );
@@ -217,6 +225,21 @@ def init_db(retries: int = 30):
     # --- migrácie existujúcich databáz (doplnenie nových stĺpcov) ---
     _add_column(db, "projects", "image", "VARCHAR(255)")
     _add_column(db, "projects", "start_date", "DATE")
+    _add_column(db, "racks", "location_id", "INTEGER")
+    _add_column(db, "racks", "shelf_count", "INTEGER")
+    _add_column(db, "parts", "location_id", "INTEGER")
+    # označenie regálu má byť jedinečné len v rámci lokácie (R1 môže byť v sklade aj na dielni)
+    if is_pg():
+        db.execute("ALTER TABLE racks DROP CONSTRAINT IF EXISTS racks_code_key")
+    elif db.query("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'racks' "
+                  "AND name LIKE 'sqlite_autoindex_racks%'"):
+        cols = "id, code, name, location_id, shelf_count, project_id, note"
+        db.execute("""CREATE TABLE racks_new (id INTEGER PRIMARY KEY AUTOINCREMENT, code VARCHAR(30) NOT NULL,
+                      name VARCHAR(150), location_id INTEGER, shelf_count INTEGER,
+                      project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL, note TEXT)""")
+        db.execute(f"INSERT INTO racks_new ({cols}) SELECT {cols} FROM racks")
+        db.execute("DROP TABLE racks")
+        db.execute("ALTER TABLE racks_new RENAME TO racks")
     _add_column(db, "parts", "shelf", "VARCHAR(50)")
     if _add_column(db, "parts", "rack_id", "INTEGER"):
         _migrate_locations(db)

@@ -1,34 +1,83 @@
 {% extends 'base.html' %}
-{% block title %}Regály{% endblock %}
+{% block title %}Lokácie a regály{% endblock %}
 {% block content %}
 {% set is_admin = current_user.role == 'admin' %}
 <div class="page-head">
-  <div><h1>Regály</h1><div class="muted">Označenie regálu a jeho vlastný názov – napríklad podľa projektu, ktorého diely sú v ňom uložené</div></div>
+  <div><h1>Lokácie a regály</h1>
+    <div class="muted">Umiestnenie dielu sa skladá z troch úrovní: <b>lokácia</b> (napr. Hlavný sklad, Dielňa) › <b>regál</b> (R1, R2…, môže mať vlastný názov) › <b>polica</b>.</div></div>
 </div>
-<form class="card" method="post" style="margin-bottom:1.2rem">
-  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-  <h2>Nový regál</h2>
-  <div class="rack-row new">
-    <div><label>Označenie *</label><input type="text" name="code" required placeholder="R4" class="mono"></div>
-    <div><label>Vlastný názov</label><input type="text" name="name" placeholder="napr. Linka balenia L3"></div>
-    <div><label>Projekt (nepovinné)</label>
-      <select name="project_id"><option value="">—</option>
-        {% for p in projects %}<option value="{{ p.id }}">{{ p.name }} ({{ p.order_no }})</option>{% endfor %}</select></div>
-    <div><label>Poznámka</label><input type="text" name="note" placeholder="napr. hala B"></div>
-    <div></div>
-    <div><button class="btn primary">Pridať</button></div>
-  </div>
-</form>
 
-<div class="card">
-  <div class="rack-row head">
-    <span>Označenie</span><span>Vlastný názov</span><span>Projekt</span><span>Poznámka</span><span class="num">Dielov</span><span></span>
+<div class="grid loc-grid">
+  <!-- ===================== LOKÁCIE ===================== -->
+  <div class="card">
+    <h2>1. Lokácie</h2>
+    <form method="post" class="loc-row new">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="location">
+      <div><label>Názov lokácie *</label><input type="text" name="name" required placeholder="napr. Hlavný sklad"></div>
+      <div><label>Poznámka</label><input type="text" name="note" placeholder="napr. hala B, 1. poschodie"></div>
+      <div><button class="btn primary">Pridať</button></div>
+    </form>
+    <div class="loc-row head" style="margin-top:0.8rem"><span>Názov</span><span>Poznámka</span><span></span></div>
+    {% for l in locations %}
+      <form method="post" action="{{ url_for('main.location_update', loc_id=l.id) }}" class="loc-row">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <input type="text" name="name" value="{{ l.name }}" required aria-label="Názov lokácie" style="font-weight:600">
+        <input type="text" name="note" value="{{ l.note or '' }}" placeholder="poznámka" aria-label="Poznámka">
+        <span style="display:flex;gap:0.4rem;justify-content:flex-end;align-items:center">
+          <a class="small" href="{{ url_for('main.parts', lokacia=l.id) }}" title="Diely v lokácii">{{ l.racks }} reg. · {{ l.parts }} dielov</a>
+          <button class="btn sm">Uložiť</button>
+          {% if is_admin %}<button class="btn sm danger" name="action" value="delete" formnovalidate title="Zmazať lokáciu"
+            onclick="return confirm('Zmazať lokáciu {{ l.name }}? Jej regály a diely zostanú bez lokácie.')">✕</button>{% endif %}
+        </span>
+      </form>
+    {% else %}
+      <div class="empty">Zatiaľ žiadne lokácie – pridajte napr. „Hlavný sklad“ alebo „Dielňa“.</div>
+    {% endfor %}
   </div>
+
+  <!-- ===================== NOVÝ REGÁL ===================== -->
+  <form class="card" method="post">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="rack">
+    <h2>2. Nový regál</h2>
+    <div class="form-grid">
+      <div><label>Lokácia</label>
+        <select name="location_id"><option value="">— bez lokácie —</option>
+          {% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
+        <div><label>Označenie *</label><input type="text" name="code" required placeholder="R1" class="mono"></div>
+        <div><label>Počet políc</label><input type="number" name="shelf_count" min="0" max="50" value="5"></div>
+      </div>
+      <div><label>Vlastný názov (nepovinné)</label><input type="text" name="name" placeholder="napr. Elektro, Linka L3"></div>
+      <div><label>Projekt (nepovinné)</label>
+        <select name="project_id"><option value="">—</option>
+          {% for p in projects %}<option value="{{ p.id }}">{{ p.name }} ({{ p.order_no }})</option>{% endfor %}</select></div>
+      <div class="full"><label>Poznámka</label><input type="text" name="note" placeholder="napr. pri okne, vysoký regál"></div>
+    </div>
+    <div class="form-actions"><button class="btn primary">Pridať regál</button></div>
+  </form>
+</div>
+
+<!-- ===================== REGÁLY ===================== -->
+<div class="card" style="margin-top:1.2rem">
+  <h2>3. Regály</h2>
+  <div class="rack-row head">
+    <span>Označenie</span><span>Vlastný názov</span><span>Lokácia</span><span>Políc</span><span>Projekt</span><span>Poznámka</span><span class="num">Dielov</span><span></span>
+  </div>
+  {% set ns = namespace(last=None) %}
   {% for r in racks %}
+    {% if r.location_name != ns.last %}
+      <div class="rack-group">{{ r.location_name or 'Bez lokácie' }}</div>
+      {% set ns.last = r.location_name %}
+    {% endif %}
     <form method="post" action="{{ url_for('main.rack_update', rack_id=r.id) }}" class="rack-row">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <input type="text" name="code" value="{{ r.code }}" class="mono" style="font-weight:700" aria-label="Označenie" required>
       <input type="text" name="name" value="{{ r.name or '' }}" placeholder="{{ r.project_name or 'vlastný názov' }}" aria-label="Vlastný názov">
+      <select name="location_id" aria-label="Lokácia">
+        <option value="">—</option>
+        {% for l in locations %}<option value="{{ l.id }}" {{ 'selected' if l.id == r.location_id }}>{{ l.name }}</option>{% endfor %}
+      </select>
+      <input type="number" name="shelf_count" min="0" max="50" value="{{ r.shelf_count or '' }}" placeholder="—" aria-label="Počet políc">
       <select name="project_id" aria-label="Projekt">
         <option value="">—</option>
         {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if p.id == r.project_id }}>{{ p.name }} ({{ p.order_no }})</option>{% endfor %}
@@ -44,6 +93,7 @@
   {% else %}
     <div class="empty">Zatiaľ žiadne regály – pridajte prvý vyššie.</div>
   {% endfor %}
-  <p class="small muted" style="margin:0.8rem 0 0">Ak regálu priradíte projekt a vlastný názov necháte prázdny, zobrazí sa pri ňom názov projektu.</p>
+  <p class="small muted" style="margin:0.8rem 0 0">Vlastný názov je nepovinný. Ak regálu priradíte projekt a vlastný názov necháte prázdny, zobrazí sa pri ňom názov projektu.
+    Počet políc určuje, z čoho sa vyberá na skladovej karte (prázdne = policu napíšete ručne).</p>
 </div>
 {% endblock %}

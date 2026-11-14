@@ -3,11 +3,11 @@
 {% block title %}Skladové karty{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Skladové karty</h1><div class="muted">{% if rack %}Diely v regáli <b>{{ rack.label }}</b> · <a href="{{ url_for('main.parts') }}">zobraziť všetky</a>{% else %}Evidencia všetkých dielov{% endif %}</div></div>
+  <div><h1>Skladové karty</h1><div class="muted">{% if rack %}Diely v regáli <b>{{ rack.full_label }}</b> · <a href="{{ url_for('main.parts') }}">zobraziť všetky</a>{% elif loc %}Diely v lokácii <b>{{ loc.name }}</b> · <a href="{{ url_for('main.parts') }}">zobraziť všetky</a>{% else %}Evidencia všetkých dielov{% endif %}</div></div>
   <div class="actions">
     <form method="get" style="display:flex;gap:0.533rem;align-items:center">
       <input type="search" name="q" value="{{ q }}" placeholder="Hľadať vo všetkých údajoch…" style="width:18.667rem">
-      {% if rack %}<input type="hidden" name="regal" value="{{ rack.id }}">{% endif %}
+      {% if rack %}<input type="hidden" name="regal" value="{{ rack.id }}">{% endif %}{% if loc %}<input type="hidden" name="lokacia" value="{{ loc.id }}">{% endif %}
       <label style="margin:0;font-weight:500;white-space:nowrap"><input type="checkbox" name="volne" value="1" {{ 'checked' if only_free }} onchange="this.form.submit()"> len voľný sklad</label>
       <button class="btn">Hľadať</button></form>
     <a class="btn primary" href="{{ url_for('main.part_new') }}">+ Nová karta</a>

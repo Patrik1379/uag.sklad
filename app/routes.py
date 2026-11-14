@@ -7,7 +7,7 @@ from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
 
 from .auth import admin_required, current_user, login_required
 from .db import get_db
-from .services import (location_label, racks_map, delete_image, demand_for_part, enrich, free_stock,
+from .services import (location_label, location_parts, locations_map, racks_map, delete_image, demand_for_part, enrich, free_stock,
                        free_stock_map, next_part_code, project_lines,
                        projects_with_stats, read_bom, save_image, search_parts, summarize,
                        LINES_SQL)
@@ -556,9 +556,12 @@ def parts():
              FROM parts pa"""
     only_free = request.args.get("volne") == "1"
     rack_filter = to_int(request.args.get("regal"), None)
+    loc_filter = to_int(request.args.get("lokacia"), None)
     rows = db.query(sql + " ORDER BY pa.code")
     if rack_filter:
         rows = [r for r in rows if r["rack_id"] == rack_filter]
+    if loc_filter:
+        rows = [r for r in rows if (location_parts(r)[0] or {}).get("id") == loc_filter]
     if q:
         found = search_parts(q, limit=500)
         order = {p["id"]: i for i, p in enumerate(found)}
@@ -570,7 +573,7 @@ def parts():
     if only_free:
         rows = [r for r in rows if int(r["free"] or 0) > 0]
     return render_template("parts.html", parts=rows[:500], q=q, only_free=only_free,
-                           rack=racks_map().get(rack_filter))
+                           rack=racks_map().get(rack_filter), loc=locations_map().get(loc_filter))
 
 
 # =============================================================================
@@ -582,16 +585,29 @@ def parts():
 def racks():
     db = get_db()
     if request.method == "POST":
+        if request.form.get("kind") == "location":
+            name = request.form.get("name", "").strip()[:100]
+            if not name:
+                flash("Zadajte názov lokácie (napr. Hlavný sklad).", "error")
+            elif db.scalar("SELECT COUNT(*) FROM locations WHERE LOWER(name) = LOWER(?)", (name,)):
+                flash(f"Lokácia {name} už existuje.", "error")
+            else:
+                db.execute("INSERT INTO locations (name, note) VALUES (?, ?)",
+                           (name, request.form.get("note", "").strip() or None))
+                db.commit()
+                flash(f"Lokácia {name} bola pridaná.", "ok")
+            return redirect(url_for("main.racks"))
         code = request.form.get("code", "").strip().upper()[:30]
+        loc_id = _valid_location(request.form.get("location_id"))
         if not code:
             flash("Zadajte označenie regálu (napr. R1).", "error")
-        elif db.scalar("SELECT COUNT(*) FROM racks WHERE UPPER(code) = ?", (code,)):
-            flash(f"Regál {code} už existuje.", "error")
+        elif _rack_exists(code, loc_id):
+            flash(f"Regál {code} v tejto lokácii už existuje.", "error")
         else:
-            pid = to_int(request.form.get("project_id"), None)
-            db.execute("INSERT INTO racks (code, name, project_id, note) VALUES (?, ?, ?, ?)",
-                       (code, request.form.get("name", "").strip() or None, pid,
-                        request.form.get("note", "").strip() or None))
+            db.execute(
+                "INSERT INTO racks (code, name, location_id, shelf_count, project_id, note) VALUES (?, ?, ?, ?, ?, ?)",
+                (code, request.form.get("name", "").strip() or None, loc_id, _shelf_count(),
+                 to_int(request.form.get("project_id"), None), request.form.get("note", "").strip() or None))
             db.commit()
             flash(f"Regál {code} bol pridaný.", "ok")
         return redirect(url_for("main.racks"))
@@ -600,8 +616,34 @@ def racks():
     rows = list(racks_map().values())
     for r in rows:
         r["parts"] = counts.get(r["id"], 0)
+    locations = list(locations_map().values())
+    for l in locations:
+        l["racks"] = sum(1 for r in rows if r["location_id"] == l["id"])
+        l["parts"] = sum(r["parts"] for r in rows if r["location_id"] == l["id"]) + int(db.scalar(
+            "SELECT COUNT(*) FROM parts WHERE rack_id IS NULL AND location_id = ?", (l["id"],)) or 0)
     projects = db.query("SELECT id, name, order_no FROM projects ORDER BY status, name")
-    return render_template("racks.html", racks=rows, projects=projects)
+    return render_template("racks.html", racks=rows, locations=locations, projects=projects)
+
+
+def _valid_location(value):
+    lid = to_int(value, None)
+    return lid if lid in locations_map() else None
+
+
+def _shelf_count():
+    n = to_int(request.form.get("shelf_count"), 0)
+    return max(0, min(n, 50)) or None
+
+
+def _rack_exists(code, location_id, exclude_id=None):
+    db = get_db()
+    sql = "SELECT COUNT(*) FROM racks WHERE UPPER(code) = ? AND " + (
+        "location_id = ?" if location_id else "location_id IS NULL")
+    params = [code] + ([location_id] if location_id else [])
+    if exclude_id:
+        sql += " AND id <> ?"
+        params.append(exclude_id)
+    return bool(db.scalar(sql, params))
 
 
 @bp.route("/regaly/<int:rack_id>", methods=["POST"])
@@ -612,21 +654,49 @@ def rack_update(rack_id):
     if request.form.get("action") == "delete":
         if current_user()["role"] != "admin":
             abort(403)
+        db.execute("UPDATE parts SET location_id = ? WHERE rack_id = ? AND location_id IS NULL",
+                   (rack["location_id"], rack_id))
         db.execute("UPDATE parts SET rack_id = NULL WHERE rack_id = ?", (rack_id,))
         db.execute("DELETE FROM racks WHERE id = ?", (rack_id,))
         db.commit()
         flash(f"Regál {rack['code']} bol zmazaný. Diely v ňom zostali bez regálu.", "ok")
         return redirect(url_for("main.racks"))
     code = request.form.get("code", "").strip().upper()[:30] or rack["code"]
-    if db.scalar("SELECT COUNT(*) FROM racks WHERE UPPER(code) = ? AND id <> ?", (code, rack_id)):
-        flash(f"Regál {code} už existuje.", "error")
+    loc_id = _valid_location(request.form.get("location_id"))
+    if _rack_exists(code, loc_id, exclude_id=rack_id):
+        flash(f"Regál {code} v tejto lokácii už existuje.", "error")
         return redirect(url_for("main.racks"))
-    db.execute("UPDATE racks SET code = ?, name = ?, project_id = ?, note = ? WHERE id = ?",
-               (code, request.form.get("name", "").strip() or None,
+    db.execute("UPDATE racks SET code = ?, name = ?, location_id = ?, shelf_count = ?, project_id = ?, note = ? WHERE id = ?",
+               (code, request.form.get("name", "").strip() or None, loc_id, _shelf_count(),
                 to_int(request.form.get("project_id"), None),
                 request.form.get("note", "").strip() or None, rack_id))
     db.commit()
     flash(f"Regál {code} bol uložený.", "ok")
+    return redirect(url_for("main.racks"))
+
+
+@bp.route("/lokacie/<int:loc_id>", methods=["POST"])
+@login_required
+def location_update(loc_id):
+    db = get_db()
+    loc = db.query("SELECT * FROM locations WHERE id = ?", (loc_id,), one=True) or abort(404)
+    if request.form.get("action") == "delete":
+        if current_user()["role"] != "admin":
+            abort(403)
+        db.execute("UPDATE racks SET location_id = NULL WHERE location_id = ?", (loc_id,))
+        db.execute("UPDATE parts SET location_id = NULL WHERE location_id = ?", (loc_id,))
+        db.execute("DELETE FROM locations WHERE id = ?", (loc_id,))
+        db.commit()
+        flash(f"Lokácia {loc['name']} bola zmazaná. Jej regály zostali bez lokácie.", "ok")
+        return redirect(url_for("main.racks"))
+    name = request.form.get("name", "").strip()[:100] or loc["name"]
+    if db.scalar("SELECT COUNT(*) FROM locations WHERE LOWER(name) = LOWER(?) AND id <> ?", (name, loc_id)):
+        flash(f"Lokácia {name} už existuje.", "error")
+        return redirect(url_for("main.racks"))
+    db.execute("UPDATE locations SET name = ?, note = ? WHERE id = ?",
+               (name, request.form.get("note", "").strip() or None, loc_id))
+    db.commit()
+    flash(f"Lokácia {name} bola uložená.", "ok")
     return redirect(url_for("main.racks"))
 
 
@@ -671,28 +741,57 @@ def parts_api():
 def _part_form_data():
     data = {f: (request.form.get(f, "").strip() or None) for f in PART_FIELDS}
     data["unit"] = data["unit"] or "ks"
+    # lokácia
+    if request.form.get("location_id") == "new":
+        data["location_id"] = _create_location_from_form()
+    else:
+        data["location_id"] = _valid_location(request.form.get("location_id"))
+    # regál
     if request.form.get("rack_id") == "new":
-        data["rack_id"] = _create_rack_from_form()
+        data["rack_id"] = _create_rack_from_form(data["location_id"])
     else:
         rid = to_int(request.form.get("rack_id"), None)
         data["rack_id"] = rid if rid in racks_map() else None
+    rack = racks_map().get(data["rack_id"])
+    if rack and rack["location_id"]:
+        data["location_id"] = rack["location_id"]
+    # polica: výber zo zoznamu alebo ručne zadaná
+    data["shelf"] = (request.form.get("shelf") or request.form.get("shelf_text") or "").strip()[:50] or None
     return data
 
 
-def _create_rack_from_form():
-    """Nový regál zadaný priamo na skladovej karte (ak už existuje, použije sa)."""
+def _create_location_from_form():
+    db = get_db()
+    name = request.form.get("new_location_name", "").strip()[:100]
+    if not name:
+        return None
+    existing = db.query("SELECT id FROM locations WHERE LOWER(name) = LOWER(?)", (name,), one=True)
+    if existing:
+        return existing["id"]
+    return db.execute("INSERT INTO locations (name) VALUES (?) RETURNING id", (name,))
+
+
+def _create_rack_from_form(location_id):
+    """Nový regál zadaný priamo na skladovej karte (ak už v lokácii existuje, použije sa)."""
     db = get_db()
     code = request.form.get("new_rack_code", "").strip().upper()[:30]
     name = request.form.get("new_rack_name", "").strip() or None
+    shelves = max(0, min(to_int(request.form.get("new_rack_shelves"), 0), 50)) or None
     if not code:
         n = 1
-        while db.scalar("SELECT COUNT(*) FROM racks WHERE UPPER(code) = ?", (f"R{n}",)):
+        while _rack_exists(f"R{n}", location_id):
             n += 1
         code = f"R{n}"
-    existing = db.query("SELECT id FROM racks WHERE UPPER(code) = ?", (code,), one=True)
+    loc_sql = "location_id = ?" if location_id else "location_id IS NULL"
+    existing = db.query(f"SELECT id FROM racks WHERE UPPER(code) = ? AND {loc_sql}",
+                        [code] + ([location_id] if location_id else []), one=True)
     if existing:
         return existing["id"]
-    return db.execute("INSERT INTO racks (code, name) VALUES (?, ?) RETURNING id", (code, name))
+    rid = db.execute("INSERT INTO racks (code, name, location_id, shelf_count) VALUES (?, ?, ?, ?) RETURNING id",
+                     (code, name, location_id, shelves))
+    from flask import g
+    g.pop("racks", None)  # nový regál musí byť viditeľný v racks_map()
+    return rid
 
 
 @bp.route("/diely/novy", methods=["GET", "POST"])
@@ -715,7 +814,7 @@ def part_new():
                 data["image"] = save_image(img)
             except Exception as exc:
                 flash(f"Obrázok sa nepodarilo uložiť: {exc}", "error")
-        cols = PART_FIELDS + ["rack_id"] + (["image"] if data.get("image") else [])
+        cols = PART_FIELDS + ["location_id", "rack_id"] + (["image"] if data.get("image") else [])
         part_id = db.execute(
             f"INSERT INTO parts ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))}) RETURNING id",
             [data[c] for c in cols])
@@ -783,7 +882,7 @@ def part_edit(part_id):
             except Exception as exc:
                 flash(f"Obrázok sa nepodarilo uložiť: {exc}", "error")
         data["image"] = image
-        cols = PART_FIELDS + ["rack_id", "image"]
+        cols = PART_FIELDS + ["location_id", "rack_id", "image"]
         db.execute(f"UPDATE parts SET {', '.join(c + ' = ?' for c in cols)} WHERE id = ?",
                    [data[c] for c in cols] + [part_id])
         db.commit()

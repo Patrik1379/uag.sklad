@@ -46,11 +46,12 @@
 
 {# Umiestnenie dielu: regál (kód + vlastný názov) · polica · iné #}
 {% macro location(part, empty='') -%}
-  {%- set rack, shelf, other = loc_parts(part) -%}
-  {%- if rack or shelf or other -%}
+  {%- set loc, rack, shelf, other = loc_parts(part) -%}
+  {%- if loc or rack or shelf or other -%}
   <span class="loc">
+    {%- if loc %}<a class="loc-place" href="{{ url_for('main.parts', lokacia=loc.id) }}" title="Všetky diely v lokácii {{ loc.name }}">{{ loc.name }}</a>{% endif -%}
     {%- if rack %}<a class="rack" href="{{ url_for('main.parts', regal=rack.id) }}" title="Všetky diely v regáli {{ rack.code }}">{{ rack.code }}</a>{% if rack.title %}<span class="rack-name">{{ rack.title }}</span>{% endif %}{% endif -%}
-    {%- if shelf %}<span class="shelf">{{ ('polica ' ~ shelf) if shelf[:1].isdigit() else shelf }}</span>{% endif -%}
+    {%- if shelf %}<span class="shelf">{{ shelf|shelf }}</span>{% endif -%}
     {%- if other %}<span class="muted">{{ other }}</span>{% endif -%}
   </span>
   {%- else -%}{{ empty }}{%- endif -%}
