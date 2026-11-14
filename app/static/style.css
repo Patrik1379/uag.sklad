@@ -231,14 +231,31 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 550; 
 @media (max-width: 1100px) {
   form.card > div[style*="grid-template-columns:minmax(0,2fr)"] { grid-template-columns: 1fr 1fr !important; }
 }
+.menu-toggle { display: none; }
 @media (max-width: 760px) {
   .layout { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 0.667rem; }
-  .brand { padding: 0.267rem 0.667rem; }
+  /* zbalené menu: logo + rad ikoniek + tlačidlo Menu */
+  .sidebar { width: 100%; height: auto; position: sticky; top: 0; z-index: 50; flex-direction: column; align-items: stretch; padding: 0.533rem 0.667rem; }
+  .brand { padding: 0.267rem 0.4rem 0.4rem; }
+  .menu-toggle { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: auto; background: rgba(255,255,255,.1); color: #fff;
+    border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 0.4rem 0.7rem; font: inherit; font-weight: 600; cursor: pointer; }
+  .menu-toggle svg { width: 1.3em; height: 1.3em; }
+  .menu-toggle .i-close { display: none; }
   .nav { display: flex; flex-wrap: wrap; gap: 0.267rem; }
   .nav a { padding: 0.533rem 0.667rem; margin: 0; }
   .nav a span { display: none; }
-  .sidebar .user { margin: 0 0 0 auto; border: none; padding: 0; }
+  .nav a .nav-count { display: inline-block; margin-left: 0.2rem; }
+  .sidebar .user { display: none; }
+  /* rozbalené menu: celé názvy pod sebou + písmo a používateľ */
+  .sidebar.open { max-height: 100vh; overflow-y: auto; }
+  .sidebar.open .menu-toggle .i-open { display: none; }
+  .sidebar.open .menu-toggle .i-close { display: inline; }
+  .sidebar.open .nav { flex-direction: column; flex-wrap: nowrap; }
+  .sidebar.open .nav a { padding: 0.75rem 0.9rem; font-size: 1.1rem; }
+  .sidebar.open .nav a span { display: inline; }
+  .sidebar.open .nav a .nav-count { margin-left: auto; }
+  .sidebar.open .user { display: block; margin: 0.6rem 0 0.2rem; border-top: 1px solid rgba(255,255,255,.1); padding: 0.8rem 0.4rem 0; }
+  .sidebar.open .fontsize span { display: inline; }
   .main { padding: 1.067rem; }
   .form-grid { grid-template-columns: 1fr; }
   .part-head { flex-direction: column; }
@@ -352,3 +369,5 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 550; 
 .scan-choices { display: flex; flex-direction: column; gap: 0.4rem; }
 .scan-choices .btn { justify-content: center; font-family: Consolas, "SF Mono", Menlo, monospace; white-space: normal; }
 @media (max-width: 760px) { .scan-box { flex-wrap: wrap; } .scan-box input { flex-basis: 100%; } .scan-box .btn { flex: 1; justify-content: center; } }
+input.stock-input { width: 5.067rem; text-align: right; padding: 0.333rem 0.467rem; font-weight: 700; }
+#stock-dlg .btn { white-space: normal; text-align: left; justify-content: flex-start; display: block; }

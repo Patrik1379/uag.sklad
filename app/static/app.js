@@ -1,4 +1,14 @@
 (function () {
+  // --- Mobilné menu: rozbalenie / zbalenie ----------------------------------
+  const menuBtn = document.getElementById("menu-toggle");
+  if (menuBtn) {
+    const sidebar = menuBtn.closest(".sidebar");
+    menuBtn.addEventListener("click", () => {
+      const open = sidebar.classList.toggle("open");
+      menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  }
+
   // --- Veľkosť písma: A− / A+ po 1 px, klik na číslo vráti pôvodnú ------------
   const FS_DEFAULT = 13, FS_MIN = 10, FS_MAX = 24;
   function curSize() { return parseInt(getComputedStyle(document.documentElement).fontSize, 10) || FS_DEFAULT; }

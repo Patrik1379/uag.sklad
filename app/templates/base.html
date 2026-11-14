@@ -7,7 +7,7 @@
   <title>{% block title %}Sklad dielov{% endblock %} · Sklad dielov</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%232563c9'/><path d='M6 9l6-3 6 3v6l-6 3-6-3z' fill='none' stroke='white' stroke-width='1.8'/></svg>">
   <script>try{var p=parseInt(localStorage.getItem("fontpx"),10),s=localStorage.getItem("fontsize");if(!p&&(s==="l"||s==="xl"))p=17;if(p>=10&&p<=24)document.documentElement.style.fontSize=p+"px";}catch(e){}</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=14">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=16">
 </head>
 <body>
 <div class="layout">
@@ -15,6 +15,10 @@
     <div class="brand">
       <svg width="28" height="28" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#2563c9"/><path d="M6 9l6-3 6 3v6l-6 3-6-3zM6 9l6 3 6-3M12 12v6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
       Sklad dielov
+      <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Menu" aria-expanded="false">
+        <svg class="i-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <svg class="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        <span>Menu</span></button>
     </div>
     {% set ep = request.endpoint or '' %}
     <nav class="nav">
@@ -59,6 +63,6 @@
     {% block content %}{% endblock %}
   </main>
 </div>
-<script src="{{ url_for('static', filename='app.js') }}?v=14"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=16"></script>
 </body>
 </html>

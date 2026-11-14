@@ -444,6 +444,41 @@ def project_add_part(pid):
     return redirect(url_for("main.project_detail", pid=pid))
 
 
+@bp.route("/projekty/<int:pid>/diely/<int:pp_id>/naskladnene", methods=["POST"])
+@login_required
+def project_line_stock(pid, pp_id):
+    """Úprava počtu naskladnených kusov v projekte (napr. oprava chybného príjmu alebo vrátenie dielu)."""
+    db = get_db()
+    pp = db.query("SELECT * FROM project_parts WHERE id = ? AND project_id = ?", (pp_id, pid), one=True) or abort(404)
+    line = next((l for l in project_lines(pid) if l["pp_id"] == pp_id), None) or abort(404)
+    new = to_int(request.form.get("received"), -1)
+    if new < 0:
+        flash("Počet naskladnených kusov nemôže byť záporný.", "error")
+        return redirect(url_for("main.project_detail", pid=pid))
+    diff = new - line["received"]
+    if diff == 0:
+        return redirect(url_for("main.project_detail", pid=pid))
+    uid = current_user()["id"]
+    project = db.query("SELECT name FROM projects WHERE id = ?", (pid,), one=True)
+    if diff > 0:
+        db.execute("INSERT INTO receipts (part_id, project_id, qty, user_id, note) VALUES (?, ?, ?, ?, ?)",
+                   (pp["part_id"], pid, diff, uid, "Úprava stavu v projekte"))
+        flash(f"{line['code']}: naskladnené navýšené na {new} ks.", "ok")
+    elif request.form.get("mode") == "volny":
+        db.execute("INSERT INTO receipts (part_id, project_id, qty, user_id, note) VALUES (?, ?, ?, ?, ?)",
+                   (pp["part_id"], pid, diff, uid, "Presun do voľného skladu"))
+        db.execute("INSERT INTO receipts (part_id, project_id, qty, user_id, note) VALUES (?, NULL, ?, ?, ?)",
+                   (pp["part_id"], -diff, uid, f"Presun z projektu {project['name']}"))
+        flash(f"{line['code']}: {-diff} ks presunutých do voľného skladu, v projekte zostáva {new} ks.", "ok")
+    else:
+        db.execute("INSERT INTO receipts (part_id, project_id, qty, user_id, note) VALUES (?, ?, ?, ?, ?)",
+                   (pp["part_id"], pid, diff, uid, "Oprava stavu (odpísané)"))
+        flash(f"{line['code']}: naskladnené opravené na {new} ks"
+              + (" – diel je znova medzi chýbajúcimi." if new < line["qty_required"] else "."), "ok")
+    db.commit()
+    return redirect(url_for("main.project_detail", pid=pid))
+
+
 @bp.route("/projekty/<int:pid>/diely/<int:pp_id>", methods=["POST"])
 @admin_required
 def project_line_update(pid, pp_id):

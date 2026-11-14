@@ -58,7 +58,13 @@
           </form>
           {% else %}{{ l.qty_required }}{% endif %}
         </td>
-        <td class="num"><b>{{ l.received }}</b>{% if l.surplus %}<div class="small muted">+{{ l.surplus }} navyše</div>{% endif %}</td>
+        <td class="num">
+          <form method="post" action="{{ url_for('main.project_line_stock', pid=project.id, pp_id=l.pp_id) }}" class="inline-form stock-form">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="mode" value="">
+            <input type="number" name="received" min="0" value="{{ l.received }}" data-current="{{ l.received }}" data-code="{{ l.code }}"
+                   class="stock-input" title="Počet naskladnených kusov – zmenou opravíte stav">
+          </form>
+          {% if l.surplus %}<div class="small muted">+{{ l.surplus }} navyše</div>{% endif %}</td>
         <td class="num">{{ l.missing or '' }}</td>
         <td>{{ state_badge(l.state) }}
           {% if l.missing and l.free %}
@@ -111,6 +117,40 @@
 </div>
 {% endif %}
 
+<div class="scan-overlay" id="stock-dlg" hidden>
+  <div class="scan-dialog" style="max-width:30rem">
+    <b id="stock-dlg-title"></b>
+    <div class="small muted">Čo sa stalo s odobranými kusmi?</div>
+    <div style="display:flex;flex-direction:column;gap:0.5rem">
+      <button type="button" class="btn" data-mode="odpis"><b>Oprava chyby</b>&nbsp;– kusy neboli naozaj naskladnené (odpíšu sa)</button>
+      <button type="button" class="btn" data-mode="volny"><b>Presunúť do voľného skladu</b>&nbsp;– kusy sú na sklade, ale nie pre tento projekt</button>
+      <button type="button" class="btn" data-mode="">Zrušiť</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const dlg = document.getElementById("stock-dlg");
+  let form = null;
+  document.querySelectorAll(".stock-input").forEach((inp) => {
+    inp.addEventListener("change", () => {
+      const cur = parseInt(inp.dataset.current, 10), val = parseInt(inp.value, 10);
+      if (isNaN(val) || val < 0 || val === cur) { inp.value = cur; return; }
+      form = inp.form;
+      if (val > cur) { form.submit(); return; }
+      document.getElementById("stock-dlg-title").textContent =
+        inp.dataset.code + ": znížiť naskladnené z " + cur + " na " + val + " ks";
+      dlg.hidden = false;
+    });
+  });
+  dlg.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    dlg.hidden = true;
+    if (!b.dataset.mode) { const i = form.querySelector(".stock-input"); i.value = i.dataset.current; return; }
+    form.querySelector('[name="mode"]').value = b.dataset.mode;
+    form.submit();
+  }));
+})();
+</script>
 <script>
 document.querySelectorAll('#filters a').forEach(a => a.addEventListener('click', e => {
   e.preventDefault();
