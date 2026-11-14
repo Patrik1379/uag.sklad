@@ -614,3 +614,55 @@ def eplan_items(parsed, selected_structs, excluded=()):
                       "category": a["category"], "image": None, "qty": int(round(qty)),
                       "pp_note": note[:500]})
     return items
+
+
+# --- Skenovanie čiarových / 2D kódov ------------------------------------------------
+
+def scan_variants(text):
+    """Z naskenovaného textu vytvorí kandidátov na objednávacie číslo.
+
+    Štítky výrobcov často obsahujú viac údajov naraz (DataMatrix/QR oddelené znakom GS) alebo
+    identifikátory pred číslom dielu (ANSI MH10: 1P…, P…, 30P…; GS1: 240…). Skúšame najprv celý text.
+    """
+    import re
+
+    raw = (text or "").strip()
+    out = []
+
+    def add(v):
+        v = (v or "").strip()
+        if v and v not in out:
+            out.append(v)
+
+    add(raw)
+    for seg in re.split(r"[\x1d\x1e\x04\r\n;|]+", raw):
+        seg = re.sub(r"^\][A-Za-z]\d", "", seg.strip())        # identifikátor symboliky, napr. ]C1
+        seg = re.sub(r"^\[\)>\s*\d{0,2}", "", seg)              # hlavička ISO 15434 "[)>06"
+        add(seg)
+        m = re.match(r"^(?:1P|30P|P)(.{3,})$", seg)            # ANSI MH10.8.2 – číslo dielu
+        if m:
+            add(m.group(1))
+        m = re.match(r"^240(.{3,})$", seg)                     # GS1 AI 240 – dodatočné ID produktu
+        if m:
+            add(m.group(1))
+    return out
+
+
+def decode_barcodes(stream):
+    """Prečíta čiarové a 2D kódy (Code128, Code39, EAN, QR, DataMatrix…) z fotografie."""
+    from PIL import Image, ImageOps
+
+    try:
+        import zxingcpp
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError("Na serveri chýba knižnica zxing-cpp (pip install zxing-cpp).") from exc
+    img = ImageOps.exif_transpose(Image.open(stream)).convert("RGB")
+    img.thumbnail((2400, 2400))
+    codes = []
+    for candidate in (img, ImageOps.autocontrast(img.convert("L"))):
+        for r in zxingcpp.read_barcodes(candidate):
+            if r.text and r.text not in codes:
+                codes.append(r.text)
+        if codes:
+            break
+    return codes

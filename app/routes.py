@@ -10,7 +10,7 @@ from .auth import admin_required, current_user, login_required
 from .db import get_db
 from .services import (location_label, location_parts, locations_map, racks_map, delete_image, demand_for_part, enrich, free_stock,
                        free_stock_map, next_part_code, project_lines,
-                       projects_with_stats, read_bom, import_bom_items, parse_eplan_xml, eplan_items, save_image, search_parts, summarize,
+                       projects_with_stats, read_bom, scan_variants, decode_barcodes, import_bom_items, parse_eplan_xml, eplan_items, save_image, search_parts, summarize,
                        LINES_SQL)
 
 bp = Blueprint("main", __name__)
@@ -167,15 +167,24 @@ def receive():
     if part_id:
         part = db.query("SELECT * FROM parts WHERE id = ?", (part_id,), one=True)
     elif q:
-        exact = db.query(
-            "SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?) OR LOWER(code) = LOWER(?) ORDER BY code",
-            (q, q))
+        # naskenovaný kód môže obsahovať viac údajov alebo predpony (1P…, ]C1…) – skúšame varianty
+        variants = scan_variants(q)
+        exact = []
+        for v in variants:
+            exact = db.query(
+                "SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?) OR LOWER(code) = LOWER(?) ORDER BY code",
+                (v, v))
+            if exact:
+                break
         if len(exact) == 1:
             part = exact[0]
         elif exact:
             candidates = exact
         else:
-            candidates = search_parts(q, limit=30)
+            for v in variants:
+                candidates = search_parts(v, limit=30)
+                if candidates:
+                    break
             # jediný nájdený diel otvoríme rovno, iba ak sa zhoduje celé objednávacie číslo/označenie (napr. bez pomlčiek)
             if len(candidates) == 1 and candidates[0]["_score"] >= 1000:
                 part, candidates = candidates[0], []
@@ -183,6 +192,22 @@ def receive():
         demand = demand_for_part(part["id"])
         part["free"] = free_stock(part["id"])
     return render_template("receive.html", q=q, part=part, candidates=candidates, demand=demand)
+
+
+@bp.route("/api/sken", methods=["POST"])
+@login_required
+def scan_photo():
+    """Prečíta kód z fotografie štítka (pre zariadenia, ktoré nevedia skenovať priamo kamerou)."""
+    f = request.files.get("image")
+    if not f:
+        return jsonify(error="Chýba fotografia."), 400
+    try:
+        codes = decode_barcodes(f.stream)
+    except RuntimeError as exc:
+        return jsonify(error=str(exc)), 500
+    except Exception:
+        return jsonify(error="Fotografiu sa nepodarilo spracovať."), 400
+    return jsonify(codes=codes)
 
 
 @bp.route("/prijem/<int:part_id>", methods=["POST"])

@@ -9,12 +9,30 @@
   </div>
 </div>
 
-<form class="card" method="get" action="{{ url_for('main.receive') }}">
+<form class="card" method="get" action="{{ url_for('main.receive') }}" id="search-form">
   <div class="scan-box">
-    <input type="search" name="q" value="{{ q }}" placeholder="Objednávacie číslo, označenie alebo názov…" autofocus autocomplete="off" {% if not part %}onfocus="this.select()"{% endif %}>
+    <input type="search" name="q" id="q" value="{{ q }}" placeholder="Objednávacie číslo, označenie alebo názov…" autofocus autocomplete="off" {% if not part %}onfocus="this.select()"{% endif %}>
+    <button type="button" class="btn lg scan-btn" id="scan-btn" title="Skenovať kód kamerou">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M11 8v8M15 8v8M18 8v8"/></svg>
+      <span>Skenovať</span></button>
     <button class="btn primary lg">Hľadať</button>
   </div>
+  <input type="file" id="scan-photo" accept="image/*" capture="environment" hidden>
 </form>
+
+<div class="scan-overlay" id="scan-overlay" hidden>
+  <div class="scan-dialog">
+    <div class="scan-head"><b>Namierte kameru na čiarový alebo 2D kód</b>
+      <button type="button" class="btn sm" id="scan-close">Zavrieť</button></div>
+    <div class="scan-video-wrap"><video id="scan-video" playsinline muted></video><div class="scan-frame"></div></div>
+    <div class="scan-msg small" id="scan-msg"></div>
+    <div class="scan-choices" id="scan-choices"></div>
+    <div style="display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap">
+      <button type="button" class="btn" id="scan-torch" hidden>Svetlo</button>
+      <button type="button" class="btn" id="scan-photo-btn">Odfotiť štítok</button>
+    </div>
+  </div>
+</div>
 
 {% if candidates %}
 <div class="card">
@@ -115,4 +133,98 @@
   </div>
 </form>
 {% endif %}
+<script>
+(function () {
+  const btn = document.getElementById("scan-btn"), overlay = document.getElementById("scan-overlay");
+  const video = document.getElementById("scan-video"), msg = document.getElementById("scan-msg");
+  const choices = document.getElementById("scan-choices"), photo = document.getElementById("scan-photo");
+  const form = document.getElementById("search-form"), input = document.getElementById("q");
+  const torchBtn = document.getElementById("scan-torch");
+  const csrf = (document.querySelector('meta[name="csrf"]') || {}).content || "";
+  let stream = null, timer = null, detector = null, torchOn = false;
+
+  function done(code) {
+    stop();
+    input.value = code;
+    form.submit();
+  }
+  function stop() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+    overlay.hidden = true;
+  }
+  function offer(codes) {
+    if (codes.length === 1) return done(codes[0]);
+    msg.textContent = "Na štítku je viac kódov – vyberte objednávacie číslo:";
+    choices.innerHTML = "";
+    codes.forEach((c) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn"; b.textContent = c.replace(/[\x00-\x1f]+/g, " ⏐ ");
+      b.addEventListener("click", () => done(c));
+      choices.appendChild(b);
+    });
+  }
+  async function loop() {
+    if (!stream) return;
+    try {
+      const found = await detector.detect(video);
+      const codes = [...new Set(found.map((f) => f.rawValue).filter(Boolean))];
+      if (codes.length) { if (navigator.vibrate) navigator.vibrate(80); return offer(codes); }
+    } catch (e) { /* ďalší snímok */ }
+    timer = setTimeout(loop, 180);
+  }
+  async function startLive() {
+    choices.innerHTML = "";
+    overlay.hidden = false;
+    const wrap = document.querySelector(".scan-video-wrap");
+    wrap.hidden = false; torchBtn.hidden = true;
+    if (!("BarcodeDetector" in window) || !navigator.mediaDevices) {
+      wrap.hidden = true;
+      msg.textContent = "Tento prehliadač nevie skenovať priamo z kamery – odfoťte štítok tlačidlom nižšie.";
+      return;
+    }
+    try {
+      const formats = await BarcodeDetector.getSupportedFormats();
+      detector = new BarcodeDetector({ formats });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1920 } }, audio: false });
+      video.srcObject = stream;
+      await video.play();
+      const track = stream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      torchBtn.hidden = !caps.torch;
+      msg.textContent = "Hľadám kód…";
+      loop();
+    } catch (e) {
+      msg.textContent = (location.protocol !== "https:" && location.hostname !== "localhost")
+        ? "Kamera funguje len cez zabezpečené pripojenie (https). Môžete odfotiť štítok."
+        : "Kameru sa nepodarilo spustiť (" + (e.name || e) + "). Povoľte prístup ku kamere alebo odfoťte štítok.";
+    }
+  }
+  torchBtn.addEventListener("click", async () => {
+    try { torchOn = !torchOn; await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: torchOn }] }); } catch (e) {}
+  });
+  btn.addEventListener("click", startLive);
+  document.getElementById("scan-close").addEventListener("click", stop);
+  document.getElementById("scan-photo-btn").addEventListener("click", () => { stop(); photo.click(); });
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) stop(); });
+  photo.addEventListener("change", async () => {
+    const f = photo.files[0];
+    photo.value = "";
+    if (!f) return;
+    overlay.hidden = false; choices.innerHTML = "";
+    document.querySelector(".scan-video-wrap").hidden = true; torchBtn.hidden = true;
+    msg.textContent = "Čítam kód z fotografie…";
+    const fd = new FormData(); fd.append("image", f);
+    try {
+      const r = await fetch("{{ url_for('main.scan_photo') }}", { method: "POST", body: fd, headers: { "X-CSRF": csrf } });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Chyba servera");
+      if (data.codes && data.codes.length) offer(data.codes);
+      else msg.textContent = "Na fotografii sa nenašiel žiadny kód. Skúste odfotiť štítok zblízka a ostro.";
+    } catch (e) {
+      msg.textContent = e.message;
+    }
+  });
+})();
+</script>
 {% endblock %}
