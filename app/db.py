@@ -152,6 +152,18 @@ CREATE TABLE IF NOT EXISTS project_parts (
     note TEXT,
     UNIQUE (project_id, part_id)
 );
+CREATE TABLE IF NOT EXISTS feedback (
+    id {PK},
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    kind VARCHAR(20) NOT NULL DEFAULT 'navrh',
+    text TEXT NOT NULL,
+    page VARCHAR(255),
+    image VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'nova',
+    reply TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS receipts (
     id {PK},
     part_id INTEGER NOT NULL REFERENCES parts(id) ON DELETE CASCADE,

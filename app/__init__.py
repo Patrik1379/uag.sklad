@@ -89,6 +89,11 @@ def create_app():
 
     @app.context_processor
     def inject_user():
-        return {"current_user": current_user()}
+        user = current_user()
+        new_feedback = 0
+        if user and user["role"] == "admin":
+            from .db import get_db
+            new_feedback = int(get_db().scalar("SELECT COUNT(*) FROM feedback WHERE status = 'nova'") or 0)
+        return {"current_user": user, "new_feedback": new_feedback}
 
     return app

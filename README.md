@@ -14,6 +14,7 @@ Webová aplikácia na evidenciu dielov pre plánované projekty (Python / Flask 
 - **Dashboard** – celková kompletnosť, naskladnené a chýbajúce kusy, priebeh po projektoch, najviac chýbajúce diely a posledné príjmy.
 - **Detail projektu** – naskladnené položky sú zelené, čiastočne naskladnené žlté a chýbajúce červené. Obsahuje filter, priradenie z voľného skladu a export do Excelu.
 - **Import kusovníka** z Excelu alebo CSV (šablóna sa dá stiahnuť priamo v aplikácii).
+- **Pripomienky** – každý používateľ môže v aplikácii poslať návrh na vylepšenie, nahlásiť chybu alebo položiť otázku (aj s obrázkom). Administrátor vidí počet nových pripomienok v menu, odpovedá na ne a mení ich stav.
 - **Prihlásenie a role:**
   - *Administrátor* – projekty, kusovníky, používatelia, storno príjmov.
   - *Technik* – príjem tovaru a skladové karty.

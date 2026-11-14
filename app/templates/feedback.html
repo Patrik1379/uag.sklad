@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb, image_field %}
+{% block title %}Pripomienky{% endblock %}
+{% block content %}
+{% set is_admin = current_user.role == 'admin' %}
+<div class="page-head">
+  <div><h1>Pripomienky</h1>
+    <div class="muted">Návrhy na vylepšenie aplikácie, nahlásenie chyby alebo otázka. Pripomienky vidia všetci používatelia, administrátor na ne odpovedá.</div></div>
+</div>
+
+<div class="grid fb-grid">
+  <form class="card" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="page" value="{{ page }}">
+    <h2>Nová pripomienka</h2>
+    <label>Typ</label>
+    <div class="fb-kinds">
+      {% for k, v in kinds.items() %}
+      <label class="fb-kind"><input type="radio" name="kind" value="{{ k }}" {{ 'checked' if loop.first }}> {{ v }}</label>
+      {% endfor %}
+    </div>
+    <div style="height:0.7rem"></div>
+    <label>Čo by ste chceli zlepšiť / čo nefunguje? *</label>
+    <textarea name="text" required style="min-height:8rem"
+      placeholder="Napr.: Pri príjme by sa mohol zobraziť aj dodávateľ. / Po uložení karty sa nezobrazí obrázok."></textarea>
+    {% if page %}<div class="hint">Stránka: {{ page }}</div>{% endif %}
+    <div style="height:0.7rem"></div>
+    <label>Obrázok / výrez obrazovky (nepovinné)</label>
+    {{ image_field(None, '') }}
+    <div class="form-actions"><button class="btn primary">Odoslať pripomienku</button></div>
+  </form>
+
+  <div class="card">
+    <div class="page-head" style="margin-bottom:0.8rem">
+      <h2 style="margin:0">Zoznam pripomienok</h2>
+      <div class="filters">
+        <a href="?stav=otvorene" class="{{ 'on' if status == 'otvorene' }}">Otvorené ({{ counts.nova + counts.riesi_sa }})</a>
+        <a href="?stav=hotovo" class="{{ 'on' if status == 'hotovo' }}">Hotové ({{ counts.hotovo }})</a>
+        <a href="?stav=zamietnute" class="{{ 'on' if status == 'zamietnute' }}">Zamietnuté ({{ counts.zamietnute }})</a>
+        <a href="?stav=vsetky" class="{{ 'on' if status == 'vsetky' }}">Všetky</a>
+      </div>
+    </div>
+    {% for f in items %}
+      <div class="fb-item">
+        <div class="fb-head">
+          <span class="badge {{ 'missing' if f.kind == 'chyba' else 'admin' if f.kind == 'navrh' else 'neutral' }}">{{ kinds[f.kind] }}</span>
+          <span class="badge fb-st-{{ f.status }}">{{ statuses[f.status] }}</span>
+          <span class="small muted">{{ f.full_name or f.username or 'neznámy' }} · {{ f.created_at|d(True) }}</span>
+        </div>
+        <div class="fb-body">
+          {% if f.image %}<div>{{ thumb(f.image, 'Obrázok k pripomienke', 'md') }}</div>{% endif %}
+          <div style="white-space:pre-line;min-width:0">{{ f.text }}
+            {%- if f.page %}<div class="small muted">Stránka: <a href="{{ f.page }}">{{ f.page }}</a></div>{% endif %}</div>
+        </div>
+        {% if f.reply %}
+          <div class="fb-reply"><b>Odpoveď:</b> <span style="white-space:pre-line">{{ f.reply }}</span></div>
+        {% endif %}
+        {% if is_admin %}
+          <details class="more" style="margin-top:0.5rem">
+            <summary>Odpovedať / zmeniť stav</summary>
+            <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" style="margin-top:0.5rem">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <input type="hidden" name="back" value="{{ request.full_path }}">
+              <div style="display:grid;grid-template-columns:12rem 1fr;gap:0.6rem;align-items:start">
+                <select name="status">{% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if k == f.status }}>{{ v }}</option>{% endfor %}</select>
+                <textarea name="reply" placeholder="odpoveď pre používateľa (nepovinné)" style="min-height:3.5rem">{{ f.reply or '' }}</textarea>
+              </div>
+              <div class="form-actions" style="margin-top:0.6rem">
+                <button class="btn sm primary">Uložiť</button>
+                <button class="btn sm danger" name="action" value="delete" formnovalidate onclick="return confirm('Zmazať pripomienku?')">Zmazať</button>
+              </div>
+            </form>
+          </details>
+        {% elif f.user_id == current_user.id and f.status == 'nova' %}
+          <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" class="inline-form" data-confirm="Zmazať vašu pripomienku?">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button class="btn-link small" name="action" value="delete" style="color:var(--bad-ink);margin-top:0.4rem">Zmazať</button>
+          </form>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="empty">Žiadne pripomienky v tomto zozname.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

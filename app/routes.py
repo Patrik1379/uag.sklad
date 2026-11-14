@@ -938,6 +938,75 @@ def part_image(part_id):
     return _store_image("parts", part_id)
 
 
+# =============================================================================
+# Pripomienky (návrhy na vylepšenie, chyby, otázky)
+# =============================================================================
+
+FEEDBACK_KINDS = {"navrh": "Návrh na vylepšenie", "chyba": "Chyba", "otazka": "Otázka"}
+FEEDBACK_STATUS = {"nova": "Nová", "riesi_sa": "Rieši sa", "hotovo": "Hotovo", "zamietnute": "Zamietnuté"}
+
+
+@bp.route("/pripomienky", methods=["GET", "POST"])
+@login_required
+def feedback():
+    db = get_db()
+    if request.method == "POST":
+        text = request.form.get("text", "").strip()
+        kind = request.form.get("kind") if request.form.get("kind") in FEEDBACK_KINDS else "navrh"
+        if not text:
+            flash("Napíšte, čo by ste chceli zlepšiť alebo čo nefunguje.", "error")
+            return redirect(url_for("main.feedback"))
+        image = None
+        img = request.files.get("image")
+        if img and img.filename:
+            try:
+                image = save_image(img)
+            except Exception as exc:
+                flash(f"Obrázok sa nepodarilo uložiť: {exc}", "error")
+        page = request.form.get("page", "").strip()[:255] or None
+        db.execute("INSERT INTO feedback (user_id, kind, text, page, image) VALUES (?, ?, ?, ?, ?)",
+                   (current_user()["id"], kind, text, page, image))
+        db.commit()
+        flash("Ďakujeme, pripomienka bola odoslaná.", "ok")
+        return redirect(url_for("main.feedback"))
+    status = request.args.get("stav", "otvorene")
+    rows = db.query("""SELECT f.*, u.username, u.full_name FROM feedback f
+                       LEFT JOIN users u ON u.id = f.user_id ORDER BY f.created_at DESC, f.id DESC""")
+    counts = {k: sum(1 for r in rows if r["status"] == k) for k in FEEDBACK_STATUS}
+    if status == "otvorene":
+        rows = [r for r in rows if r["status"] in ("nova", "riesi_sa")]
+    elif status in FEEDBACK_STATUS:
+        rows = [r for r in rows if r["status"] == status]
+    ref = request.args.get("z", "")
+    return render_template("feedback.html", items=rows, kinds=FEEDBACK_KINDS, statuses=FEEDBACK_STATUS,
+                           status=status, counts=counts, page=ref if ref.startswith("/") else "")
+
+
+@bp.route("/pripomienky/<int:fid>", methods=["POST"])
+@login_required
+def feedback_update(fid):
+    db = get_db()
+    item = db.query("SELECT * FROM feedback WHERE id = ?", (fid,), one=True) or abort(404)
+    me = current_user()
+    if request.form.get("action") == "delete":
+        if me["role"] != "admin" and item["user_id"] != me["id"]:
+            abort(403)
+        db.execute("DELETE FROM feedback WHERE id = ?", (fid,))
+        db.commit()
+        delete_image(item["image"])
+        flash("Pripomienka bola zmazaná.", "ok")
+        return redirect(url_for("main.feedback"))
+    if me["role"] != "admin":
+        abort(403)
+    status = request.form.get("status")
+    status = status if status in FEEDBACK_STATUS else item["status"]
+    db.execute("UPDATE feedback SET status = ?, reply = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+               (status, request.form.get("reply", "").strip() or None, fid))
+    db.commit()
+    flash("Pripomienka bola uložená.", "ok")
+    return redirect(request.form.get("back") or url_for("main.feedback"))
+
+
 @bp.route("/media/<path:name>")
 @login_required
 def media(name):
