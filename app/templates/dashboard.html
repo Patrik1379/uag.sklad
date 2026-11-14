@@ -8,6 +8,19 @@
     <div class="muted">Stav naskladnenia dielov pre aktívne projekty</div>
   </div>
   <div class="actions">
+    <div class="refresh-box" title="Ako často sa má dashboard sám obnoviť (nastavenie platí pre tento prehliadač)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      <label for="refresh-sel">Obnovovať:</label>
+      <select id="refresh-sel">
+        <option value="0">vypnuté</option>
+        <option value="30">každých 30 s</option>
+        <option value="60">každú minútu</option>
+        <option value="300">každých 5 min</option>
+        <option value="900">každých 15 min</option>
+        <option value="3600">každú hodinu</option>
+      </select>
+      <span class="small muted" id="refresh-info">aktualizované </span>
+    </div>
     <a class="btn success lg" href="{{ url_for('main.receive') }}">Príjem tovaru</a>
   </div>
 </div>
@@ -193,4 +206,34 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  const sel = document.getElementById("refresh-sel"), info = document.getElementById("refresh-info");
+  const loadedAt = Date.now();
+  const stamp = new Date().toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit" });
+  let secs = 0;
+  try { secs = parseInt(localStorage.getItem("dashRefresh") || "0", 10) || 0; } catch (e) {}
+  sel.value = String(secs);
+  if (sel.value !== String(secs)) { secs = 0; sel.value = "0"; }
+  function tick() {
+    if (!secs) { info.textContent = "aktualizované " + stamp; return; }
+    const left = Math.max(0, Math.round((loadedAt + secs * 1000 - Date.now()) / 1000));
+    if (left <= 0) {
+      if (document.visibilityState === "visible") { location.reload(); return; }
+      info.textContent = "obnoví sa po návrate na stránku";
+      return;
+    }
+    info.textContent = "aktualizované " + stamp + " · ďalšie o " +
+      (left >= 60 ? Math.floor(left / 60) + " min " + (left % 60 ? (left % 60) + " s" : "") : left + " s");
+  }
+  sel.addEventListener("change", () => {
+    secs = parseInt(sel.value, 10) || 0;
+    try { localStorage.setItem("dashRefresh", String(secs)); } catch (e) {}
+    location.reload();   // začne odpočítavať od čerstvých dát
+  });
+  document.addEventListener("visibilitychange", tick);
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
 {% endblock %}

@@ -373,3 +373,9 @@ details.more summary { cursor: pointer; color: var(--accent); font-weight: 550; 
 @media (max-width: 760px) { .scan-box { flex-wrap: wrap; } .scan-box input { flex-basis: 100%; } .scan-box .btn { flex: 1; justify-content: center; } }
 input.stock-input { width: 5.067rem; text-align: right; padding: 0.333rem 0.467rem; font-weight: 700; }
 #stock-dlg .btn { white-space: normal; text-align: left; justify-content: flex-start; display: block; }
+
+/* automatické obnovovanie dashboardu */
+.refresh-box { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0.35rem 0.6rem; }
+.refresh-box svg { width: 1.05rem; height: 1.05rem; color: var(--ink-2); }
+.refresh-box label { margin: 0; color: var(--ink); }
+.refresh-box select { width: auto; padding: 0.3rem 0.5rem; }
