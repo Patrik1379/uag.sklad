@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Nastavenia{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Nastavenia</h1><div class="muted">E-mailový server (SMTP) a automatické oznámenia</div></div>
+</div>
+
+<form method="post" class="grid half" style="align-items:start">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="card">
+    <h2>SMTP server (odosielanie e-mailov)</h2>
+    <div class="form-grid">
+      <div><label>SMTP server</label><input type="text" name="smtp_host" value="{{ cfg.smtp_host }}" placeholder="napr. smtp.office365.com"></div>
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:0.8rem">
+        <div><label>Port</label><input type="text" name="smtp_port" value="{{ cfg.smtp_port }}" placeholder="587" inputmode="numeric"></div>
+        <div><label>Zabezpečenie</label>
+          <select name="smtp_security">
+            <option value="starttls" {{ 'selected' if cfg.smtp_security == 'starttls' }}>STARTTLS (port 587)</option>
+            <option value="ssl" {{ 'selected' if cfg.smtp_security == 'ssl' }}>SSL/TLS (port 465)</option>
+            <option value="none" {{ 'selected' if cfg.smtp_security == 'none' }}>Bez šifrovania (port 25)</option>
+          </select></div>
+      </div>
+      <div><label>Používateľ (prihlasovacie meno)</label><input type="text" name="smtp_user" value="{{ cfg.smtp_user }}" autocomplete="off" placeholder="zvyčajne celá e-mailová adresa"></div>
+      <div><label>Heslo</label>
+        <input type="password" name="smtp_password" autocomplete="new-password" placeholder="{{ '•••••••• (uložené – prázdne = nemeniť)' if cfg.smtp_password else 'heslo k e-mailovému účtu' }}">
+        {% if cfg.smtp_password %}<label style="margin:0.3rem 0 0;font-weight:500"><input type="checkbox" name="smtp_password_clear" value="1"> vymazať uložené heslo</label>{% endif %}
+      </div>
+      <div><label>Adresa odosielateľa</label><input type="email" name="smtp_from" value="{{ cfg.smtp_from }}" placeholder="sklad@uag.sk"></div>
+      <div><label>Meno odosielateľa</label><input type="text" name="smtp_from_name" value="{{ cfg.smtp_from_name }}"></div>
+      <div class="full"><label>Adresa aplikácie (pre odkazy v e-mailoch)</label>
+        <input type="text" name="app_url" value="{{ cfg.app_url }}" placeholder="{{ default_url }}">
+        <div class="hint">Prázdne = použije sa adresa, z ktorej je aplikácia práve otvorená ({{ default_url }}).</div></div>
+    </div>
+    {% if cfg.mail_last_status %}
+      <div class="flash {{ 'error' if 'CHYBA' in cfg.mail_last_status else 'ok' }}" style="margin:1rem 0 0">Posledné odoslanie: {{ cfg.mail_last_status }}</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Oznámenia</h2>
+    <label class="fb-kind" style="margin:0 0 0.8rem">
+      <input type="checkbox" name="notify_project_enabled" value="1" {{ 'checked' if cfg.notify_project_enabled == '1' }}>
+      <b>Poslať e-mail, keď sa vytvorí nový projekt</b></label>
+    <div style="padding-left:0.3rem">
+      <label style="font-weight:500"><input type="checkbox" name="notify_project_all_users" value="1" {{ 'checked' if cfg.notify_project_all_users == '1' }}>
+        všetkým aktívnym používateľom, ktorí majú vyplnený e-mail</label>
+      <div class="small muted" style="margin:0 0 0.8rem 1.4rem">
+        {% set with_mail = users|selectattr('email')|list %}
+        {% if with_mail %}{{ with_mail|map(attribute='username')|join(', ') }}{% else %}zatiaľ nikto – e-maily doplníte v časti <a href="{{ url_for('auth.users') }}">Používatelia</a>{% endif %}
+      </div>
+      <label>Ďalšie adresy (oddelené čiarkou alebo každá na novom riadku)</label>
+      <textarea name="notify_project_extra" style="min-height:4.5rem" placeholder="napr. veduci@uag.sk, nakup@uag.sk">{{ cfg.notify_project_extra }}</textarea>
+      <div class="hint">Oznámenie teraz dostane: <b>{{ recipients|join(', ') if recipients else 'nikto' }}</b></div>
+    </div>
+    <div class="form-actions"><button class="btn primary lg">Uložiť nastavenia</button></div>
+  </div>
+</form>
+
+<form method="post" action="{{ url_for('main.settings_test') }}" class="card" style="margin-top:1.2rem">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <h2>Test odoslania</h2>
+  <p class="small muted" style="margin-top:0">Najprv nastavenia uložte, potom pošlite testovací e-mail.</p>
+  <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+    <input type="email" name="to" value="{{ current_user.email or '' }}" placeholder="vas@email.sk" style="width:auto;flex:1;min-width:14rem;max-width:24rem">
+    <button class="btn">Odoslať testovací e-mail</button>
+  </div>
+</form>
+{% endblock %}

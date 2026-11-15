@@ -81,8 +81,9 @@ def users():
             flash("Používateľ s týmto menom už existuje.", "error")
         else:
             db.execute(
-                "INSERT INTO users (username, full_name, password_hash, role) VALUES (?, ?, ?, ?)",
-                (username, request.form.get("full_name", "").strip(), generate_password_hash(password), role),
+                "INSERT INTO users (username, full_name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)",
+                (username, request.form.get("full_name", "").strip(), request.form.get("email", "").strip() or None,
+                 generate_password_hash(password), role),
             )
             db.commit()
             flash(f"Používateľ {username} bol vytvorený.", "ok")
@@ -98,7 +99,14 @@ def user_update(uid):
     user = db.query("SELECT * FROM users WHERE id = ?", (uid,), one=True) or abort(404)
     action = request.form.get("action")
     me = current_user()
-    if action == "password":
+    if action == "email":
+        email = request.form.get("email", "").strip()
+        if email and "@" not in email:
+            flash("Zadajte platnú e-mailovú adresu.", "error")
+        else:
+            db.execute("UPDATE users SET email = ? WHERE id = ?", (email or None, uid))
+            flash(f"E-mail pre {user['username']} bol uložený.", "ok")
+    elif action == "password":
         pw = request.form.get("password", "")
         if len(pw) < 4:
             flash("Heslo musí mať aspoň 4 znaky.", "error")

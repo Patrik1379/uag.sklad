@@ -152,6 +152,10 @@ CREATE TABLE IF NOT EXISTS project_parts (
     note TEXT,
     UNIQUE (project_id, part_id)
 );
+CREATE TABLE IF NOT EXISTS settings (
+    key VARCHAR(80) PRIMARY KEY,
+    value TEXT
+);
 CREATE TABLE IF NOT EXISTS feedback (
     id {PK},
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -237,6 +241,7 @@ def init_db(retries: int = 30):
     # --- migrácie existujúcich databáz (doplnenie nových stĺpcov) ---
     _add_column(db, "projects", "image", "VARCHAR(255)")
     _add_column(db, "projects", "start_date", "DATE")
+    _add_column(db, "users", "email", "VARCHAR(200)")
     _add_column(db, "racks", "location_id", "INTEGER")
     _add_column(db, "racks", "shelf_count", "INTEGER")
     _add_column(db, "parts", "location_id", "INTEGER")

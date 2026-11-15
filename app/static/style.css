@@ -95,7 +95,7 @@ h3 { font-size: .95rem; margin: 0 0 0.533rem; font-weight: 650; }
 .btn.lg { padding: 0.8rem 1.333rem; font-size: 1.05rem; }
 .btn-link { background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0; }
 label { display: block; font-size: .92rem; font-weight: 600; color: var(--ink-2); margin-bottom: 0.333rem; }
-input[type=text], input[type=password], input[type=number], input[type=date], input[type=search], select, textarea {
+input[type=text], input[type=password], input[type=email], input[type=number], input[type=date], input[type=search], select, textarea {
   width: 100%; padding: 0.6rem 0.733rem; border: 1px solid var(--line-2); border-radius: 8px; font: inherit; background: #fff; color: var(--ink);
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid rgba(37,99,201,.35); border-color: var(--accent); }

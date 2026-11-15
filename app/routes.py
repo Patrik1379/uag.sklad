@@ -363,6 +363,7 @@ def project_new():
             [data[f] for f in PROJECT_FIELDS])
         _project_form_image(db, pid, None)
         db.commit()
+        _notify_project(pid)
         flash("Projekt bol vytvorený. Teraz doň pridajte diely.", "ok")
         return redirect(url_for("main.project_detail", pid=pid))
     return render_template("project_form.html", project={"status": "aktivny"})
@@ -558,6 +559,8 @@ def project_import_new():
         note_new = True
     st = import_bom_items(pid, bom["items"])
     db.commit()
+    if note_new:
+        _notify_project(pid)
     flash(("Vytvorený projekt" if note_new else "Kusovník pridaný do existujúceho projektu")
           + f" „{name}“ (zákazka {order_no}): {st['linked']} položiek, {st['created']} nových skladových kariet"
           + (f", {st['images']} obrázkov" if st["images"] else "") + ".", "ok")
@@ -626,6 +629,7 @@ def eplan_preview(token):
             order_no = request.form.get("order_no", "").strip() or parsed["order_no"]
             existing = db.query("SELECT id FROM projects WHERE LOWER(order_no) = LOWER(?) AND status = 'aktivny'",
                                 (order_no,), one=True)
+            created_new = not existing
             if existing:
                 pid = existing["id"]
             else:
@@ -638,6 +642,8 @@ def eplan_preview(token):
         st = import_bom_items(pid, items)
         db.commit()
         os.remove(path)
+        if project is None and created_new:
+            _notify_project(pid)
         flash(f"EPLAN import hotový: {st['linked']} položiek v projekte, {st['created']} nových skladových kariet.", "ok")
         return redirect(url_for("main.project_detail", pid=pid))
     # predvolene započítame všetky časti; '&…' (dokumentačné stránky) označíme upozornením
@@ -1168,6 +1174,76 @@ def feedback_update(fid):
     db.commit()
     flash("Pripomienka bola uložená.", "ok")
     return redirect(request.form.get("back") or url_for("main.feedback"))
+
+
+# =============================================================================
+# Nastavenia (SMTP, oznámenia)
+# =============================================================================
+
+def _notify_project(pid):
+    from .mailer import notify_new_project
+
+    try:
+        me = current_user()
+        notify_new_project(pid, author=(me.get("full_name") or me.get("username")) if me else None,
+                           base_url=request.url_root)
+    except Exception as exc:  # oznámenie nesmie zablokovať vytvorenie projektu
+        current_app.logger.warning("Oznámenie o projekte sa nepodarilo odoslať: %s", exc)
+
+
+@bp.route("/nastavenia", methods=["GET", "POST"])
+@admin_required
+def settings():
+    from .mailer import DEFAULTS, get_settings, project_recipients, save_settings
+
+    if request.method == "POST":
+        cfg = get_settings()
+        values = {}
+        for key in ("smtp_host", "smtp_port", "smtp_security", "smtp_user", "smtp_from", "smtp_from_name",
+                    "app_url", "notify_project_extra"):
+            values[key] = request.form.get(key, "").strip()
+        if values["smtp_security"] not in ("none", "starttls", "ssl"):
+            values["smtp_security"] = "starttls"
+        if values["smtp_port"] and not values["smtp_port"].isdigit():
+            flash("Port musí byť číslo (napr. 587).", "error")
+            return redirect(url_for("main.settings"))
+        pw = request.form.get("smtp_password", "")
+        if request.form.get("smtp_password_clear"):
+            values["smtp_password"] = ""
+        elif pw:
+            values["smtp_password"] = pw            # prázdne pole = heslo sa nemení
+        values["notify_project_enabled"] = "1" if request.form.get("notify_project_enabled") else "0"
+        values["notify_project_all_users"] = "1" if request.form.get("notify_project_all_users") else "0"
+        save_settings(values)
+        flash("Nastavenia boli uložené.", "ok")
+        return redirect(url_for("main.settings"))
+    cfg = get_settings()
+    users = get_db().query("SELECT username, full_name, email FROM users WHERE active = 1 ORDER BY username")
+    return render_template("settings.html", cfg=cfg, recipients=project_recipients(cfg), users=users,
+                           default_url=request.url_root.rstrip("/"))
+
+
+@bp.route("/nastavenia/test", methods=["POST"])
+@admin_required
+def settings_test():
+    from .mailer import get_settings, send_mail, _store_status
+
+    cfg = get_settings()
+    to = request.form.get("to", "").strip() or (current_user().get("email") or "")
+    if "@" not in to:
+        flash("Zadajte e-mailovú adresu, na ktorú sa má poslať testovací e-mail.", "error")
+        return redirect(url_for("main.settings"))
+    try:
+        send_mail(cfg, [to], "Test – Sklad dielov",
+                  "Toto je testovací e-mail z aplikácie Sklad dielov. Ak ste ho dostali, SMTP je nastavené správne.",
+                  "<p>Toto je testovací e-mail z aplikácie <b>Sklad dielov</b>.</p>"
+                  "<p>Ak ste ho dostali, SMTP je nastavené správne. ✔</p>")
+        _store_status(f"OK: testovací e-mail → {to}")
+        flash(f"Testovací e-mail bol odoslaný na {to}. Skontrolujte schránku (aj priečinok Spam).", "ok")
+    except Exception as exc:
+        _store_status(f"CHYBA testu: {exc}")
+        flash(f"E-mail sa nepodarilo odoslať: {exc}", "error")
+    return redirect(url_for("main.settings"))
 
 
 @bp.route("/media/<path:name>")

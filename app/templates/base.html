@@ -7,7 +7,7 @@
   <title>{% block title %}Sklad dielov{% endblock %} · Sklad dielov</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%232563c9'/><path d='M6 9l6-3 6 3v6l-6 3-6-3z' fill='none' stroke='white' stroke-width='1.8'/></svg>">
   <script>try{var p=parseInt(localStorage.getItem("fontpx"),10),s=localStorage.getItem("fontsize");if(!p&&(s==="l"||s==="xl"))p=17;if(p>=10&&p<=24)document.documentElement.style.fontSize=p+"px";}catch(e){}</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=18">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=19">
 </head>
 <body>
 <div class="layout">
@@ -40,6 +40,8 @@
       {% if current_user and current_user.role == 'admin' %}
       <a href="{{ url_for('auth.users') }}" class="{{ 'active' if ep == 'auth.users' }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Používatelia</span></a>
+      <a href="{{ url_for('main.settings') }}" class="{{ 'active' if ep in ('main.settings', 'main.settings_test') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Nastavenia</span></a>
       {% endif %}
     </nav>
     {% if current_user %}
@@ -63,6 +65,6 @@
     {% block content %}{% endblock %}
   </main>
 </div>
-<script src="{{ url_for('static', filename='app.js') }}?v=18"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=19"></script>
 </body>
 </html>
