@@ -3,6 +3,7 @@
 Overenie: hlavička  Authorization: Bearer <kľúč>  – kľúč sa vygeneruje v Nastaveniach.
 
 POST /api/v1/projekty          založí alebo aktualizuje projekt podľa "ref" (napr. "pm:12")
+GET  /api/v1/projekty          stav všetkých prepojených projektov naraz (pre dashboard)
 GET  /api/v1/projekty/<ref>    stav projektu v sklade (kompletnosť dielov)
 GET  /api/v1/ping              overenie spojenia a kľúča
 """
@@ -51,10 +52,10 @@ def _base():
     return (get_settings().get("app_url") or request.url_root).rstrip("/")
 
 
-def _project_info(p):
+def _project_info(p, s=None):
     from .services import project_lines, summarize
 
-    s = summarize(project_lines(p["id"]))
+    s = s or summarize(project_lines(p["id"]))
     return {"ok": True, "id": p["id"], "url": f"{_base()}{url_for('main.project_detail', pid=p['id'])}",
             "name": p["name"], "order_no": p["order_no"], "status": p["status"],
             "items": s["n_items"], "items_ok": s["items_ok"], "items_missing": s["items_missing"],
@@ -113,6 +114,16 @@ def project_upsert():
     info = _project_info(p)
     info["created"] = created
     return jsonify(info), 201 if created else 200
+
+
+@bp.route("/projekty", methods=["GET"])
+def project_list():
+    from .services import projects_with_stats
+
+    _check_key()
+    out = {p["external_ref"]: _project_info(p, p["stats"])
+           for p in projects_with_stats() if p.get("external_ref")}
+    return jsonify(ok=True, projects=out)
 
 
 @bp.route("/projekty/<path:ref>")

@@ -31,6 +31,14 @@
     <div class="hint">{{ 'zobraziť' if stats.due_soon else 'nič nehorí' }}</div></a>
   <div class="stat accent-primary"><div class="label">Priemerné plnenie</div><div class="value">{{ stats.avg_progress }} %</div>
     <div class="progress" style="margin-top:6px"><span style="width:{{ stats.avg_progress }}%"></span></div></div>
+  {% if material %}
+  <div class="stat accent-material" title="Naskladnené kusy zo všetkých dielov potrebných pre otvorené projekty ({{ material.projects }} projektov s kusovníkom v sklade)">
+    <div class="label">📦 Materiál na sklade</div><div class="value">{{ material.pct }} %</div>
+    <div class="progress material{{ ' full' if material.pct >= 100 }}" style="margin-top:6px"><span style="width:{{ material.pct }}%"></span></div>
+    <div class="hint">{{ 'chýba v ' ~ material.missing ~ ' z ' ~ material.projects ~ ' proj.' if material.missing else 'všetko naskladnené' }}</div></div>
+  {% elif sklad_error %}
+  <div class="stat accent-material"><div class="label">📦 Materiál na sklade</div><div class="value">—</div><div class="hint">sklad je nedostupný</div></div>
+  {% endif %}
   <div class="stat accent-done"><div class="label">Dokončené</div><div class="value">{{ stats.done }}</div></div>
 </div>
 
@@ -44,7 +52,8 @@
       <div class="dl-count"><span class="num">{{ cd[0] }}</span><span class="unit">{{ cd[1] }}</span></div>
       <div class="dl-name" title="{{ p.name }}">{{ p.name }}</div>
       <div class="dl-date">📅 {{ p.deadline|sk_weekday }} {{ p.deadline|sk_date }}</div>
-      <div class="dl-progress"><div class="progress"><span style="width:{{ p.progress }}%"></span></div><span>{{ p.progress }} %</span></div>
+      <div class="dl-progress" title="Plnenie projektu"><div class="progress"><span style="width:{{ p.progress }}%"></span></div><span>{{ p.progress }} %</span></div>
+      {% if p.sklad and p.sklad.required %}<div class="dl-progress" title="Materiál na sklade: {{ p.sklad.covered }} z {{ p.sklad.required }} ks"><div class="progress material{{ ' full' if p.sklad.pct >= 100 }}"><span style="width:{{ p.sklad.pct }}%"></span></div><span>📦 {{ p.sklad.pct }} %</span></div>{% endif %}
       <div class="dl-who" title="{{ p.members_text }}">{{ p.members_text or 'nepridelený' }}</div>
       {% if p.install_open %}<div class="dl-install">🔧 inštalácia {{ p.install_date|sk_weekday }} {{ p.install_date.day }}.{{ p.install_date.month }}.{% if p.install_time_from %} {{ p.install_time_from }}{% endif %}</div>{% endif %}
     </a>
@@ -131,7 +140,7 @@
       <span><i style="background:var(--ok)"></i>V poriadku</span>
       <span><i style="background:var(--risk)"></i>Blíži sa termín / ohrozený</span>
       <span><i style="background:var(--overdue)"></i>Po termíne</span>
-      <span><i style="background:var(--paused)"></i>Pozastavený</span>
+      <span><i style="background:var(--paused)"></i>Pozastavený / bez úloh</span>
       <span><i style="background:var(--done)"></i>Hotový</span>
       <span><i class="lg-flag"></i>deadline projektu</span>
       <span><i class="lg-dot"></i>termín úlohy</span>
@@ -161,7 +170,7 @@
       <div class="tl-track">
         <a class="tl-bar {{ h[0] }}" href="{{ url_for('main.project_detail', project_id=p.id) }}"
            style="left:{{ r.left }}%;width:{{ r.width }}%"
-           title="{{ p.name }} | {{ p.start_date|sk_date }} – {{ p.deadline|sk_date }} | {{ p.status_label }}, {{ p.progress }} % | {{ h[1] }}">
+           title="{{ p.name }} | {{ p.start_date|sk_date }} – {{ p.deadline|sk_date }} | {{ p.status_label }}, {{ p.progress }} % | {{ h[1] }}{% if p.sklad and p.sklad.required %} | materiál {{ p.sklad.pct }} %{% endif %}">
           <span class="fill" style="width:{{ p.progress }}%"></span>
           <span class="txt">{{ p.progress }} %</span>
         </a>
@@ -192,7 +201,7 @@
   {% if projects %}
   <div class="table-wrap">
   <table>
-    <thead><tr><th>Projekt</th><th>Riešitelia</th><th>Stav</th><th>Plnenie</th><th>Deadline</th><th>Hodnotenie</th><th>Úlohy</th><th>Dok.</th></tr></thead>
+    <thead><tr><th>Projekt</th><th>Riešitelia</th><th>Stav</th><th>Plnenie</th>{% if sklad_on %}<th>Materiál</th>{% endif %}<th>Deadline</th><th>Hodnotenie</th><th>Úlohy</th><th>Dok.</th></tr></thead>
     <tbody>
     {% for p in projects %}{% set h = p.health %}
       <tr class="row-{{ h[0] }}">
@@ -200,6 +209,11 @@
         <td>{{ p.members_text or '—' }}</td>
         <td><span class="badge status">{{ p.status_label }}</span></td>
         <td style="min-width:120px"><div class="progress"><span style="width:{{ p.progress }}%"></span></div><span class="small muted">{{ p.progress }} %</span></td>
+        {% if sklad_on %}<td style="min-width:120px">{% if p.sklad and p.sklad.required %}
+          <a href="{{ p.sklad.url }}" target="_blank" rel="noopener" class="mat-link" title="Otvoriť v sklade · {{ p.sklad.covered }} z {{ p.sklad.required }} ks">
+          <div class="progress material{{ ' full' if p.sklad.pct >= 100 }}"><span style="width:{{ p.sklad.pct }}%"></span></div>
+          <span class="small {{ 'muted' if not p.sklad.missing }}" {% if p.sklad.missing %}style="color:var(--risk)"{% endif %}>{{ p.sklad.pct }} %{% if p.sklad.missing %} · chýba {{ p.sklad.missing }} ks{% endif %}</span></a>
+          {% elif p.sklad %}<span class="small muted">bez kusovníka</span>{% else %}<span class="small muted">—</span>{% endif %}</td>{% endif %}
         <td class="nowrap"><strong>{{ p.deadline|sk_date }}</strong> <span class="small muted">{{ p.deadline|sk_weekday }}</span><br>
           <span class="countdown {{ h[0] }}">{{ p.deadline_text }}</span></td>
         <td><span class="badge {{ h[0] }}">{{ h[1] }}</span></td>

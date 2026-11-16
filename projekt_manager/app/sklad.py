@@ -5,6 +5,7 @@ Adresa skladu a API kľúč sa nastavujú v Nastaveniach (kľúč sa vygeneruje 
 """
 import json
 import logging
+import time
 import urllib.error
 import urllib.request
 
@@ -85,6 +86,7 @@ def push(project_id, author=None):
     ok, data = _call("POST", "/projekty", payload)
     if ok:
         created = data.get("created")
+        forget()
         _store(project_id, data.get("id"), "projekt založený v sklade" if created else "")
         return True, "Projekt bol založený v sklade." if created else "Údaje v sklade boli aktualizované."
     log.warning("Sklad – projekt %s sa nepodarilo odoslať: %s", project_id, data)
@@ -98,3 +100,28 @@ def status(project):
         return None
     ok, data = _call("GET", f"/projekty/pm:{project.id}", timeout=3)
     return data if ok else {"error": data}
+
+
+_cache = {"at": 0.0, "key": None, "data": None}
+
+
+def stats_map(max_age=60):
+    """Stav materiálu všetkých prepojených projektov {"pm:<id>": {...}} – na dashboard.
+
+    Výsledok sa krátko pamätá, aby dashboard nečakal na sklad pri každom načítaní.
+    Ak sklad nie je dostupný, vráti None (dashboard sa zobrazí bez údajov o materiáli).
+    """
+    if not enabled():
+        return None
+    key = (current_app.config["SKLAD_URL"], current_app.config["SKLAD_API_KEY"])
+    if _cache["key"] == key and time.time() - _cache["at"] < max_age:
+        return _cache["data"]
+    ok, data = _call("GET", "/projekty", timeout=3)
+    result = data.get("projects", {}) if ok and isinstance(data, dict) else None
+    _cache.update(at=time.time(), key=key, data=result)
+    return result
+
+
+def forget():
+    """Po zmene projektu načítame stav zo skladu znova."""
+    _cache["at"] = 0.0

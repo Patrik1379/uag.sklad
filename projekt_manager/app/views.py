@@ -86,6 +86,15 @@ def dashboard():
     else:
         deadline_filter = None
     upcoming = [p for p in all_projects if not p.is_done][:8]
+    smap = sklad.stats_map()
+    for p in all_projects:
+        p.sklad = smap.get(f"pm:{p.id}") if smap else None
+    linked = [p.sklad for p in all_projects if not p.is_done and p.sklad and p.sklad.get("required")]
+    material = None
+    if linked:
+        req = sum(s["required"] for s in linked)
+        material = {"pct": round(sum(s["covered"] for s in linked) / req * 100) if req else 0,
+                    "projects": len(linked), "missing": sum(1 for s in linked if s["missing"])}
     return render_template(
         "dashboard.html",
         my_tasks=list_tasks(assignee_id=g.user["id"], include_done=False),
@@ -99,6 +108,7 @@ def dashboard():
         status_filter=status,
         deadline_filter=deadline_filter,
         upcoming=upcoming,
+        material=material, sklad_on=sklad.enabled(), sklad_error=sklad.enabled() and smap is None,
         installations=list_installations(user_id=None if g.user["is_admin"] and not user_filter else user_filter,
                                          days_back=7),
     )
