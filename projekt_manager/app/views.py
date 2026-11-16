@@ -1046,13 +1046,21 @@ def board_admin():
     return render_template("board_admin.html", link=link)
 
 
-FONT_SCALES = {100: "Normálny", 115: "Väčší", 130: "Najväčší"}
+# veľkosť celého rozhrania v % – tlačidlá A− / A+ menia po 5 % (70 % … 150 %)
+FONT_MIN, FONT_MAX, FONT_STEP = 70, 150, 5
+FONT_SCALES = {v: ("Normálna (100 %)" if v == 100 else f"{v} %") for v in range(FONT_MIN, FONT_MAX + 1, FONT_STEP)}
 
 
 @bp.route("/velkost-textu", methods=["POST"])
 def set_font_scale():
     """Prepínač veľkosti textu – uloží sa k používateľovi aj do cookie (platí aj na prihlasovacej stránke)."""
-    scale = request.form.get("scale", type=int)
+    step = request.form.get("step", type=int)
+    if step is not None:                      # A− / A+ / kliknutie na hodnotu (návrat na 100 %)
+        current = (g.user["font_scale"] if g.user else request.cookies.get("font_scale", type=int)) or 100
+        scale = 100 if step == 0 else current + step * FONT_STEP
+        scale = max(FONT_MIN, min(FONT_MAX, scale))
+    else:
+        scale = request.form.get("scale", type=int)
     if scale not in FONT_SCALES:
         scale = 100
     if g.user:

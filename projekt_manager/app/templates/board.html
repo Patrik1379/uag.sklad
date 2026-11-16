@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="sk" class="board{{ ' tv' if tv }}"{% if not tv %} data-text="{{ font_scale }}"{% endif %}>
+<html lang="sk" class="board{{ ' tv' if tv }}"{% if not tv %} data-text="{{ font_scale }}"{% if font_scale != 100 %} style="zoom: {{ font_scale / 100 }}"{% endif %}{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

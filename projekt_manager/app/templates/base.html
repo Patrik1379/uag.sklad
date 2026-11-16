@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="sk" data-text="{{ font_scale }}">
+<html lang="sk" data-text="{{ font_scale }}"{% if font_scale != 100 %} style="zoom: {{ font_scale / 100 }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
 </head>
 <body>
 {% from "_text_size.html" import text_size_switch with context %}

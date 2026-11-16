@@ -11,7 +11,7 @@
       <label for="font_scale">Veľkosť textu</label>
       <select id="font_scale" name="font_scale" style="max-width:240px">
         {% for val, lbl in font_scales.items() %}
-          <option value="{{ val }}" {{ 'selected' if current_user.font_scale == val }}>{{ lbl }}{{ ' (+%d %%)' % (val - 100) if val > 100 }}</option>
+          <option value="{{ val }}" {{ 'selected' if current_user.font_scale == val }}>{{ lbl }}</option>
         {% endfor %}
       </select>
     </div>

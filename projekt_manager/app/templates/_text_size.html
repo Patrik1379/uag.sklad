@@ -1,10 +1,8 @@
 {% macro text_size_switch() %}
 <form method="post" action="{{ url_for('main.set_font_scale') }}" class="text-size" role="group" aria-label="Veľkosť textu">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  {% for val, lbl in font_scales.items() %}
-    <button name="scale" value="{{ val }}" class="ts-{{ loop.index }} {{ 'active' if font_scale == val }}"
-            title="Veľkosť textu: {{ lbl }}" aria-label="Veľkosť textu: {{ lbl }}"
-            aria-pressed="{{ 'true' if font_scale == val else 'false' }}">A</button>
-  {% endfor %}
+  <button name="step" value="-1" class="ts-minus" title="Zmenšiť" aria-label="Zmenšiť text" {{ 'disabled' if font_scale <= 70 }}>A&minus;</button>
+  <button name="step" value="0" class="ts-val" title="Veľkosť textu – kliknutím vrátite 100 %">{{ font_scale }} %</button>
+  <button name="step" value="1" class="ts-plus" title="Zväčšiť" aria-label="Zväčšiť text" {{ 'disabled' if font_scale >= 150 }}>A+</button>
 </form>
 {% endmacro %}

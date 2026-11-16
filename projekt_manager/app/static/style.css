@@ -416,13 +416,13 @@ select.weight:hover { border-color: #cfd4dd; }
 
 
 /* veľkosť textu (pre slabozrakých) – zväčší celé rozhranie vrátane tlačidiel */
-html[data-text="115"] { zoom: 1.15; }
-html[data-text="130"] { zoom: 1.3; }
 .text-size { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 0; }
 .text-size button { border: 0; background: var(--surface); color: var(--muted); cursor: pointer; font-family: inherit;
                     font-weight: 700; padding: 0 9px; height: 30px; line-height: 1; }
 .text-size button + button { border-left: 1px solid var(--line); }
-.text-size .ts-1 { font-size: 12px; } .text-size .ts-2 { font-size: 15px; } .text-size .ts-3 { font-size: 18px; }
+.text-size .ts-minus { font-size: 12px; } .text-size .ts-plus { font-size: 16px; }
+.text-size .ts-val { font-size: 12px; font-weight: 600; min-width: 48px; font-variant-numeric: tabular-nums; }
+.text-size button:disabled { opacity: .35; cursor: default; }
 .text-size button:hover { background: var(--primary-weak); color: var(--primary); }
 .text-size button.active { background: var(--primary); color: #fff; }
 .text-size button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
