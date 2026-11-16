@@ -24,7 +24,7 @@ Webová aplikácia v Pythone (Flask + SQLite) na správu projektov používateľ
   - pri pridelení úlohy → riešiteľovi úlohy (úlohy si môže pridávať aj riešiteľ projektu, sebe ich pridelí predvolene),
   - keď je úloha alebo podúloha splnená → zadávateľovi projektu a autorovi úlohy (nie tomu, kto ju splnil); pri poslednej podúlohe príde jeden e-mail „úloha splnená“,
   - **denný report** (predvolene 7:30, cez víkend nie) → používateľ dostane svoje otvorené projekty, admin prehľad všetkých. Každý si ho môže vypnúť v profile.
-- Hodnotenie projektu: *V poriadku*, *Termín o X d* (do 7 dní), *Ohrozený* (plnenie výrazne zaostáva za uplynutým časom), *Po termíne*.
+- Hodnotenie projektu: *Podľa plánu* (modrá; zelená je až *Hotový*), *Bez úloh*, *Termín o X d* (do 7 dní), *Ohrozený* (plnenie výrazne zaostáva za uplynutým časom), *Po termíne*.
 
 Závislosti sú len **Flask** a **python-dotenv** (databáza je vstavané SQLite).
 

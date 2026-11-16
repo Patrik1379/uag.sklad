@@ -2,6 +2,8 @@
   --bg: #f5f6f8; --surface: #fff; --text: #1d2330; --muted: #677085; --line: #e3e6ec;
   --primary: #2f5bd3; --primary-weak: #e8eefc;
   --ok: #1f9d63; --risk: #d98a00; --overdue: #d33b3b; --paused: #8a92a3; --done: #4d7fe0;
+  /* hodnotenie projektu: „podľa plánu“ modrá, „hotový“ zelená (zelená = až keď je hotovo) */
+  --st-ok: #4d7fe0; --st-ok-bg: #e6eefc; --st-ok-bar: #c8d7f6; --st-done: #1f9d63; --st-done-bg: #e3f5ec; --st-done-bar: #bfe6d2;
   --radius: 10px; --shadow: 0 1px 2px rgba(20,30,50,.06), 0 2px 8px rgba(20,30,50,.04);
 }
 * { box-sizing: border-box; }
@@ -67,11 +69,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary-wea
 
 /* odznaky */
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
-.badge.ok { background: #e3f5ec; color: var(--ok); }
+.badge.ok { background: var(--st-ok-bg); color: var(--st-ok); }
 .badge.risk { background: #fdf1dc; color: #a86a00; }
 .badge.overdue { background: #fde6e6; color: var(--overdue); }
 .badge.paused { background: #eef0f3; color: #5f6778; }
-.badge.done { background: #e6eefc; color: var(--done); }
+.badge.done { background: var(--st-done-bg); color: var(--st-done); }
 .badge.status { background: #eef0f3; color: #3c4456; }
 
 /* progress */
@@ -104,11 +106,11 @@ tr:last-child td { border-bottom: none; }
 .tl-bar:hover { filter: brightness(.95); text-decoration: none; }
 .tl-bar .fill { position: absolute; inset: 0 auto 0 0; }
 .tl-bar .txt { position: relative; font-size: .72rem; color: #1d2330; padding: 0 6px; line-height: 22px; white-space: nowrap; font-weight: 600; text-shadow: 0 0 3px rgba(255,255,255,.9); }
-.tl-bar.ok { background: #bfe6d2; } .tl-bar.ok .fill { background: var(--ok); }
+.tl-bar.ok { background: var(--st-ok-bar); } .tl-bar.ok .fill { background: var(--st-ok); }
 .tl-bar.risk { background: #f7deaf; } .tl-bar.risk .fill { background: var(--risk); }
 .tl-bar.overdue { background: #f5c0c0; } .tl-bar.overdue .fill { background: var(--overdue); }
 .tl-bar.paused { background: #dfe2e8; } .tl-bar.paused .fill { background: var(--paused); }
-.tl-bar.done { background: #c8d7f6; } .tl-bar.done .fill { background: var(--done); }
+.tl-bar.done { background: var(--st-done-bar); } .tl-bar.done .fill { background: var(--st-done); }
 @media (max-width: 700px) {
   .tl-head, .tl-row { grid-template-columns: 120px 1fr; }
   .tl-grid { left: 120px; }
@@ -167,7 +169,7 @@ a.stat:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,30,50
 .stat { position: relative; overflow: hidden; }
 .stat::before { content: ""; position: absolute; left: 0; top: 0; right: 0; height: 3px; background: var(--line); }
 .stat.accent-primary::before { background: var(--primary); }
-.stat.accent-done::before { background: var(--done); }
+.stat.accent-done::before { background: var(--st-done); }
 .stat.overdue::before { background: var(--overdue); }
 .stat.risk::before { background: var(--risk); }
 .stat.overdue:not(.zero) { background: #fff6f6; border-color: #f6d0d0; }
@@ -181,7 +183,7 @@ a.stat:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,30,50
 /* karty najbližších deadlinov */
 .deadlines { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: 4px; }
 .dl-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--line);
-           border-left: 5px solid var(--ok); background: #fff; color: var(--text); text-decoration: none !important; min-width: 0;
+           border-left: 5px solid var(--st-ok); background: #fff; color: var(--text); text-decoration: none !important; min-width: 0;
            transition: transform .12s, box-shadow .12s; }
 .dl-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(20,30,50,.08); }
 .dl-count { display: flex; align-items: baseline; gap: 6px; }
@@ -196,7 +198,7 @@ a.stat:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,30,50
 .dl-card.overdue .num { color: var(--overdue); }
 .dl-card.soon { border-left-color: var(--risk); background: #fffaf0; }
 .dl-card.soon .num { color: #b77400; }
-.dl-card.later .num { color: var(--ok); }
+.dl-card.later .num { color: var(--st-ok); }
 .dl-card.paused { border-left-color: var(--paused); }
 .dl-card.paused .num { color: var(--paused); }
 
@@ -212,26 +214,26 @@ a.stat:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,30,50
                          color: var(--text); background: rgba(255,255,255,.92); padding: 1px 6px; border-radius: 6px; }
 .tl-deadline .dl-label b { font-weight: 700; }
 .tl-deadline.flip .dl-label { left: auto; right: 8px; }
-.tl-deadline.ok { color: var(--ok); }
+.tl-deadline.ok { color: var(--st-ok); }
 .tl-deadline.risk { color: var(--risk); }
 .tl-deadline.overdue { color: var(--overdue); }
 .tl-deadline.overdue .dl-label { color: var(--overdue); font-weight: 600; }
 .tl-deadline.paused { color: var(--paused); }
-.tl-deadline.done { color: var(--done); }
+.tl-deadline.done { color: var(--st-done); }
 .tl-today { border-left-width: 2px; border-left-style: dashed; }
 
 /* tabuľka projektov */
 tbody tr.row-overdue td:first-child { box-shadow: inset 4px 0 0 var(--overdue); }
 tbody tr.row-risk td:first-child { box-shadow: inset 4px 0 0 var(--risk); }
-tbody tr.row-ok td:first-child { box-shadow: inset 4px 0 0 var(--ok); }
+tbody tr.row-ok td:first-child { box-shadow: inset 4px 0 0 var(--st-ok); }
 tbody tr.row-paused td:first-child { box-shadow: inset 4px 0 0 var(--paused); }
-tbody tr.row-done td:first-child { box-shadow: inset 4px 0 0 var(--done); }
+tbody tr.row-done td:first-child { box-shadow: inset 4px 0 0 var(--st-done); }
 tbody tr.row-overdue { background: #fffafa; }
 td:first-child { padding-left: 14px; }
 .countdown { font-size: .8rem; font-weight: 600; }
 .countdown.overdue { color: var(--overdue); }
 .countdown.risk { color: #b77400; }
-.countdown.ok { color: var(--ok); }
+.countdown.ok { color: var(--st-ok); }
 .countdown.paused, .countdown.done { color: var(--muted); }
 
 /* mobil – navigácia sa zalomí */
@@ -249,12 +251,12 @@ td:first-child { padding-left: 14px; }
 
 /* časová os – termíny úloh */
 .tl-task { position: absolute; top: 30px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
-           background: #fff; border: 2px solid var(--ok); z-index: 4; box-shadow: 0 0 0 2px #fff; }
+           background: #fff; border: 2px solid var(--st-ok); z-index: 4; box-shadow: 0 0 0 2px #fff; }
 .tl-task:hover { transform: scale(1.4); }
 .tl-task.risk { border-color: var(--risk); }
 .tl-task.overdue { border-color: var(--overdue); background: var(--overdue); }
 .tl-task.paused { border-color: var(--paused); }
-.tl-task.done { border-color: var(--done); background: var(--done); }
+.tl-task.done { border-color: var(--st-done); background: var(--st-done); }
 
 /* komentáre k úlohám */
 .comments { margin-top: 6px; }
@@ -284,16 +286,16 @@ td:first-child { padding-left: 14px; }
 .today-pill { background: var(--primary); color: #fff; border-radius: 999px; padding: 0 7px; font-size: .7rem; margin-left: 2px; }
 .cal-ev { display: block; font-size: .76rem; line-height: 1.35; padding: 2px 6px; border-radius: 5px; margin-bottom: 3px;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none !important; color: var(--text); }
-.cal-ev.project { font-weight: 700; color: #fff; background: var(--ok); }
+.cal-ev.project { font-weight: 700; color: #fff; background: var(--st-ok); }
 .cal-ev.project.risk { background: var(--risk); }
 .cal-ev.project.overdue { background: var(--overdue); }
 .cal-ev.project.paused { background: var(--paused); }
-.cal-ev.project.done { background: var(--done); }
-.cal-ev.task { background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--ok); }
+.cal-ev.project.done { background: var(--st-done); }
+.cal-ev.task { background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--st-ok); }
 .cal-ev.task.risk { border-left-color: var(--risk); }
 .cal-ev.task.overdue { border-left-color: var(--overdue); background: #fff6f6; }
 .cal-ev.task.paused { border-left-color: var(--paused); }
-.cal-ev.task.done { border-left-color: var(--done); color: var(--muted); text-decoration: line-through !important; }
+.cal-ev.task.done { border-left-color: var(--st-done); color: var(--muted); text-decoration: line-through !important; }
 .cal-ev.task.mine { font-weight: 600; }
 .cal-ev:hover { filter: brightness(.96); }
 .cal-more { font-size: .72rem; color: var(--muted); padding-left: 4px; }
@@ -321,7 +323,7 @@ td:first-child { padding-left: 14px; }
 .install-card { border-left: 5px solid var(--install); }
 .install-card.risk { border-left-color: var(--risk); }
 .install-card.overdue { border-left-color: var(--overdue); }
-.install-card.done { border-left-color: var(--done); }
+.install-card.done { border-left-color: var(--st-done); }
 .install-card.paused { border-left-color: var(--paused); }
 .install-main { display: flex; gap: 18px; align-items: flex-start; margin-bottom: 12px; }
 .install-date { flex: none; width: 74px; text-align: center; border-radius: 10px; background: var(--install-weak); color: var(--install); padding: 6px 4px; }
@@ -330,7 +332,7 @@ td:first-child { padding-left: 14px; }
 .install-date .m { font-size: .74rem; font-weight: 600; }
 .install-card.risk .install-date, .install-row.risk .install-date { background: #fff4df; color: #b77400; }
 .install-card.overdue .install-date, .install-row.overdue .install-date { background: #fde6e6; color: var(--overdue); }
-.install-card.done .install-date, .install-row.done .install-date { background: #e6eefc; color: var(--done); }
+.install-card.done .install-date, .install-row.done .install-date { background: var(--st-done-bg); color: var(--st-done); }
 .install-card.paused .install-date, .install-row.paused .install-date { background: #eef0f3; color: var(--paused); }
 .install-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .install-info .chip { margin-bottom: 0; }
@@ -341,7 +343,7 @@ td:first-child { padding-left: 14px; }
 .install-edit[open] summary { margin-bottom: 12px; }
 .badge.inst-planovana { background: var(--install-weak); color: var(--install); }
 .badge.inst-presunuta { background: #eef0f3; color: #5f6778; }
-.badge.inst-hotova { background: #e6eefc; color: var(--done); }
+.badge.inst-hotova { background: var(--st-done-bg); color: var(--st-done); }
 .countdown.install { color: var(--install); }
 
 /* dashboard – zoznam inštalácií */
@@ -363,7 +365,7 @@ td:first-child { padding-left: 14px; }
 .tl-install:hover { transform: scale(1.15); }
 .tl-install.risk { background: var(--risk); }
 .tl-install.overdue { background: var(--overdue); }
-.tl-install.done { background: var(--done); }
+.tl-install.done { background: var(--st-done); }
 .tl-install.paused { background: var(--paused); }
 .legend i.lg-install { width: auto; height: auto; background: none; font-style: normal; font-size: .85rem; margin-right: 3px; }
 
@@ -371,7 +373,7 @@ td:first-child { padding-left: 14px; }
 .cal-ev.install { background: var(--install); color: #fff; font-weight: 700; }
 .cal-ev.install.risk { background: var(--risk); }
 .cal-ev.install.overdue { background: var(--overdue); }
-.cal-ev.install.done { background: var(--done); }
+.cal-ev.install.done { background: var(--st-done); }
 .cal-ev.install.paused { background: var(--paused); text-decoration: line-through !important; }
 .cal-ev.install .muted { color: rgba(255,255,255,.85); }
 
@@ -452,7 +454,7 @@ html[data-text="130"] { zoom: 1.3; }
 .bd-stat.overdue { border-top-color: var(--overdue); } .bd-stat.overdue .value { color: var(--overdue); }
 .bd-stat.risk { border-top-color: var(--risk); } .bd-stat.risk .value { color: var(--risk); }
 .bd-stat.install { border-top-color: #7a5af5; }
-.bd-stat.done { border-top-color: var(--done); }
+.bd-stat.done { border-top-color: var(--st-done); }
 .bd-stat.zero .value { color: var(--muted); }
 
 .bd-main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
@@ -460,9 +462,9 @@ html[data-text="130"] { zoom: 1.3; }
 .bd-panel, .bd-side { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; min-width: 0; }
 
 .bd-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
-.bd-card { border: 1px solid var(--line); border-left: 5px solid var(--ok); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); }
+.bd-card { border: 1px solid var(--line); border-left: 5px solid var(--st-ok); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); }
 .bd-card.risk { border-left-color: var(--risk); } .bd-card.overdue { border-left-color: var(--overdue); }
-.bd-card.paused { border-left-color: var(--paused); } .bd-card.done { border-left-color: var(--done); }
+.bd-card.paused { border-left-color: var(--paused); } .bd-card.done { border-left-color: var(--st-done); }
 .bd-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .bd-name { font-weight: 700; font-size: 1.05rem; line-height: 1.25; }
 .bd-prog { display: flex; align-items: center; gap: 12px; }
@@ -515,6 +517,7 @@ html[data-text="130"] { zoom: 1.3; }
 html.tv {
   --bg: #0d1220; --surface: #161e30; --text: #eef2f9; --muted: #9aa6bf; --line: #283350;
   --primary: #5b8cff; --primary-weak: #22305a; --ok: #2ec27e; --risk: #f0a020; --overdue: #ff5c5c; --paused: #8a94a8; --done: #6f9bff;
+  --st-ok: #6f9bff; --st-done: #2ec27e;
   --shadow: none; font-size: clamp(15px, 1.05vw, 34px); }
 html.tv, html.tv body { height: 100%; overflow: hidden; }
 html.tv body { font-size: 1rem; background: var(--bg); color: var(--text); }

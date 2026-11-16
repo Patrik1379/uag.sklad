@@ -181,7 +181,7 @@ class Project:
             return "risk", "Ohrozený" if self.progress + 20 < self.expected_progress else f"Termín o {self.days_left} d"
         if not getattr(self, "task_count", 0):
             return "paused", "Bez úloh"           # bez úloh sa nedá posúdiť, či je projekt v poriadku
-        return "ok", "V poriadku"
+        return "ok", "Podľa plánu"
 
     @property
     def deadline_text(self):
