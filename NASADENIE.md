@@ -195,10 +195,10 @@ Staré odkazy na sklad (bez predpony `sklad.`) sa automaticky presmerujú do skl
 **Pridanie ďalšej aplikácie na úvodnú stránku:** doplňte položku do `portal/aplikacie.json`, napr.
 
 ```json
-{ "nazov": "Dochádzka", "popis": "Evidencia dochádzky.", "subdomena": "dochadzka", "ikona": "ludia", "farba": "#7c3aed" }
+{ "nazov": "Dochádzka", "popis": "Evidencia dochádzky.", "adresa": "https://dochadzka.uag.sk", "ikona": "ludia", "farba": "#7c3aed" }
 ```
 
-- `subdomena` – adresa bude `dochadzka.<adresa úvodnej stránky>`; namiesto nej môžete zadať plnú adresu `"adresa": "https://..."`.
+- `adresa` – plná adresa aplikácie, napr. `"adresa": "https://dochadzka.uag.sk"`. (Namiesto nej sa dá použiť `"subdomena": "dochadzka"` – adresa sa potom zloží ako `dochadzka.<adresa úvodnej stránky>`, čo sa hodí pri sslip.io.)
 - `ikona` – `sklad`, `projekty`, `dokumenty`, `ludia`, `graf`, `servis` alebo `aplikacia`.
 - Zmena sa prejaví po `git pull` bez reštartu. Ak nová aplikácia beží na tomto serveri, treba ju doplniť aj do `docker-compose.yml` a `Caddyfile`.
 

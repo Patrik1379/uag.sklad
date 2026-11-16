@@ -2,14 +2,14 @@
   {
     "nazov": "Sklad dielov",
     "popis": "Príjem tovaru, skladové karty a kompletnosť dielov pre projekty.",
-    "subdomena": "sklad",
+    "adresa": "https://sklad.uag.sk",
     "ikona": "sklad",
     "farba": "#2563c9"
   },
   {
     "nazov": "Projekt manažér",
     "popis": "Projekty, úlohy, termíny a plánované inštalácie.",
-    "subdomena": "projekty",
+    "adresa": "https://projekty.uag.sk",
     "ikona": "projekty",
     "farba": "#0f8a5f"
   }
