@@ -37,6 +37,10 @@
             <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" class="inline-form">
               <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="toggle">
               <button class="btn sm {{ 'danger' if u.active }}">{{ 'Zablokovať' if u.active else 'Aktivovať' }}</button></form>
+            <form method="post" action="{{ url_for('auth.user_update', uid=u.id) }}" class="inline-form"
+                  data-confirm="Natrvalo zmazať používateľa {{ u.username }}? Jeho príjmy a pripomienky zostanú, len bez mena. Ak sa môže vrátiť, radšej ho len zablokujte.">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete">
+              <button class="btn sm" title="Natrvalo zmazať">Zmazať</button></form>
             {% endif %}
           </td>
         </tr>

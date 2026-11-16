@@ -137,6 +137,16 @@ def user_update(uid):
         if role in ROLES:
             db.execute("UPDATE users SET role = ? WHERE id = ?", (role, uid))
             flash("Rola bola zmenená.", "ok")
+    elif action == "delete" and uid != me["id"]:
+        admins = db.scalar("SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1 AND id <> ?", (uid,))
+        if user["role"] == "admin" and not admins:
+            flash("Posledného administrátora nemožno zmazať.", "error")
+        else:
+            # príjmy a pripomienky zostanú, len bez mena autora
+            db.execute("UPDATE receipts SET user_id = NULL WHERE user_id = ?", (uid,))
+            db.execute("UPDATE feedback SET user_id = NULL WHERE user_id = ?", (uid,))
+            db.execute("DELETE FROM users WHERE id = ?", (uid,))
+            flash(f"Používateľ {user['username']} bol zmazaný.", "ok")
     elif action == "toggle" and uid != me["id"]:
         db.execute("UPDATE users SET active = ? WHERE id = ?", (0 if user["active"] else 1, uid))
         flash("Stav účtu bol zmenený.", "ok")
