@@ -10,11 +10,13 @@
     <div><label>Označenie (unikátne)</label><input type="text" name="code" value="{{ part.code or '' }}" placeholder="nevyplnené = vygeneruje sa (D-00001)">
       </div>
     <div><label>Objednávacie číslo</label><input type="text" name="order_code" value="{{ part.order_code or '' }}" class="mono"></div>
+    <div><label>EAN kód</label><input type="text" name="ean" value="{{ part.ean or '' }}" class="mono" inputmode="numeric"
+      placeholder="napr. 4011209312345" title="Čiarový kód z obalu (EAN-13, EAN-8). Dá sa naň skenovať aj pri príjme."></div>
+    <div><label>Jednotka</label><input type="text" name="unit" value="{{ part.unit or 'ks' }}" style="max-width:8rem"></div>
     <div class="full"><label>Názov *</label><input type="text" name="name" value="{{ part.name or '' }}" required {{ 'autofocus' if not part.id }}></div>
     <div><label>Výrobca</label><input type="text" name="manufacturer" value="{{ part.manufacturer or '' }}"></div>
     <div><label>Dodávateľ</label><input type="text" name="supplier" value="{{ part.supplier or '' }}"></div>
-    <div><label>Kategória</label><input type="text" name="category" value="{{ part.category or '' }}" placeholder="napr. Elektro, Pneumatika, Mechanika"></div>
-    <div><label>Jednotka</label><input type="text" name="unit" value="{{ part.unit or 'ks' }}" style="max-width:8rem"></div>
+    <div class="full"><label>Kategória</label><input type="text" name="category" value="{{ part.category or '' }}" placeholder="napr. Elektro, Pneumatika, Mechanika"></div>
     <div class="full">
       <label>Umiestnenie v sklade</label>
       {% set locs = locations_map().values()|list %}

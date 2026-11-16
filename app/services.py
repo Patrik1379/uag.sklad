@@ -10,7 +10,7 @@ from .db import get_db
 
 LINES_SQL = """
 SELECT pp.id AS pp_id, pp.project_id, pp.qty_required, pp.note AS pp_note,
-       pa.id AS part_id, pa.code, pa.order_code, pa.name, pa.image, pa.unit,
+       pa.id AS part_id, pa.code, pa.order_code, pa.ean, pa.name, pa.image, pa.unit,
        pa.manufacturer, pa.supplier, pa.location, pa.location_id, pa.rack_id, pa.shelf,
        COALESCE(r.qty, 0) AS received
 FROM project_parts pp
@@ -163,6 +163,8 @@ HEADER_MAP = {
     "order_code": ["objednavacie cislo", "objednávacie číslo", "obj. cislo", "obj. číslo", "obj cislo",
                    "order code", "order number", "part number", "partnumber", "pn", "objednavacie_cislo",
                    "číslo dielu", "cislo dielu", "artikel", "article"],
+    "ean": ["ean", "ean kod", "ean kód", "ean code", "ean13", "ean 13", "gtin", "barcode", "ciarovy kod",
+            "čiarový kód"],
     "name": ["nazov", "názov", "name", "nazov dielu", "názov dielu"],
     "description": ["popis", "description", "beschreibung"],
     "manufacturer": ["vyrobca", "výrobca", "manufacturer", "vendor", "hersteller"],
@@ -314,7 +316,7 @@ def read_bom(file_storage):
         if key in by_key:                      # rovnaký diel viackrát v kusovníku → sčítame
             by_key[key]["qty"] += max(qty, 0)
             continue
-        item = {"code": code, "order_code": order_code, "name": name[:255],
+        item = {"code": code, "order_code": order_code, "ean": normalize_ean(val("ean")), "name": name[:255],
                 "manufacturer": val("manufacturer"), "supplier": val("supplier"),
                 "params": "\n".join(params), "category": category, "image": image, "qty": max(qty, 0)}
         by_key[key] = item
@@ -339,6 +341,8 @@ def import_bom_items(project_id, items):
             part = db.query("SELECT * FROM parts WHERE LOWER(code) = LOWER(?)", (it["code"],), one=True)
         if not part and it["order_code"]:
             part = db.query("SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?)", (it["order_code"],), one=True)
+        if not part and it.get("ean"):
+            part = db.query("SELECT * FROM parts WHERE ean = ?", (it["ean"],), one=True)
         image = None
         if it.get("image") and (not part or not part.get("image")):
             try:
@@ -349,9 +353,9 @@ def import_bom_items(project_id, items):
         if not part:
             code = it["code"] or next_part_code()
             part_id = db.execute(
-                """INSERT INTO parts (code, order_code, name, manufacturer, supplier, category, params, image)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
-                (code, it["order_code"] or None, it["name"] or it["order_code"] or code,
+                """INSERT INTO parts (code, order_code, ean, name, manufacturer, supplier, category, params, image)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (code, it["order_code"] or None, it.get("ean") or None, it["name"] or it["order_code"] or code,
                  it["manufacturer"] or None, it["supplier"] or None, it.get("category") or None,
                  it.get("params") or None, image))
             stats["created"] += 1
@@ -359,6 +363,8 @@ def import_bom_items(project_id, items):
             part_id = part["id"]
             if image:
                 db.execute("UPDATE parts SET image = ? WHERE id = ?", (image, part_id))
+            if it.get("ean") and not part.get("ean"):
+                db.execute("UPDATE parts SET ean = ? WHERE id = ?", (it["ean"], part_id))
         if it["qty"] <= 0:
             continue
         ex = db.query("SELECT id FROM project_parts WHERE project_id = ? AND part_id = ?",
@@ -377,7 +383,7 @@ def import_bom_items(project_id, items):
 # --- Fulltextové hľadanie dielov -----------------------------------------------
 
 SEARCH_FIELDS = [
-    ("order_code", "Objednávacie číslo"), ("code", "Označenie"), ("name", "Názov"),
+    ("order_code", "Objednávacie číslo"), ("code", "Označenie"), ("ean", "EAN"), ("name", "Názov"),
     ("manufacturer", "Výrobca"), ("supplier", "Dodávateľ"), ("category", "Kategória"),
     ("location_full", "Umiestnenie"), ("params", "Parametre"), ("note", "Poznámka"),
 ]
@@ -408,6 +414,7 @@ def search_parts(q, limit=50):
         return []
     tokens = [t for t in _fold(q).split() if t]
     q_compact = _compact(q)
+    q_ean = normalize_ean(q)
     rows = get_db().query("SELECT * FROM parts")
     results = []
     for p in rows:
@@ -424,7 +431,8 @@ def search_parts(q, limit=50):
             if (q_compact and q_compact in compact[f]) or any(t in folded[f] for t in tokens):
                 matched.append(label)
         score = 0
-        if q_compact and q_compact in (compact["order_code"], compact["code"]):
+        if q_compact and (q_compact in (compact["order_code"], compact["code"])
+                          or (q_ean and q_ean == p.get("ean"))):
             score += 1000
         elif q_compact and (q_compact in compact["order_code"] or q_compact in compact["code"]):
             score += 500
@@ -618,6 +626,34 @@ def eplan_items(parsed, selected_structs, excluded=()):
 
 # --- Skenovanie čiarových / 2D kódov ------------------------------------------------
 
+def normalize_ean(text):
+    """Zjednotí zápis EAN/GTIN: bez medzier a pomlčiek, UPC-A (12) a GTIN-14 s nulou → EAN-13.
+
+    Pre text, ktorý nie je číselný kód dĺžky 8, 12, 13 alebo 14, vráti prázdny reťazec.
+    """
+    digits = "".join(c for c in str(text or "") if not c.isspace() and c != "-")
+    if not digits.isdigit() or len(digits) not in (8, 12, 13, 14):
+        return ""
+    if len(digits) == 12:
+        digits = "0" + digits
+    if len(digits) == 14 and digits.startswith("0"):
+        digits = digits[1:]
+    return digits
+
+
+def ean_valid(code):
+    """Kontrolná číslica EAN-8 / EAN-13 / GTIN-14."""
+    if not code or not code.isdigit() or len(code) not in (8, 13, 14):
+        return False
+    body, check = code[:-1], int(code[-1])
+    total = sum(int(d) * (3 if i % 2 == 0 else 1) for i, d in enumerate(reversed(body)))
+    return (10 - total % 10) % 10 == check
+
+
+def looks_like_ean(text):
+    return ean_valid(normalize_ean(text))
+
+
 def scan_variants(text):
     """Z naskenovaného textu vytvorí kandidátov na objednávacie číslo.
 
@@ -642,6 +678,9 @@ def scan_variants(text):
         m = re.match(r"^(?:1P|30P|P)(.{3,})$", seg)            # ANSI MH10.8.2 – číslo dielu
         if m:
             add(m.group(1))
+        m = re.match(r"^01(\d{14})", seg)                     # GS1 AI 01 – GTIN (EAN v 2D kóde)
+        if m:
+            add(normalize_ean(m.group(1)))
         m = re.match(r"^240(.{3,})$", seg)                     # GS1 AI 240 – dodatočné ID produktu
         if m:
             add(m.group(1))

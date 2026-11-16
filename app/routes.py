@@ -10,12 +10,12 @@ from .auth import admin_required, current_user, login_required
 from .db import get_db
 from .services import (location_label, location_parts, locations_map, racks_map, delete_image, demand_for_part, enrich, free_stock,
                        free_stock_map, next_part_code, project_lines,
-                       projects_with_stats, read_bom, scan_variants, decode_barcodes, import_bom_items, parse_eplan_xml, eplan_items, save_image, search_parts, summarize,
+                       projects_with_stats, read_bom, scan_variants, normalize_ean, looks_like_ean, ean_valid, decode_barcodes, import_bom_items, parse_eplan_xml, eplan_items, save_image, search_parts, summarize,
                        LINES_SQL)
 
 bp = Blueprint("main", __name__)
 
-PART_FIELDS = ["code", "order_code", "name", "manufacturer", "supplier", "category",
+PART_FIELDS = ["code", "order_code", "ean", "name", "manufacturer", "supplier", "category",
                "unit", "location", "shelf", "params", "note"]
 PROJECT_FIELDS = ["name", "order_no", "customer", "start_date", "deadline", "note", "status"]
 
@@ -172,8 +172,8 @@ def receive():
         exact = []
         for v in variants:
             exact = db.query(
-                "SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?) OR LOWER(code) = LOWER(?) ORDER BY code",
-                (v, v))
+                "SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?) OR LOWER(code) = LOWER(?) "
+                "OR ean = ? ORDER BY code", (v, v, normalize_ean(v) or v))
             if exact:
                 break
         if len(exact) == 1:
@@ -429,7 +429,8 @@ def project_add_part(pid):
     part = None
     if key:
         part = db.query("SELECT * FROM parts WHERE LOWER(code) = LOWER(?)", (key.split(" — ")[0],), one=True) \
-            or db.query("SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?)", (key,), one=True)
+            or db.query("SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?)", (key,), one=True) \
+            or db.query("SELECT * FROM parts WHERE ean = ?", (normalize_ean(key) or key,), one=True)
     if not part:
         flash("Diel sa nenašiel. Vyberte existujúcu skladovú kartu alebo vytvorte novú.", "error")
         return redirect(url_for("main.project_detail", pid=pid))
@@ -665,18 +666,18 @@ def project_export(pid):
     ws.append([f"{project['name']} – zákazka {project['order_no']}"])
     ws["A1"].font = Font(bold=True, size=14)
     ws.append([])
-    head = ["Označenie", "Objednávacie číslo", "Názov", "Výrobca", "Umiestnenie", "Potrebné", "Naskladnené", "Chýba", "Stav"]
+    head = ["Označenie", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Umiestnenie", "Potrebné", "Naskladnené", "Chýba", "Stav"]
     ws.append(head)
     for c in ws[3]:
         c.font = Font(bold=True)
     fills = {"ok": "D6F2D6", "partial": "FFF0C2", "missing": "F8D7D7"}
     labels = {"ok": "Naskladnené", "partial": "Čiastočne", "missing": "Chýba"}
     for l in lines:
-        ws.append([l["code"], l["order_code"], l["name"], l["manufacturer"], location_label(l), l["qty_required"],
+        ws.append([l["code"], l["order_code"], l.get("ean"), l["name"], l["manufacturer"], location_label(l), l["qty_required"],
                    l["received"], l["missing"], labels[l["state"]]])
         for c in ws[ws.max_row]:
             c.fill = PatternFill("solid", fgColor=fills[l["state"]])
-    for col, w in zip("ABCDEFGHI", (14, 22, 40, 18, 30, 10, 12, 10, 14)):
+    for col, w in zip("ABCDEFGHIJ", (14, 22, 16, 40, 18, 30, 10, 12, 10, 14)):
         ws.column_dimensions[col].width = w
     buf = io.BytesIO()
     wb.save(buf)
@@ -694,11 +695,11 @@ def bom_template():
 
     wb = Workbook()
     ws = wb.active
-    ws.append(["Označenie", "Objednávacie číslo", "Názov", "Výrobca", "Dodávateľ", "Množstvo"])
+    ws.append(["Označenie", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Dodávateľ", "Množstvo"])
     for c in ws[1]:
         c.font = Font(bold=True)
-    ws.append(["", "6ES7214-1AG40-0XB0", "PLC S7-1200 CPU 1214C", "Siemens", "", 2])
-    for col, w in zip("ABCDEF", (14, 24, 40, 18, 18, 10)):
+    ws.append(["", "6ES7214-1AG40-0XB0", "", "PLC S7-1200 CPU 1214C", "Siemens", "", 2])
+    for col, w in zip("ABCDEFG", (14, 24, 16, 40, 18, 18, 10)):
         ws.column_dimensions[col].width = w
     buf = io.BytesIO()
     wb.save(buf)
@@ -910,6 +911,9 @@ def parts_api():
 def _part_form_data():
     data = {f: (request.form.get(f, "").strip() or None) for f in PART_FIELDS}
     data["unit"] = data["unit"] or "ks"
+    data["ean"] = normalize_ean(data["ean"]) or data["ean"]
+    if data["ean"] and not ean_valid(data["ean"]):
+        flash(f"EAN {data['ean']} nemá platnú kontrolnú číslicu – skontrolujte ho (karta sa uložila).", "warn")
     # lokácia
     if request.form.get("location_id") == "new":
         data["location_id"] = _create_location_from_form()
@@ -998,7 +1002,10 @@ def part_new():
         if request.form.get("back") == "prijem":
             return redirect(url_for("main.receive", diel=part_id))
         return redirect(url_for("main.part_detail", part_id=part_id))
-    part = {"unit": "ks", "order_code": request.args.get("order_code", "")}
+    code = request.args.get("order_code", "")
+    part = {"unit": "ks", "order_code": code}
+    if looks_like_ean(code):          # naskenovaný EAN patrí do poľa EAN, nie do objednávacieho čísla
+        part.update(order_code="", ean=normalize_ean(code))
     return render_template("part_form.html", part=part, projects=projects,
                            preset_project=to_int(request.args.get("projekt"), None),
                            back=request.args.get("back", ""))

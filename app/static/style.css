@@ -109,6 +109,7 @@ textarea { min-height: 5.333rem; resize: vertical; }
 /* ---------- flash ---------- */
 .flash { padding: 0.733rem 0.933rem; border-radius: 8px; margin-bottom: 0.933rem; font-weight: 500; display: flex; gap: 0.533rem; align-items: center; }
 .flash.ok { background: var(--good-bg); color: var(--good-ink); border: 1px solid #b9e4b9; }
+.flash.warn { background: #fff4d6; color: #7a5300; border: 1px solid #f0d48a; }
 .flash.error { background: var(--bad-bg); color: var(--bad-ink); border: 1px solid #efc0c0; }
 
 /* ---------- tables ---------- */

@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS parts (
     id {PK},
     code VARCHAR(100) NOT NULL UNIQUE,
     order_code VARCHAR(150),
+    ean VARCHAR(50),
     name VARCHAR(255) NOT NULL,
     manufacturer VARCHAR(150),
     supplier VARCHAR(150),
@@ -260,6 +261,8 @@ def init_db(retries: int = 30):
     _add_column(db, "parts", "shelf", "VARCHAR(50)")
     if _add_column(db, "parts", "rack_id", "INTEGER"):
         _migrate_locations(db)
+    _add_column(db, "parts", "ean", "VARCHAR(50)")
+    db.execute("CREATE INDEX IF NOT EXISTS ix_parts_ean ON parts (ean)")
     db.commit()
 
     if not db.scalar("SELECT COUNT(*) FROM users"):

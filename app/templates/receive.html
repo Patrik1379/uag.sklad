@@ -5,13 +5,13 @@
 <div class="page-head">
   <div>
     <h1>Príjem tovaru</h1>
-    <div class="muted">Zadajte alebo naskenujte objednávacie číslo dielu</div>
+    <div class="muted">Zadajte alebo naskenujte objednávacie číslo alebo EAN kód dielu</div>
   </div>
 </div>
 
 <form class="card" method="get" action="{{ url_for('main.receive') }}" id="search-form">
   <div class="scan-box">
-    <input type="search" name="q" id="q" value="{{ q }}" placeholder="Objednávacie číslo, označenie alebo názov…" autofocus autocomplete="off" {% if not part %}onfocus="this.select()"{% endif %}>
+    <input type="search" name="q" id="q" value="{{ q }}" placeholder="Objednávacie číslo, EAN, označenie alebo názov…" autofocus autocomplete="off" {% if not part %}onfocus="this.select()"{% endif %}>
     <button type="button" class="btn lg scan-btn" id="scan-btn" title="Skenovať kód kamerou">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M11 8v8M15 8v8M18 8v8"/></svg>
       <span>Skenovať</span></button>
@@ -45,7 +45,7 @@
       <tr>
         <td style="width:3.6rem">{{ thumb(c.image, c.name, upload=url_for('main.part_image', part_id=c.id)) }}</td>
         <td class="mono">{{ c.code }}</td>
-        <td class="mono">{{ c.order_code or '' }}</td>
+        <td class="mono">{{ c.order_code or '' }}{% if c.ean %}<div class="small muted">EAN {{ c.ean }}</div>{% endif %}</td>
         <td>{{ c.name }}{% if c.matched %}<div class="small muted">nájdené v: {{ c.matched|join(', ') }}</div>{% endif %}</td>
         <td>{{ c.manufacturer or '' }}</td>
         <td class="num"><a class="btn sm primary" href="{{ url_for('main.receive', diel=c.id) }}">Vybrať</a></td>
@@ -70,6 +70,7 @@
       <h2 style="margin-bottom:2px"><a href="{{ url_for('main.part_detail', part_id=part.id) }}">{{ part.code }}</a> – {{ part.name }}</h2>
       <dl class="meta">
         <dt>Objednávacie číslo</dt><dd class="mono">{{ part.order_code or '—' }}</dd>
+        {% if part.ean %}<dt>EAN</dt><dd class="mono">{{ part.ean }}</dd>{% endif %}
         {% if part.manufacturer %}<dt>Výrobca</dt><dd>{{ part.manufacturer }}</dd>{% endif %}
         {% if part.supplier %}<dt>Dodávateľ</dt><dd>{{ part.supplier }}</dd>{% endif %}
         {% if part|loc %}<dt>Umiestnenie</dt><dd>{{ location(part) }}</dd>{% endif %}
