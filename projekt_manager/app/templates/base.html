@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
 </head>
 <body>
 {% from "_text_size.html" import text_size_switch with context %}
@@ -41,6 +42,7 @@
   {% endwith %}
   {% block content %}{% endblock %}
 </main>
+{% if current_user %}<script src="{{ url_for('static', filename='img.js') }}?v=1"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

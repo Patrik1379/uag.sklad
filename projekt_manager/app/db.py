@@ -159,7 +159,9 @@ def _migrate(conn):
         if col not in cols:
             conn.execute(f"ALTER TABLE projects ADD COLUMN {col} {ddl}")
     for col, ddl in (("order_no", "TEXT NOT NULL DEFAULT ''"), ("customer", "TEXT NOT NULL DEFAULT ''"),
-                     ("sklad_id", "INTEGER"), ("sklad_status", "TEXT")):
+                     ("sklad_id", "INTEGER"), ("sklad_status", "TEXT"),
+                     ("image", "TEXT"),            # ilustračný obrázok projektu (súbor v data/obrazky)
+                     ("image_sync", "TEXT")):      # názov obrázka v sklade, ktorému lokálny obrázok zodpovedá
         if col not in cols:
             conn.execute(f"ALTER TABLE projects ADD COLUMN {col} {ddl}")
     if "assignee_id" in cols:

@@ -88,6 +88,9 @@ def push(project_id, author=None):
         created = data.get("created")
         forget()
         _store(project_id, data.get("id"), "projekt založený v sklade" if created else "")
+        if p.image and not p.image_sync:          # obrázok pridaný pred prepojením
+            from .images import push_to_sklad
+            push_to_sklad(project_id)
         return True, "Projekt bol založený v sklade." if created else "Údaje v sklade boli aktualizované."
     log.warning("Sklad – projekt %s sa nepodarilo odoslať: %s", project_id, data)
     _store(project_id, None, "chyba – " + str(data))
@@ -125,3 +128,35 @@ def stats_map(max_age=60):
 def forget():
     """Po zmene projektu načítame stav zo skladu znova."""
     _cache["at"] = 0.0
+
+
+def upload_image(project_id, data, timeout=20):
+    """Nahrá obrázok projektu do skladu (multipart/form-data)."""
+    import uuid as _uuid
+
+    cfg = current_app.config
+    boundary = "----pm" + _uuid.uuid4().hex
+    body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"projekt.jpg\"\r\n"
+            f"Content-Type: image/jpeg\r\n\r\n").encode() + data + f"\r\n--{boundary}--\r\n".encode()
+    req = urllib.request.Request(cfg["SKLAD_URL"].rstrip("/") + f"/api/v1/projekty/pm:{project_id}/obrazok",
+                                 data=body, method="POST", headers={
+                                     "Authorization": "Bearer " + cfg["SKLAD_API_KEY"],
+                                     "Content-Type": "multipart/form-data; boundary=" + boundary})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return True, json.loads(resp.read().decode("utf-8") or "{}")
+    except Exception as exc:
+        log.warning("Sklad – obrázok projektu %s sa nepodarilo odoslať: %s", project_id, exc)
+        return False, {}
+
+
+def download_image(project_id, timeout=20):
+    cfg = current_app.config
+    req = urllib.request.Request(cfg["SKLAD_URL"].rstrip("/") + f"/api/v1/projekty/pm:{project_id}/obrazok",
+                                 headers={"Authorization": "Bearer " + cfg["SKLAD_API_KEY"]})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return True, resp.read()
+    except Exception as exc:
+        log.warning("Sklad – obrázok projektu %s sa nepodarilo stiahnuť: %s", project_id, exc)
+        return False, None

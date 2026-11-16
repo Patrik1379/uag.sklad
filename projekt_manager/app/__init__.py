@@ -14,6 +14,7 @@ def create_app(config_class=Config):
 
     os.makedirs(app.config["DATA_DIR"], exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    os.makedirs(app.config["IMAGE_FOLDER"], exist_ok=True)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     from .db import init_db

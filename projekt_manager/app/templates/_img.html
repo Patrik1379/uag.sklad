@@ -1,0 +1,22 @@
+{#
+  Ilustračný obrázok projektu.
+  size:   '' (malý, do tabuľky), 'md' (karta), 'lg' (detail projektu)
+  upload: True = obrázok sa dá zmeniť ťahaním súboru, kliknutím alebo Ctrl+V (len administrátor)
+#}
+{% macro project_thumb(p, size='', upload=False) -%}
+  {%- if upload -%}
+  <span class="imgdrop" data-upload="{{ url_for('main.project_image', project_id=p.id) }}" data-size="{{ size }}"{{ ' data-paste' if size == 'lg' }}
+        title="{{ 'Pretiahnite sem nový obrázok' if p.image else 'Kliknite alebo sem pretiahnite obrázok projektu' }}{{ ' (alebo Ctrl+V)' if size == 'lg' }}">
+  {%- endif -%}
+  {%- if p.image -%}
+    <img class="pthumb {{ size }}" src="{{ url_for('main.project_image_file', name='t_' ~ p.image) }}"
+         data-full="{{ url_for('main.project_image_file', name=p.image) }}" alt="" loading="lazy">
+  {%- else -%}
+    <span class="pthumb ph {{ size }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5h20"/><path d="M15 3.5V7"/><path d="M13.3 9.2 15 7l1.7 2.2"/><rect x="13" y="10.5" width="4" height="4" rx=".5"/><rect x="4" y="10.5" width="4" height="4" rx=".5"/><rect x="2" y="15.5" width="20" height="4" rx="2"/><path d="M5 17.5h.01M9 17.5h.01M13 17.5h.01M17 17.5h.01"/></svg></span>
+  {%- endif -%}
+  {%- if upload -%}
+    <button type="button" class="imgdrop-btn" title="Zmeniť obrázok" aria-label="Zmeniť obrázok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg></button>
+    <input type="file" accept="image/*" hidden>
+  </span>
+  {%- endif -%}
+{%- endmacro %}

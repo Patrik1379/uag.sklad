@@ -1,12 +1,18 @@
 {% extends "base.html" %}
+{% from "_img.html" import project_thumb %}
 {% block title %}{{ project.name }} – {{ app_name }}{% endblock %}
 {% block content %}
 {% set h = project.health %}
 <div class="page-head">
   <div>
     <div class="small"><a href="{{ url_for('main.dashboard') }}">← Dashboard</a></div>
-    <h1>{{ project.name }}</h1>
-    <span class="badge status">{{ project.status_label }}</span> <span class="badge {{ h[0] }}">{{ h[1] }}</span>
+    <div class="title-with-img">
+      {{ project_thumb(project, 'lg', upload=current_user.is_admin) }}
+      <div>
+        <h1>{{ project.name }}</h1>
+        <span class="badge status">{{ project.status_label }}</span> <span class="badge {{ h[0] }}">{{ h[1] }}</span>
+      </div>
+    </div>
   </div>
   {% if current_user.is_admin %}
   <div class="actions">

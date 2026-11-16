@@ -5,12 +5,13 @@ import threading
 import uuid
 from datetime import date, datetime
 
-from flask import (Blueprint, abort, current_app, flash, g, redirect,
+from flask import (Blueprint, abort, current_app, flash, g, jsonify, redirect,
                    render_template, request, send_from_directory, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import mailer
 from . import sklad
+from . import images
 from . import settings as app_settings
 from .auth import admin_required, login_required
 from .db import execute, query
@@ -89,6 +90,11 @@ def dashboard():
     smap = sklad.stats_map()
     for p in all_projects:
         p.sklad = smap.get(f"pm:{p.id}") if smap else None
+    # obrázky projektov: neodoslané pošleme do skladu, zmenené v sklade stiahneme (na pozadí)
+    todo = [(p.id, p.image, p.image_sync, (p.sklad or {}).get("image")) for p in all_projects if p.sklad
+            and ((p.image and not p.image_sync) or ((p.sklad or {}).get("image") and p.sklad["image"] != p.image_sync))]
+    if todo and not current_app.config.get("TESTING"):
+        run_in_background(images.sync_all, todo, None)
     linked = [p.sklad for p in all_projects if not p.is_done and p.sklad and p.sklad.get("required")]
     material = None
     if linked:
@@ -205,8 +211,45 @@ def project_detail(project_id):
                            install_statuses=INSTALL_STATUSES,
                            subtasks=list_subtasks(project_id=project_id),
                            edit_install=request.args.get("instalacia") == "upravit",
-                           sklad_on=sklad.enabled(), sklad_info=sklad.status(project),
+                           sklad_on=sklad.enabled(), sklad_info=_sklad_info_with_image_sync(project),
                            sklad_url=current_app.config.get("SKLAD_URL"))
+
+
+def _sklad_info_with_image_sync(project):
+    """Stav zo skladu pre detail projektu; ak sa obrázok zmenil v sklade (alebo ešte nebol odoslaný), zosúladí ho."""
+    info = sklad.status(project)
+    if info and not info.get("error"):
+        si = info.get("image")
+        if (project.image and not project.image_sync) or (si and si != project.image_sync):
+            run_in_background(images.sync_all, [(project.id, project.image, project.image_sync, si)], None)
+    return info
+
+
+@bp.route("/projekty/<int:project_id>/obrazok", methods=["POST"])
+@admin_required
+def project_image(project_id):
+    """Nahratie ilustračného obrázka (ťahaním, kliknutím alebo Ctrl+V). Vracia JSON."""
+    project_or_404(project_id)
+    f = request.files.get("image")
+    if not f or not f.filename:
+        return jsonify(error="Chýba súbor s obrázkom."), 400
+    if os.path.splitext(f.filename)[1].lower() not in images.ALLOWED:
+        return jsonify(error="Nepodporovaný formát obrázka (použite JPG, PNG, GIF alebo WEBP)."), 400
+    try:
+        name = images.set_project_image(project_id, f.stream)
+    except Exception as exc:
+        return jsonify(error=f"Obrázok sa nepodarilo uložiť: {exc}"), 400
+    log_event(project_id, "Zmenený obrázok projektu.")
+    if sklad.enabled():
+        run_in_background(images.push_to_sklad, project_id)
+    return jsonify(thumb=url_for("main.project_image_file", name="t_" + name),
+                   full=url_for("main.project_image_file", name=name))
+
+
+@bp.route("/obrazky/<name>")
+@login_required
+def project_image_file(name):
+    return send_from_directory(current_app.config["IMAGE_FOLDER"], name, max_age=86400)
 
 
 @bp.route("/projekty/<int:project_id>/sklad", methods=["POST"])

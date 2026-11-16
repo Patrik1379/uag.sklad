@@ -5,12 +5,14 @@ Overenie: hlavička  Authorization: Bearer <kľúč>  – kľúč sa vygeneruje 
 POST /api/v1/projekty          založí alebo aktualizuje projekt podľa "ref" (napr. "pm:12")
 GET  /api/v1/projekty          stav všetkých prepojených projektov naraz (pre dashboard)
 GET  /api/v1/projekty/<ref>    stav projektu v sklade (kompletnosť dielov)
+GET  /api/v1/projekty/<ref>/obrazok   obrázok projektu (súbor JPEG)
+POST /api/v1/projekty/<ref>/obrazok   nahratie nového obrázka projektu (pole "image")
 GET  /api/v1/ping              overenie spojenia a kľúča
 """
 import secrets
 from datetime import date
 
-from flask import Blueprint, abort, current_app, jsonify, request, url_for
+from flask import Blueprint, abort, current_app, jsonify, request, send_from_directory, url_for
 
 from .db import get_db
 
@@ -57,7 +59,7 @@ def _project_info(p, s=None):
 
     s = s or summarize(project_lines(p["id"]))
     return {"ok": True, "id": p["id"], "url": f"{_base()}{url_for('main.project_detail', pid=p['id'])}",
-            "name": p["name"], "order_no": p["order_no"], "status": p["status"],
+            "name": p["name"], "order_no": p["order_no"], "status": p["status"], "image": p.get("image"),
             "items": s["n_items"], "items_ok": s["items_ok"], "items_missing": s["items_missing"],
             "items_partial": s["items_partial"], "required": s["required"], "covered": s["covered"],
             "missing": s["missing"], "pct": s["pct"]}
@@ -126,10 +128,45 @@ def project_list():
     return jsonify(ok=True, projects=out)
 
 
-@bp.route("/projekty/<path:ref>")
+@bp.route("/projekty/<ref>")
 def project_status(ref):
     _check_key()
     p = get_db().query("SELECT * FROM projects WHERE external_ref = ?", (ref,), one=True)
     if not p:
         return _error(404, "Projekt v sklade neexistuje.")
     return jsonify(_project_info(p))
+
+
+def _by_ref(ref):
+    return get_db().query("SELECT * FROM projects WHERE external_ref = ?", (ref,), one=True)
+
+
+@bp.route("/projekty/<ref>/obrazok", methods=["GET"])
+def project_image_get(ref):
+    _check_key()
+    p = _by_ref(ref)
+    if not p or not p.get("image"):
+        return _error(404, "Projekt nemá obrázok.")
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], p["image"], max_age=0)
+
+
+@bp.route("/projekty/<ref>/obrazok", methods=["POST"])
+def project_image_set(ref):
+    from .services import delete_image, save_image
+
+    _check_key()
+    p = _by_ref(ref)
+    if not p:
+        return _error(404, "Projekt v sklade neexistuje.")
+    f = request.files.get("image")
+    if not f or not f.filename:
+        return _error(400, "Chýba súbor s obrázkom.")
+    try:
+        name = save_image(f)
+    except Exception as exc:
+        return _error(400, f"Obrázok sa nepodarilo uložiť: {exc}")
+    db = get_db()
+    db.execute("UPDATE projects SET image = ? WHERE id = ?", (name, p["id"]))
+    db.commit()
+    delete_image(p.get("image"))
+    return jsonify(ok=True, image=name)

@@ -17,6 +17,7 @@ class Config:
     DATA_DIR = os.getenv("DATA_DIR", os.path.join(BASE_DIR, "data"))
     DATABASE = os.getenv("DATABASE", os.path.join(DATA_DIR, "projekty.db"))
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", os.path.join(DATA_DIR, "dokumenty"))
+    IMAGE_FOLDER = os.getenv("IMAGE_FOLDER", os.path.join(DATA_DIR, "obrazky"))
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "50")) * 1024 * 1024
 
     # Verejná adresa aplikácie – používa sa v odkazoch v e-mailoch

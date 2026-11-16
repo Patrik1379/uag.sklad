@@ -607,3 +607,32 @@ html.tv .bd-timeline .tl-head .tl-label { font-size: .8rem; }
 .stat.accent-material::before { background: var(--done); }
 a.mat-link { color: inherit; text-decoration: none; display: block; }
 a.mat-link:hover .progress { outline: 2px solid var(--line); }
+
+/* ilustračný obrázok projektu */
+.pthumb { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); background: #fff; display: block; flex-shrink: 0; cursor: zoom-in; }
+.pthumb.md { width: 56px; height: 56px; }
+.pthumb.lg { width: 112px; height: 112px; border-radius: 12px; }
+.pthumb.ph { display: flex; align-items: center; justify-content: center; color: var(--primary); background: var(--primary-weak); border-color: #d4e0f5; cursor: default; }
+.pthumb.ph svg { width: 58%; height: 58%; }
+.imgdrop { position: relative; display: inline-block; vertical-align: middle; border-radius: 9px; flex-shrink: 0; }
+.imgdrop .pthumb.ph { cursor: pointer; }
+.imgdrop-btn { position: absolute; right: -6px; bottom: -6px; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid #fff;
+  background: var(--primary); color: #fff; display: none; align-items: center; justify-content: center; cursor: pointer; }
+.imgdrop-btn svg { width: 11px; height: 11px; }
+.imgdrop:hover .imgdrop-btn { display: flex; }
+.imgdrop.over { outline: 3px dashed var(--primary); outline-offset: 3px; }
+.imgdrop.over .pthumb, .imgdrop.busy .pthumb { opacity: .4; }
+.imgdrop.busy::after { content: ""; position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; border: 2px solid var(--primary);
+  border-right-color: transparent; border-radius: 50%; animation: pm-spin .7s linear infinite; }
+@keyframes pm-spin { to { transform: rotate(360deg); } }
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; align-items: center; justify-content: center; z-index: 100; cursor: zoom-out; }
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 90vw; max-height: 88vh; border-radius: 8px; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 300; padding: 11px 16px; border-radius: 8px; font-weight: 500; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.toast.ok { background: #e9f7ef; color: #17663f; border: 1px solid #bfe5cf; }
+.toast.error { background: #fdecec; color: #9b2222; border: 1px solid #f4c3c3; }
+.title-with-img { display: flex; align-items: center; gap: 16px; }
+.title-with-img h1 { margin: 2px 0 6px; }
+.name-with-img { display: flex; align-items: center; gap: 10px; }
+.dl-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dl-head .dl-name { min-width: 0; }
