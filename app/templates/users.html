@@ -49,7 +49,7 @@
     <h2>Nový používateľ</h2>
     <label>Prihlasovacie meno *</label><input type="text" name="username" required>
     <div style="height:0.667rem"></div><label>Celé meno</label><input type="text" name="full_name">
-    <div style="height:0.667rem"></div><label>E-mail (pre oznámenia)</label><input type="email" name="email">
+    <div style="height:0.667rem"></div><label>E-mail (prihlásenie a oznámenia)</label><input type="email" name="email">
     <div style="height:0.667rem"></div><label>Heslo *</label><input type="password" name="password" required autocomplete="new-password">
     <div style="height:0.667rem"></div><label>Rola</label>
     <select name="role">{% for k, v in roles.items() %}<option value="{{ k }}" {{ 'selected' if k == 'technik' }}>{{ v }}</option>{% endfor %}</select>

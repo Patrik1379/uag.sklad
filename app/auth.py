@@ -11,6 +11,14 @@ bp = Blueprint("auth", __name__)
 ROLES = {"admin": "Administrátor", "technik": "Technik"}
 
 
+def _email_taken(email, except_uid=None):
+    """E-mail slúži aj na prihlásenie, preto musí byť jedinečný."""
+    if not email:
+        return False
+    return bool(get_db().scalar("SELECT COUNT(*) FROM users WHERE LOWER(email) = LOWER(?) AND id <> ?",
+                                (email, except_uid or 0)))
+
+
 def current_user():
     if "user" in g:
         return g.user
@@ -45,10 +53,14 @@ def admin_required(view):
 @bp.route("/prihlasenie", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        user = get_db().query(
-            "SELECT * FROM users WHERE LOWER(username) = LOWER(?) AND active = 1",
-            (request.form.get("username", "").strip(),), one=True,
-        )
+        login_name = request.form.get("username", "").strip()
+        db = get_db()
+        user = db.query("SELECT * FROM users WHERE LOWER(username) = LOWER(?) AND active = 1",
+                        (login_name,), one=True)
+        if not user and "@" in login_name:
+            # prihlásenie e-mailom – iba ak e-mail patrí jedinému aktívnemu používateľovi
+            found = db.query("SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND active = 1", (login_name,))
+            user = found[0] if len(found) == 1 else None
         if user and check_password_hash(user["password_hash"], request.form.get("password", "")):
             session.clear()
             session.permanent = True
@@ -75,8 +87,13 @@ def users():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         role = request.form.get("role", "technik")
+        email = request.form.get("email", "").strip()
         if not username or len(password) < 4 or role not in ROLES:
             flash("Vyplňte meno a heslo (min. 4 znaky).", "error")
+        elif email and "@" not in email:
+            flash("Zadajte platnú e-mailovú adresu.", "error")
+        elif _email_taken(email):
+            flash("Tento e-mail už má iný používateľ – e-mail slúži aj na prihlásenie, musí byť jedinečný.", "error")
         elif db.scalar("SELECT COUNT(*) FROM users WHERE LOWER(username) = LOWER(?)", (username,)):
             flash("Používateľ s týmto menom už existuje.", "error")
         else:
@@ -103,6 +120,8 @@ def user_update(uid):
         email = request.form.get("email", "").strip()
         if email and "@" not in email:
             flash("Zadajte platnú e-mailovú adresu.", "error")
+        elif _email_taken(email, uid):
+            flash("Tento e-mail už má iný používateľ – e-mail slúži aj na prihlásenie, musí byť jedinečný.", "error")
         else:
             db.execute("UPDATE users SET email = ? WHERE id = ?", (email or None, uid))
             flash(f"E-mail pre {user['username']} bol uložený.", "ok")
