@@ -43,7 +43,7 @@
       </div>
       {% if sklad_info and not sklad_info.error %}
         {% if sklad_info['items'] %}
-        <div class="progress" style="max-width:300px"><span style="width:{{ sklad_info.pct }}%;{{ 'background:var(--ok)' if sklad_info.pct >= 100 }}"></span></div>
+        <div class="progress material" style="max-width:300px"><span style="width:{{ sklad_info.pct }}%"></span></div>
         <p class="small" style="margin:6px 0 0"><strong>{{ sklad_info.pct }} %</strong> naskladnené ·
           {{ sklad_info.covered }} z {{ sklad_info.required }} ks ·
           {% if sklad_info.missing %}<span style="color:var(--overdue)">{% set n = sklad_info.items_missing + sklad_info.items_partial %}chýba {{ sklad_info.missing }} ks ({{ n }} {{ 'položka' if n == 1 else 'položky' if n < 5 else 'položiek' }})</span>{% else %}<span style="color:var(--ok)">všetko na sklade ✔</span>{% endif %}</p>

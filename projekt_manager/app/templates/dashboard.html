@@ -53,7 +53,7 @@
       <div class="dl-name" title="{{ p.name }}">{{ p.name }}</div>
       <div class="dl-date">📅 {{ p.deadline|sk_weekday }} {{ p.deadline|sk_date }}</div>
       <div class="dl-progress" title="Plnenie projektu"><div class="progress"><span style="width:{{ p.progress }}%"></span></div><span>{{ p.progress }} %</span></div>
-      {% if p.sklad and p.sklad.required %}<div class="dl-progress" title="Materiál na sklade: {{ p.sklad.covered }} z {{ p.sklad.required }} ks"><div class="progress material{{ ' full' if p.sklad.pct >= 100 }}"><span style="width:{{ p.sklad.pct }}%"></span></div><span>📦 {{ p.sklad.pct }} %</span></div>{% endif %}
+      {% if p.sklad and p.sklad.required %}<div class="dl-progress mat" title="Materiál na sklade: {{ p.sklad.covered }} z {{ p.sklad.required }} ks"><div class="progress material{{ ' full' if p.sklad.pct >= 100 }}"><span style="width:{{ p.sklad.pct }}%"></span></div><span>📦 {{ p.sklad.pct }} %</span></div>{% endif %}
       <div class="dl-who" title="{{ p.members_text }}">{{ p.members_text or 'nepridelený' }}</div>
       {% if p.install_open %}<div class="dl-install">🔧 inštalácia {{ p.install_date|sk_weekday }} {{ p.install_date.day }}.{{ p.install_date.month }}.{% if p.install_time_from %} {{ p.install_time_from }}{% endif %}</div>{% endif %}
     </a>
