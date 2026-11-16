@@ -636,3 +636,7 @@ a.mat-link:hover .progress { outline: 2px solid var(--line); }
 .name-with-img { display: flex; align-items: center; gap: 10px; }
 .dl-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .dl-head .dl-name { min-width: 0; }
+
+/* logo v hornej lište */
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none !important; }
+.brand-logo { flex-shrink: 0; display: block; }

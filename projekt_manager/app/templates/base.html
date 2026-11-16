@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%230f8a5f'/><g fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'><rect x='5.5' y='6.5' width='13' height='12' rx='1.6'/><path d='M5.5 10h13M9 5v3M15 5v3'/></g></svg>">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=7">
 </head>
 <body>
 {% from "_text_size.html" import text_size_switch with context %}
@@ -13,7 +14,9 @@
 <nav class="nav">
   <div class="nav-inner">
     {% if config.PORTAL_URL %}<a class="portal-link" href="{{ config.PORTAL_URL }}" title="Všetky aplikácie" aria-label="Všetky aplikácie"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></a>{% endif %}
-    <a class="brand" href="{{ url_for('main.dashboard') }}">{{ app_name }}</a>
+    <a class="brand" href="{{ url_for('main.dashboard') }}">
+      <svg class="brand-logo" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#0f8a5f"/><g fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="6.5" width="13" height="12" rx="1.6"/><path d="M5.5 10h13M9 5v3M15 5v3M8.5 13.5h3M8.5 16h5"/></g></svg>
+      <span>{{ app_name }}</span></a>
     <div class="nav-links">
       <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if request.endpoint == 'main.dashboard' }}">Dashboard</a>
       <a href="{{ url_for('main.calendar_view') }}" class="{{ 'active' if request.endpoint == 'main.calendar_view' }}">Kalendár</a>
