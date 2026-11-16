@@ -811,6 +811,8 @@ def user_edit(user_id=None):
         dup = query("SELECT id FROM users WHERE email = ? AND id <> ?", (email, user_id or 0), one=True)
         if dup:
             errors.append("Používateľ s týmto e-mailom už existuje.")
+        if user and user["is_admin"] and user["active"] and (not active or not is_admin) and _admins_left(user_id) == 0:
+            errors.append("Toto je posledný aktívny administrátor – nedá sa deaktivovať ani mu odobrať práva.")
         if not errors:
             if user:
                 execute("UPDATE users SET name=?, email=?, is_admin=?, active=?, daily_report=? WHERE id=?",
@@ -828,6 +830,25 @@ def user_edit(user_id=None):
                 "active": active, "daily_report": daily, "id": user_id}
     impact = _user_impact(user_id) if user_id else None
     return render_template("user_form.html", user=user, impact=impact)
+
+
+def _admins_left(except_id):
+    return query("SELECT COUNT(*) FROM users WHERE is_admin = 1 AND active = 1 AND id <> ?", (except_id,), one=True)[0]
+
+
+@bp.route("/pouzivatelia/<int:user_id>/aktivny", methods=["POST"])
+@admin_required
+def user_toggle(user_id):
+    """Rýchle zablokovanie / povolenie účtu priamo zo zoznamu používateľov."""
+    user = query("SELECT * FROM users WHERE id = ?", (user_id,), one=True) or abort(404)
+    if user_id == g.user["id"]:
+        flash("Vlastný účet nemôžete deaktivovať.", "error")
+    elif user["active"] and user["is_admin"] and _admins_left(user_id) == 0:
+        flash("Toto je posledný aktívny administrátor – nedá sa deaktivovať.", "error")
+    else:
+        execute("UPDATE users SET active = ? WHERE id = ?", (0 if user["active"] else 1, user_id))
+        flash(f"Účet {user['name']} bol {'deaktivovaný' if user['active'] else 'znova aktivovaný'}.", "success")
+    return redirect(url_for("main.users"))
 
 
 def _user_impact(user_id):
@@ -857,6 +878,17 @@ def user_delete(user_id):
     for row in query("SELECT project_id FROM project_members WHERE user_id = ?", (user_id,)):
         log_event(row["project_id"], f"Používateľ {user['name']} bol odstránený – jeho otvorené úlohy sú nepridelené.")
     # zmazanie: členstvá v projektoch sa odstránia, úlohy/dokumenty/história ostanú bez priradenej osoby
+    # (odkazy upravíme aj ručne – staršie databázy nemusia mať pravidlá ON DELETE)
+    for sql in ("DELETE FROM project_members WHERE user_id = ?", "DELETE FROM project_installers WHERE user_id = ?",
+                "UPDATE projects SET created_by_id = NULL WHERE created_by_id = ?",
+                "UPDATE tasks SET assignee_id = NULL WHERE assignee_id = ?",
+                "UPDATE tasks SET created_by_id = NULL WHERE created_by_id = ?",
+                "UPDATE subtasks SET done_by_id = NULL WHERE done_by_id = ?",
+                "UPDATE subtasks SET created_by_id = NULL WHERE created_by_id = ?",
+                "UPDATE task_comments SET user_id = NULL WHERE user_id = ?",
+                "UPDATE documents SET uploaded_by_id = NULL WHERE uploaded_by_id = ?",
+                "UPDATE project_log SET user_id = NULL WHERE user_id = ?"):
+        execute(sql, (user_id,))
     execute("DELETE FROM users WHERE id = ?", (user_id,))
     flash(f"Používateľ {user['name']} bol zmazaný.", "success")
     return redirect(url_for("main.users"))

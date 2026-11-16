@@ -13,7 +13,18 @@
         <td><a href="{{ url_for('main.dashboard', pouzivatel=u.id) }}">{{ u.open_projects }}</a></td>
         <td>{{ 'áno' if u.daily_report else 'nie' }}</td>
         <td>{{ 'aktívny' if u.active else 'deaktivovaný' }}</td>
-        <td><a href="{{ url_for('main.user_edit', user_id=u.id) }}">upraviť</a></td>
+        <td style="white-space:nowrap">
+          <a class="btn btn-sm" href="{{ url_for('main.user_edit', user_id=u.id) }}">Upraviť</a>
+          {% if u.id != current_user.id %}
+          <form method="post" action="{{ url_for('main.user_toggle', user_id=u.id) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm">{{ 'Deaktivovať' if u.active else 'Aktivovať' }}</button></form>
+          <form method="post" action="{{ url_for('main.user_delete', user_id=u.id) }}" style="display:inline"
+                onsubmit="return confirm('Natrvalo zmazať používateľa {{ u.name }}? Z projektov bude odobratý, jeho úlohy ostanú nepridelené. Akciu nie je možné vrátiť.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-danger">Zmazať</button></form>
+          {% else %}<span class="small muted">(váš účet)</span>{% endif %}
+        </td>
       </tr>
     {% endfor %}
     </tbody>
