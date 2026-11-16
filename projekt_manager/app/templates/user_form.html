@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Používateľ – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Upraviť používateľa' if user and user.id else 'Nový používateľ' }}</h1></div>
+<div class="card" style="max-width:600px">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="name">Meno a priezvisko</label><input type="text" id="name" name="name" value="{{ user.name if user else '' }}" required></div>
+    <div class="field"><label for="email">E-mail</label><input type="email" id="email" name="email" value="{{ user.email if user else '' }}" required></div>
+    <div class="field"><label for="password">{{ 'Nové heslo (nechajte prázdne, ak nemeníte)' if user and user.id else 'Heslo (min. 8 znakov)' }}</label>
+      <input type="password" id="password" name="password" autocomplete="new-password" {{ '' if user and user.id else 'required' }}></div>
+    <label class="check"><input type="checkbox" name="is_admin" {{ 'checked' if user and user.is_admin }}> Administrátor (zakladá projekty, spravuje používateľov)</label>
+    <label class="check"><input type="checkbox" name="daily_report" {{ 'checked' if not user or user.daily_report }}> Posielať denný e-mail so stavom projektov</label>
+    <label class="check"><input type="checkbox" name="active" {{ 'checked' if not user or user.active }}> Aktívny účet</label>
+    <div class="actions" style="margin-top:12px"><button class="btn btn-primary">Uložiť</button><a class="btn" href="{{ url_for('main.users') }}">Zrušiť</a></div>
+  </form>
+</div>
+
+{% if user and user.id and user.id != current_user.id %}
+<div class="card danger-zone" style="max-width:600px">
+  <h2>Zmazať používateľa</h2>
+  <p class="small muted">
+    {% if impact.projects or impact.tasks %}
+      Je riešiteľom v <strong>{{ impact.projects }}</strong> otvorených projektoch a má <strong>{{ impact.tasks }}</strong> nedokončených úloh.
+      Po zmazaní bude z projektov odobratý a jeho úlohy ostanú nepridelené.
+    {% else %}
+      Nemá žiadne otvorené projekty ani úlohy.
+    {% endif %}
+    Dokumenty, úlohy a história zostanú zachované, len bez jeho mena.
+    Ak chcete len zablokovať prihlásenie, stačí zrušiť „Aktívny účet“.
+  </p>
+  <form method="post" action="{{ url_for('main.user_delete', user_id=user.id) }}"
+        onsubmit="return confirm('Naozaj natrvalo zmazať používateľa {{ user.name }}? Túto akciu nie je možné vrátiť.')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-danger">Zmazať používateľa</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} – {{ app_name }}{% endblock %}
+{% block content %}
+{% set h = project.health %}
+<div class="page-head">
+  <div>
+    <div class="small"><a href="{{ url_for('main.dashboard') }}">← Dashboard</a></div>
+    <h1>{{ project.name }}</h1>
+    <span class="badge status">{{ project.status_label }}</span> <span class="badge {{ h[0] }}">{{ h[1] }}</span>
+  </div>
+  {% if current_user.is_admin %}
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.project_edit', project_id=project.id) }}">Upraviť</a>
+    <form method="post" action="{{ url_for('main.project_delete', project_id=project.id) }}"
+          onsubmit="return confirm('Naozaj zmazať projekt aj so všetkými dokumentmi?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-danger">Zmazať</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <h2>Prehľad</h2>
+      <dl class="meta">
+        {% if project.order_no or project.customer %}<dt>Zákazka</dt><dd>{% if project.order_no %}<strong>{{ project.order_no }}</strong>{% endif %}{% if project.order_no and project.customer %} · {% endif %}{{ project.customer }}</dd>{% endif %}
+        <dt>Riešitelia</dt><dd>{% for m in project.members %}<span class="chip" title="{{ m.email }}">{{ m.name }}</span>{% else %}—{% endfor %}</dd>
+        <dt>Termín</dt><dd>{{ project.start_date|sk_date }} – <strong>{{ project.deadline|sk_date }}</strong> <span class="muted">({{ project.deadline_text }})</span></dd>
+        <dt>Plnenie</dt><dd><div class="progress" style="max-width:300px"><span style="width:{{ project.progress }}%"></span></div>
+          <span class="small muted">{{ project.progress }} % hotové{% if project.auto_progress %} · počíta sa z úloh a podúloh{% endif %}{% if not project.is_done %} · podľa času by malo byť ~{{ project.expected_progress }} %{% endif %}</span></dd>
+        <dt>Založil</dt><dd>{{ project.creator_name or '—' }}, {{ project.created_at|sk_date }}</dd>
+      </dl>
+      {% if project.description %}<hr style="border:none;border-top:1px solid var(--line);margin:16px 0"><div class="desc">{{ project.description }}</div>{% endif %}
+    </div>
+
+    {% if sklad_on %}
+    <div class="card" id="sklad">
+      <div class="card-head">
+        <h2>📦 Materiál v sklade</h2>
+        {% if sklad_info and not sklad_info.error %}<a class="btn btn-sm" href="{{ sklad_info.url }}" target="_blank" rel="noopener">Otvoriť v sklade ↗</a>{% endif %}
+      </div>
+      {% if sklad_info and not sklad_info.error %}
+        {% if sklad_info['items'] %}
+        <div class="progress" style="max-width:300px"><span style="width:{{ sklad_info.pct }}%;{{ 'background:var(--ok)' if sklad_info.pct >= 100 }}"></span></div>
+        <p class="small" style="margin:6px 0 0"><strong>{{ sklad_info.pct }} %</strong> naskladnené ·
+          {{ sklad_info.covered }} z {{ sklad_info.required }} ks ·
+          {% if sklad_info.missing %}<span style="color:var(--overdue)">{% set n = sklad_info.items_missing + sklad_info.items_partial %}chýba {{ sklad_info.missing }} ks ({{ n }} {{ 'položka' if n == 1 else 'položky' if n < 5 else 'položiek' }})</span>{% else %}<span style="color:var(--ok)">všetko na sklade ✔</span>{% endif %}</p>
+        {% else %}
+        <p class="muted" style="margin-top:0">Projekt je v sklade založený, kusovník zatiaľ nemá žiadne diely.</p>
+        {% endif %}
+      {% elif sklad_info and sklad_info.error %}
+        <p class="small" style="margin-top:0;color:var(--overdue)">Stav zo skladu sa nepodarilo načítať: {{ sklad_info.error }}</p>
+      {% else %}
+        <p class="muted" style="margin-top:0">Projekt ešte nie je v sklade{% if project.sklad_status %} – {{ project.sklad_status }}{% endif %}.</p>
+      {% endif %}
+      {% if current_user.is_admin and (not project.sklad_id or (sklad_info and sklad_info.error)) %}
+      <form method="post" action="{{ url_for('main.project_sklad_push', project_id=project.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm">Odoslať do skladu</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% set ins = project %}
+    <div class="card install-card{{ ' ' ~ ins.install_health if ins.has_install }}" id="instalacia">
+      <div class="card-head">
+        <h2>🔧 Plánovaná inštalácia</h2>
+        {% if ins.has_install %}<span class="badge inst-{{ ins.install_status }}">{{ ins.install_status_label }}</span>{% endif %}
+      </div>
+      {% if ins.has_install %}
+      <div class="install-main">
+        <div class="install-date">
+          <div class="w">{{ ins.install_date|sk_weekday }}</div>
+          <div class="d">{{ ins.install_date.day }}</div>
+          <div class="m">{{ ins.install_date|sk_month }} {{ ins.install_date.year }}</div>
+        </div>
+        <div class="install-info">
+          <div class="install-when"><strong>{{ ins.install_date|sk_date }}</strong>{% if ins.install_time_text %} · {{ ins.install_time_text }}{% endif %}
+            {% if ins.install_status != 'hotova' %}<span class="countdown {{ 'overdue' if ins.install_health == 'overdue' else 'risk' if ins.install_health == 'risk' else 'ok' }}">{{ ins.install_when_text }}</span>{% endif %}</div>
+          <div>📍 {{ ins.install_place or 'miesto nezadané' }}</div>
+          <div>👷 {% for m in ins.installers %}<span class="chip">{{ m.name }}</span>{% else %}<span class="muted">technici zatiaľ nie sú určení</span>{% endfor %}</div>
+          {% if ins.install_note %}<div class="desc small muted">{{ ins.install_note }}</div>{% endif %}
+          {% if ins.install_health == 'overdue' %}<div class="small" style="color:var(--overdue)">Termín inštalácie prešiel – označte ju ako hotovú alebo ju presuňte.</div>{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <p class="muted" style="margin-top:0">Inštalácia zatiaľ nie je naplánovaná.</p>
+      {% endif %}
+      <details class="install-edit"{{ ' open' if edit_install }}>
+        <summary class="btn btn-sm">{{ 'Upraviť / presunúť' if ins.has_install else '+ Naplánovať inštaláciu' }}</summary>
+        <form method="post" action="{{ url_for('main.project_install', project_id=project.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-row">
+            <div><label>Dátum *</label><input type="date" name="install_date" value="{{ ins.install_date.isoformat() if ins.install_date else '' }}" required></div>
+            <div><label>Čas od</label><input type="time" name="time_from" value="{{ ins.install_time_from or '' }}"></div>
+            <div><label>Čas do</label><input type="time" name="time_to" value="{{ ins.install_time_to or '' }}"></div>
+          </div>
+          <div class="field"><label>Miesto / adresa</label><input type="text" name="install_place" maxlength="300" value="{{ ins.install_place or '' }}" placeholder="napr. Hlavná 12, Bratislava – 2. poschodie"></div>
+          <div class="field"><label>Technici</label>
+            {% if project.members %}
+            <div class="member-box" style="max-height:none">
+              {% for m in project.members %}
+              <label class="check member"><input type="checkbox" name="installer_ids" value="{{ m.id }}" {{ 'checked' if m.id in ins.installer_ids }}> {{ m.name }}</label>
+              {% endfor %}
+            </div>
+            <div class="small muted">Technikom príde e-mail s termínom a deň vopred pripomienka.</div>
+            {% else %}<div class="small muted">Projekt nemá riešiteľov – technikov vyberiete, keď ich admin pridá.</div>{% endif %}
+          </div>
+          <div class="form-row">
+            <div><label>Stav</label>
+              <select name="install_status">
+                {% for k, v in install_statuses.items() %}<option value="{{ k }}" {{ 'selected' if (ins.install_status or 'planovana') == k }}>{{ v }}</option>{% endfor %}
+              </select></div>
+          </div>
+          <div class="field"><label>Poznámka</label><textarea name="install_note" style="min-height:60px" placeholder="Čo treba priniesť, kontakt na mieste, prístup…">{{ ins.install_note or '' }}</textarea></div>
+          <button class="btn btn-primary btn-sm">Uložiť inštaláciu</button>
+        </form>
+        {% if ins.has_install %}
+        <form method="post" action="{{ url_for('main.project_install_clear', project_id=project.id) }}" onsubmit="return confirm('Odstrániť plánovanú inštaláciu?')" style="margin-top:10px">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger btn-sm">Odstrániť inštaláciu</button>
+        </form>{% endif %}
+      </details>
+    </div>
+
+    <div class="card" id="ulohy">
+      <div class="card-head">
+        <h2>Úlohy <span class="muted small">{{ project.task_done }}/{{ project.task_count }} hotových</span></h2>
+        {% if project.task_done %}<a class="small" href="?hotove_ulohy={{ '0' if show_done_tasks else '1' }}#ulohy">{{ 'Skryť hotové' if show_done_tasks else 'Zobraziť hotové' }}</a>{% endif %}
+      </div>
+      {% set visible = tasks if show_done_tasks else tasks|rejectattr('is_done')|list %}
+      {% if visible %}
+      <ul class="tasks">
+      {% for t in visible %}{% set h = t.health %}
+        <li class="task{{ ' done' if t.is_done }}" id="uloha-{{ t.id }}">
+          <form method="post" action="{{ url_for('main.task_status', task_id=t.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="status" value="{{ 'otvorena' if t.is_done else 'hotova' }}">
+            <button class="tick{{ ' on' if t.is_done }}" title="{{ 'Vrátiť medzi nehotové' if t.is_done else 'Označiť ako hotovú' }}">{{ '✓' if t.is_done }}</button>
+          </form>
+          <div class="task-main">
+            <div class="task-title">{{ t.title }}</div>
+            {% if t.description %}<div class="small muted desc">{{ t.description }}</div>{% endif %}
+            <div class="task-meta">
+              <span class="chip">{{ t.assignee_name or 'nepridelená' }}</span>
+              {% if t.due_date %}<span class="small muted">do {{ t.due_date|sk_date }}</span>{% endif %}
+              <span class="badge {{ h[0] }}">{{ h[1] }}</span>
+              {% if t.status == 'prebieha' %}<span class="badge status">Rieši sa</span>{% endif %}
+              {% if current_user.is_admin or t.created_by_id == current_user.id %}
+              <form method="post" action="{{ url_for('main.task_weight', task_id=t.id) }}" class="weight-form" title="Dôležitosť úlohy – určuje, koľko váži v % projektu">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="weight" class="weight w{{ t.weight }}" onchange="this.form.submit()">
+                  {% for k, v in task_weights.items() %}<option value="{{ k }}" {{ 'selected' if t.weight == k }}>{{ v }}</option>{% endfor %}
+                </select>
+              </form>
+              {% else %}<span class="weight w{{ t.weight }}">{{ t.weight_label }}</span>{% endif %}
+              <span class="small muted" title="Podiel úlohy na celkovom % projektu">{{ t.share }} % projektu</span>
+              {% if t.sub_total %}<span class="sub-progress" title="Hotové podúlohy"><span class="bar"><span style="width:{{ t.percent }}%"></span></span>{{ t.sub_done }}/{{ t.sub_total }}</span>{% endif %}
+            </div>
+            {% set subs = subtasks.get(t.id, []) %}
+            <ul class="subtasks">
+              {% for s in subs %}
+              <li class="subtask{{ ' done' if s.done }}">
+                <form method="post" action="{{ url_for('main.subtask_toggle', subtask_id=s.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="tick sm{{ ' on' if s.done }}" title="{{ 'Vrátiť ako nesplnenú' if s.done else 'Označiť ako splnenú' }}">{{ '✓' if s.done }}</button>
+                </form>
+                <span class="sub-title">{{ s.title }}</span>
+                {% if s.done and s.done_by %}<span class="sub-who">{{ s.done_by }}</span>{% endif %}
+                {% if current_user.is_admin or t.created_by_id == current_user.id or s.created_by_id == current_user.id %}
+                <form method="post" action="{{ url_for('main.subtask_delete', subtask_id=s.id) }}" class="sub-del" onsubmit="return confirm('Zmazať podúlohu?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn-link muted" title="Zmazať podúlohu">✕</button>
+                </form>{% endif %}
+              </li>
+              {% endfor %}
+              <li class="subtask-add">
+                <form method="post" action="{{ url_for('main.subtask_new', task_id=t.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="text" name="title" placeholder="+ Pridať podúlohu (Enter)" maxlength="300" required>
+                </form>
+              </li>
+            </ul>
+            {% set tc = comments.get(t.id, []) %}
+            <details class="comments"{{ ' open' if open_task == t.id }}>
+              <summary>💬 {{ 'Komentáre (' ~ tc|length ~ ')' if tc else 'Komentovať' }}</summary>
+              {% for c in tc %}
+              <div class="comment">
+                <div class="comment-head"><strong>{{ c.author or 'odstránený používateľ' }}</strong>
+                  <span class="muted">{{ c.created_at|sk_date }}</span>
+                  {% if current_user.is_admin or c.user_id == current_user.id %}
+                  <form method="post" action="{{ url_for('main.comment_delete', comment_id=c.id) }}" onsubmit="return confirm('Zmazať komentár?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn-link muted" title="Zmazať">✕</button></form>{% endif %}
+                </div>
+                <div class="comment-body">{{ c.body }}</div>
+              </div>
+              {% endfor %}
+              <form method="post" action="{{ url_for('main.task_comment', task_id=t.id) }}" class="comment-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <textarea name="body" rows="2" placeholder="Napíšte komentár… (dostane ho riešiteľ aj zadávateľ úlohy)" required maxlength="4000"></textarea>
+                <button class="btn btn-sm">Odoslať</button>
+              </form>
+            </details>
+          </div>
+          <div class="task-actions">
+            {% if t.status == 'otvorena' %}
+            <form method="post" action="{{ url_for('main.task_status', task_id=t.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="prebieha">
+              <button class="btn-link small">začať</button>
+            </form>{% endif %}
+            {% if current_user.is_admin or t.created_by_id == current_user.id %}
+            <a class="small" href="{{ url_for('main.task_edit', task_id=t.id) }}">upraviť</a>{% endif %}
+          </div>
+        </li>
+      {% endfor %}
+      </ul>
+      {% elif tasks %}<p class="muted">Všetky úlohy sú hotové. 🎉</p>
+      {% else %}<p class="muted">Zatiaľ žiadne úlohy.</p>{% endif %}
+
+      {% if project.members %}
+      <details class="task-add"{{ ' open' if not tasks }}>
+        <summary class="btn btn-sm">+ Pridať úlohu</summary>
+        <form method="post" action="{{ url_for('main.task_new', project_id=project.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field"><input type="text" name="title" placeholder="Čo treba urobiť…" required maxlength="300"></div>
+          <div class="form-row">
+            <div><label>Riešiteľ</label>
+              <select name="assignee_id">
+                <option value="">— nepridelená —</option>
+                {% for m in project.members %}<option value="{{ m.id }}" {{ 'selected' if m.id == current_user.id and not current_user.is_admin }}>{{ m.name }}</option>{% endfor %}
+              </select></div>
+            <div><label>Termín</label><input type="date" name="due_date"></div>
+            <div><label>Dôležitosť</label>
+              <select name="weight">
+                {% for k, v in task_weights.items() %}<option value="{{ k }}" {{ 'selected' if k == 2 }}>{{ v }} ({{ k }}×)</option>{% endfor %}
+              </select></div>
+          </div>
+          <div class="field"><textarea name="description" placeholder="Popis (voliteľné)" style="min-height:60px"></textarea></div>
+          <button class="btn btn-primary btn-sm">Pridať úlohu</button>
+        </form>
+      </details>
+      {% else %}<p class="small muted">Úlohy môžete prideľovať, keď má projekt riešiteľov.</p>{% endif %}
+    </div>
+
+    <div class="card" id="dokumenty">
+      <h2>Dokumenty ({{ documents|length }})</h2>
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('main.document_upload', project_id=project.id) }}" id="upload-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="dropzone" id="dropzone">
+          Pretiahnite súbory sem alebo <label for="files" class="btn-link" style="display:inline;font-weight:600">vyberte zo zariadenia</label>
+          <input type="file" id="files" name="files" multiple hidden>
+          <div class="small" id="file-names"></div>
+        </div>
+        <div class="actions" style="margin-top:10px"><button class="btn btn-primary btn-sm">Nahrať</button>
+          <span class="small muted">Max. {{ (config.MAX_CONTENT_LENGTH / 1048576)|int }} MB na jedno nahratie</span></div>
+      </form>
+      {% if documents %}
+      <div class="table-wrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>Súbor</th><th>Veľkosť</th><th>Nahral</th><th>Dátum</th><th></th></tr></thead>
+        <tbody>
+        {% for d in documents %}
+          <tr>
+            <td><a href="{{ url_for('main.document_download', doc_id=d.id) }}">{{ d.filename }}</a>
+              <a class="small" href="{{ url_for('main.document_download', doc_id=d.id, zobrazit=1) }}" target="_blank">(zobraziť)</a></td>
+            <td class="small">{{ d.size|filesize }}</td>
+            <td class="small">{{ d.uploader or '—' }}</td>
+            <td class="small">{{ d.uploaded_at|sk_date }}</td>
+            <td>{% if current_user.is_admin or d.uploaded_by_id == current_user.id %}
+              <form method="post" action="{{ url_for('main.document_delete', doc_id=d.id) }}" onsubmit="return confirm('Zmazať dokument?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn-link btn-danger small">zmazať</button>
+              </form>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Aktualizovať stav</h2>
+      <form method="post" action="{{ url_for('main.project_status', project_id=project.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field"><label for="status">Stav</label>
+          <select id="status" name="status">
+            {% for key, label in statuses.items() %}<option value="{{ key }}" {{ 'selected' if project.status == key }}>{{ label }}</option>{% endfor %}
+          </select></div>
+        {% if project.auto_progress %}
+        <div class="field"><label>Plnenie: {{ project.progress }} %</label>
+          <div class="progress"><span style="width:{{ project.progress }}%"></span></div>
+          <div class="small muted" style="margin-top:4px">Počíta sa automaticky z úloh a podúloh – {{ project.task_done }} z {{ project.task_count }} úloh hotových. Úlohy sa rátajú podľa dôležitosti, rozpracované podľa splnených podúloh.</div></div>
+        {% else %}
+        <div class="field"><label for="progress">Plnenie: <output id="pval">{{ project.progress }}</output> %</label>
+          <input type="range" id="progress" name="progress" min="0" max="100" step="5" value="{{ project.progress }}"
+                 oninput="document.getElementById('pval').value=this.value" style="width:100%"></div>
+        {% endif %}
+        <div class="field"><label for="note">Poznámka (voliteľné)</label>
+          <textarea id="note" name="note" style="min-height:70px" placeholder="Čo sa urobilo, čo blokuje…"></textarea></div>
+        <button class="btn btn-primary">Uložiť</button>
+      </form>
+      {% if not project.auto_progress and project.task_count %}
+      <form method="post" action="{{ url_for('main.project_enable_auto', project_id=project.id) }}" class="auto-hint">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <span class="small muted">Projekt má {{ project.task_count }} úloh – plnenie sa môže počítať samo.</span>
+        <button class="btn btn-sm">Počítať % z úloh a podúloh</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>História</h2>
+      <ul class="history">
+        {% for e in history %}
+          <li>{{ e.message }}<br><span class="small muted">{{ e.user_name or 'systém' }} · {{ e.created_at|sk_date }}</span></li>
+        {% else %}<li class="muted">Bez záznamov.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const dz = document.getElementById('dropzone'), input = document.getElementById('files'),
+        names = document.getElementById('file-names');
+  const show = () => names.textContent = Array.from(input.files).map(f => f.name).join(', ');
+  input.addEventListener('change', show);
+  ['dragenter', 'dragover'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('drag'); }));
+  dz.addEventListener('drop', ev => { input.files = ev.dataTransfer.files; show(); });
+})();
+</script>
+{% endblock %}

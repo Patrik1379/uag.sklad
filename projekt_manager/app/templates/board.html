@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="sk" class="board{{ ' tv' if tv }}"{% if not tv %} data-text="{{ font_scale }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="refresh" content="{{ 60 if tv else 300 }}">
+  <title>{{ app_name }} – prehľad</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% from "_text_size.html" import text_size_switch with context %}
+<div class="bd">
+  <header class="bd-head">
+    <div class="bd-brand">
+      <div class="bd-title">{{ app_name }}</div>
+      <div class="bd-sub">Stav projektov · aktualizované {{ now.strftime('%H:%M') }}</div>
+    </div>
+    <div class="bd-clock" aria-hidden="true"><span id="bd-time">{{ now.strftime('%H:%M') }}</span><span id="bd-date">{{ now|sk_weekday }} {{ now|sk_date }}</span></div>
+    <div class="bd-tools">
+      {% if tv %}
+        <a class="bd-switch" href="{{ url_for('main.board', token=token) }}">Bežné zobrazenie</a>
+      {% else %}
+        {{ text_size_switch() }}
+        <a class="btn btn-sm" href="{{ url_for('main.board', token=token, tv=1) }}">📺 Režim TV</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <section class="bd-stats">
+    <div class="bd-stat"><span class="label">Otvorené projekty</span><span class="value">{{ stats.open }}</span></div>
+    <div class="bd-stat overdue{{ ' zero' if not stats.overdue }}"><span class="label">Po termíne</span><span class="value">{{ stats.overdue }}</span></div>
+    <div class="bd-stat risk{{ ' zero' if not stats.due_soon }}"><span class="label">Deadline do {{ config.DUE_SOON_DAYS }} dní</span><span class="value">{{ stats.due_soon }}</span></div>
+    <div class="bd-stat"><span class="label">Priemerné plnenie</span><span class="value">{{ stats.avg_progress }} %</span>
+      <span class="progress"><span style="width:{{ stats.avg_progress }}%"></span></span></div>
+    <div class="bd-stat install{{ ' zero' if not installs_week }}"><span class="label">Inštalácie do 7 dní</span><span class="value">{{ installs_week }}</span></div>
+    <div class="bd-stat done"><span class="label">Dokončené</span><span class="value">{{ stats.done }}</span></div>
+  </section>
+
+  <div class="bd-main">
+    <div class="bd-left">
+      {% if tv %}<div class="bd-pager" id="bd-pager" aria-hidden="true"></div>{% endif %}
+
+      <section class="bd-panel" data-panel="Projekty">
+        {% if not tv %}<h2>Projekty</h2>{% endif %}
+        {% if projects %}
+        <div class="bd-cards">
+          {% for p in projects %}{% set h = p.health %}
+          <article class="bd-card {{ h[0] }}">
+            <div class="bd-card-top">
+              <div class="bd-name">{{ p.name }}</div>
+              <span class="badge {{ h[0] }}">{{ h[1] }}</span>
+            </div>
+            <div class="bd-prog">
+              <span class="bd-pct">{{ p.progress }}<small> %</small></span>
+              <span class="progress"><span style="width:{{ p.progress }}%"></span></span>
+            </div>
+            <div class="bd-card-foot">
+              <span class="bd-dl {{ h[0] }}">⚑ {{ p.deadline|sk_weekday }} {{ p.deadline|sk_date }} · <b>{{ p.deadline_text }}</b></span>
+              <span class="bd-who">{{ p.members_text or 'nepridelený' }}</span>
+              {% if p.install_open %}<span class="bd-ins {{ p.install_health }}">🔧 Inštalácia {{ p.install_date|sk_weekday }} {{ p.install_date|sk_date }} · {{ p.install_when_text }}</span>{% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">Žiadne otvorené projekty. 🎉</div>
+        {% endif %}
+      </section>
+
+      <section class="bd-panel" data-panel="Časová os">
+        {% if not tv %}<h2>Časová os</h2>{% endif %}
+        {% if timeline %}
+        <div class="timeline bd-timeline">
+          <div class="tl-grid">
+            {% for t in timeline.ticks %}<div class="line" style="left:{{ t.left }}%"></div>{% endfor %}
+            <div class="tl-today" style="left:{{ timeline.today }}%"></div>
+          </div>
+          <div class="tl-head">
+            <div class="tl-label muted small">Projekt</div>
+            <div class="tl-track">{% for t in timeline.ticks %}<span class="tl-tick" style="left:{{ t.left }}%">{{ t.label }}</span>{% endfor %}</div>
+          </div>
+          {% for r in timeline.rows %}{% set p = r.p %}{% set h = p.health %}
+          <div class="tl-row {{ h[0] }}">
+            <div class="tl-label">
+              <span class="tl-name">{{ p.name }}</span><br>
+              <span class="who">{{ p.members_text or 'nepridelený' }}</span>
+            </div>
+            <div class="tl-track">
+              <span class="tl-bar {{ h[0] }}" style="left:{{ r.left }}%;width:{{ r.width }}%"
+                    title="{{ p.name }} | {{ p.start_date|sk_date }} – {{ p.deadline|sk_date }} | {{ p.progress }} % | {{ h[1] }}">
+                <span class="fill" style="width:{{ p.progress }}%"></span>
+                <span class="txt">{{ p.progress }} %</span>
+              </span>
+              {% for td in r.tasks %}{% set t = td.t %}
+              <span class="tl-task {{ t.health[0] }}" style="left:{{ td.left }}%" title="Úloha: {{ t.title }} · do {{ t.due_date|sk_date }}"></span>
+              {% endfor %}
+              {% if r.install is not none %}
+              <span class="tl-install {{ p.install_health }}" style="left:{{ r.install }}%" title="Inštalácia {{ p.install_date|sk_date }}">🔧</span>
+              {% endif %}
+              <span class="tl-deadline {{ h[0] }}{{ ' flip' if r.flip }}" style="left:{{ r.end }}%">
+                <span class="flag"></span>
+                <span class="dl-label"><b>{{ p.deadline.day }}.{{ p.deadline.month }}.</b> {{ p.countdown_short }}</span>
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">Žiadne projekty na zobrazenie.</div>
+        {% endif %}
+      </section>
+    </div>
+
+    <aside class="bd-side">
+      <h2>🔧 Plánované inštalácie</h2>
+      {% if installations %}
+      <ul class="bd-inst-list">
+        {% for p in installations %}
+        <li class="bd-inst {{ p.install_health }}">
+          <div class="bd-inst-date">
+            <b>{{ p.install_date.day }}.</b><span>{{ p.install_date|sk_month }}</span><small>{{ p.install_date|sk_weekday }}</small>
+          </div>
+          <div class="bd-inst-body">
+            <div class="bd-inst-name">{{ p.name }}</div>
+            <div class="bd-inst-meta">{{ p.install_time_text or 'čas neurčený' }}{% if p.install_place %} · {{ p.install_place }}{% endif %}</div>
+            {% if p.installers_text %}<div class="bd-inst-meta">👷 {{ p.installers_text }}</div>{% endif %}
+          </div>
+          <div class="bd-inst-when">{{ p.install_when_text }}{% if p.install_status == 'presunuta' %}<br><span class="badge paused">{{ p.install_status_label }}</span>{% endif %}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty">Žiadne naplánované inštalácie.</div>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  var t = document.getElementById('bd-time'), d = document.getElementById('bd-date');
+  function tick() {
+    var n = new Date();
+    t.textContent = n.toLocaleTimeString('sk-SK', {hour: '2-digit', minute: '2-digit'});
+    d.textContent = n.toLocaleDateString('sk-SK', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+  }
+  tick(); setInterval(tick, 15000);
+
+  {% if tv %}
+  // TV: panely (projekty / časová os) sa striedajú; ak sa nezmestia, rozdelia sa na strany
+  var panels = [].slice.call(document.querySelectorAll('.bd-panel')), pager = document.getElementById('bd-pager');
+  var slides = [];
+  function paginate(panel, items) {
+    var pages = [], cur = [], base = null, avail = panel.clientHeight;
+    items.forEach(function (it) { it.style.display = ''; });
+    items.forEach(function (it) {
+      if (base === null) base = it.offsetTop;
+      if (cur.length && it.offsetTop + it.offsetHeight - base > avail) { pages.push(cur); cur = []; base = it.offsetTop; }
+      cur.push(it);
+    });
+    if (cur.length) pages.push(cur);
+    return pages.length ? pages : [[]];
+  }
+  function build() {
+    slides = [];
+    panels.forEach(function (panel) {
+      panel.classList.add('on');
+      var items = [].slice.call(panel.querySelectorAll('.bd-card, .tl-row'));
+      var pages = paginate(panel, items);
+      pages.forEach(function (pg, i) { slides.push({panel: panel, items: items, page: pg, n: i + 1, of: pages.length}); });
+      panel.classList.remove('on');
+    });
+  }
+  var idx = -1;
+  function show(i) {
+    idx = i % slides.length;
+    var s = slides[idx];
+    panels.forEach(function (p) { p.classList.toggle('on', p === s.panel); });
+    s.items.forEach(function (it) { it.style.display = s.page.indexOf(it) >= 0 ? '' : 'none'; });
+    pager.innerHTML = slides.map(function (x, j) {
+      var lbl = x.panel.dataset.panel + (x.of > 1 ? ' ' + x.n + '/' + x.of : '');
+      return '<span class="' + (j === idx ? 'on' : '') + '">' + lbl + '</span>';
+    }).join('');
+  }
+  build(); show(0);
+  if (slides.length > 1) setInterval(function () { show(idx + 1); }, 15000);
+  window.addEventListener('resize', function () { build(); show(0); });
+  {% endif %}
+})();
+</script>
+</body>
+</html>

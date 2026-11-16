@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Prehľad na TV – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>📺 Prehľad bez prihlásenia</h1>
+    <div class="muted">Stránka len na čítanie – na TV na stene alebo ako odkaz pre vedenie a klientov.</div>
+  </div>
+</div>
+<div class="card" style="max-width:820px">
+  {% if link %}
+    <p><span class="badge ok">Zapnutý</span> Kto má tento odkaz, uvidí otvorené projekty, plnenie, časovú os a plánované inštalácie – bez prihlásenia a bez možnosti čokoľvek meniť.</p>
+    <div class="field">
+      <label for="board-link">Odkaz – bežné zobrazenie</label>
+      <div class="board-link-row">
+        <input type="text" id="board-link" value="{{ link }}" readonly onclick="this.select()">
+        <button type="button" class="btn" data-copy="board-link">Kopírovať</button>
+        <a class="btn" href="{{ link }}" target="_blank" rel="noopener">Otvoriť</a>
+      </div>
+    </div>
+    <div class="field">
+      <label for="board-link-tv">Odkaz – režim TV (tmavý, celá obrazovka, sám sa obnovuje)</label>
+      <div class="board-link-row">
+        <input type="text" id="board-link-tv" value="{{ link }}?tv=1" readonly onclick="this.select()">
+        <button type="button" class="btn" data-copy="board-link-tv">Kopírovať</button>
+        <a class="btn" href="{{ link }}?tv=1" target="_blank" rel="noopener">Otvoriť</a>
+      </div>
+    </div>
+    <p class="muted small">Tip pre TV: odkaz otvor v prehliadači na TV / mini-PC a stlač F11 (celá obrazovka). Stránka sa obnovuje každú minútu.</p>
+    <form method="post" class="actions" style="margin-top:16px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn" name="action" value="new"
+              onclick="return confirm('Vytvoriť nový odkaz? Starý odkaz prestane fungovať (aj na TV).')">↻ Vytvoriť nový odkaz</button>
+      <button class="btn btn-danger" name="action" value="off"
+              onclick="return confirm('Vypnúť prehľad bez prihlásenia?')">Vypnúť</button>
+    </form>
+  {% else %}
+    <p><span class="badge paused">Vypnutý</span> Prehľad bez prihlásenia teraz nie je dostupný.</p>
+    <p class="muted">Po zapnutí sa vytvorí tajný odkaz. Kto ho má, uvidí prehľad projektov bez prihlásenia (len na čítanie). Odkaz môžeš kedykoľvek zmeniť alebo vypnúť.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary" name="action" value="new">Zapnúť a vytvoriť odkaz</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-copy]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var i = document.getElementById(b.dataset.copy); i.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).catch(function () { document.execCommand('copy'); });
+    b.textContent = 'Skopírované ✓'; setTimeout(function () { b.textContent = 'Kopírovať'; }, 1800);
+  });
+});
+</script>
+{% endblock %}

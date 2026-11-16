@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UAG – aplikácie</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%231f2a37'/><rect x='5' y='5' width='6' height='6' rx='1.2' fill='white'/><rect x='13' y='5' width='6' height='6' rx='1.2' fill='white' opacity='.6'/><rect x='5' y='13' width='6' height='6' rx='1.2' fill='white' opacity='.6'/><rect x='13' y='13' width='6' height='6' rx='1.2' fill='white'/></svg>">
+<style>
+  :root {
+    --bg: #f4f5f2; --card: #ffffff; --ink: #1c1c1a; --ink-2: #55554f; --line: #e3e3dd;
+    --head: #1f2a37; --head-ink: #ffffff; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 20px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14181d; --card: #1d232a; --ink: #e9ecef; --ink-2: #a3acb6; --line: #2c343d;
+            --head: #0e1216; --shadow: 0 1px 2px rgba(0,0,0,.3); }
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 16px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); min-height: 100vh;
+         font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; line-height: 1.45; }
+  header { background: var(--head); color: var(--head-ink); padding: 2.4rem 1rem 4.6rem; }
+  .wrap { max-width: 64rem; margin: 0 auto; }
+  header .top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: .75rem; font-weight: 700; font-size: 1.15rem; letter-spacing: .02em; }
+  .logo svg { width: 2.2rem; height: 2.2rem; }
+  .clock { color: #b9c4cf; font-size: .95rem; text-align: right; }
+  .clock b { color: #fff; font-size: 1.35rem; font-weight: 600; display: block; font-variant-numeric: tabular-nums; }
+  h1 { margin: 2rem 0 .3rem; font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 650; }
+  header p { margin: 0; color: #b9c4cf; font-size: 1.05rem; }
+  main { padding: 0 1rem 3rem; margin-top: -3rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); gap: 1.2rem; }
+  .app { display: flex; flex-direction: column; gap: .9rem; background: var(--card); border: 1px solid var(--line);
+         border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow); color: inherit; text-decoration: none;
+         border-top: 5px solid var(--c); transition: transform .12s ease, box-shadow .12s ease; min-height: 13rem; }
+  .app:hover, .app:focus-visible { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.12); outline: none; }
+  .app .ico { width: 3.4rem; height: 3.4rem; border-radius: 12px; display: grid; place-items: center;
+              background: var(--c); color: #fff; }
+  .app .ico svg { width: 1.9rem; height: 1.9rem; }
+  .app h2 { margin: 0; font-size: 1.35rem; }
+  .app p { margin: 0; color: var(--ink-2); flex: 1; }
+  .app .go { display: inline-flex; align-items: center; gap: .4rem; font-weight: 600; color: var(--c); }
+  @media (prefers-color-scheme: dark) { .app .go { filter: brightness(1.45); } }
+  .app .url { font-size: .8rem; color: var(--ink-2); word-break: break-all; }
+  .err { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 1.5rem; }
+  footer { text-align: center; color: var(--ink-2); font-size: .85rem; padding: 0 1rem 2rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#ffffff" opacity=".12"/><rect x="5" y="5" width="6" height="6" rx="1.2" fill="#fff"/><rect x="13" y="5" width="6" height="6" rx="1.2" fill="#fff" opacity=".55"/><rect x="5" y="13" width="6" height="6" rx="1.2" fill="#fff" opacity=".55"/><rect x="13" y="13" width="6" height="6" rx="1.2" fill="#fff"/></svg>
+        UAG s.r.o.
+      </div>
+      <div class="clock"><b id="time">&nbsp;</b><span id="date"></span></div>
+    </div>
+    <h1>Firemné aplikácie</h1>
+    <p>Vyberte aplikáciu, s ktorou chcete pracovať.</p>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="grid" id="apps"></div>
+  </div>
+</main>
+<footer>Tip: túto stránku si uložte medzi záložky alebo na plochu telefónu.</footer>
+
+<script>
+(function () {
+  // Zoznam aplikácií je v súbore aplikacie.json – novú aplikáciu pridáte doplnením ďalšej položky.
+  var ICONS = {
+    sklad: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+    projekty: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/>',
+    dokumenty: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/>',
+    ludia: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    graf: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/>',
+    servis: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"/>',
+    aplikacia: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'
+  };
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); }
+  function urlFor(a) {
+    if (a.adresa) return a.adresa;                                  // plná adresa, napr. https://sklad.uag.sk
+    return location.protocol + "//" + a.subdomena + "." + location.host;   // sklad.<adresa tejto stránky>
+  }
+  function render(list) {
+    document.getElementById("apps").innerHTML = list.map(function (a) {
+      var url = urlFor(a), color = /^#[0-9a-fA-F]{3,8}$/.test(a.farba || "") ? a.farba : "#2563c9";
+      return '<a class="app" href="' + esc(url) + '" style="--c:' + color + '">' +
+        '<div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+        (ICONS[a.ikona] || ICONS.aplikacia) + '</svg></div>' +
+        '<h2>' + esc(a.nazov) + '</h2><p>' + esc(a.popis) + '</p>' +
+        '<span class="go">Otvoriť <span aria-hidden="true">→</span></span>' +
+        '<span class="url">' + esc(url.replace(/^https?:\/\//, "")) + '</span></a>';
+    }).join("");
+  }
+  fetch("aplikacie.json", {cache: "no-store"})
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(render)
+    .catch(function () {
+      document.getElementById("apps").outerHTML = '<div class="err">Zoznam aplikácií sa nepodarilo načítať (súbor aplikacie.json).</div>';
+    });
+
+  var DAYS = ["nedeľa", "pondelok", "utorok", "streda", "štvrtok", "piatok", "sobota"];
+  function tick() {
+    var d = new Date();
+    document.getElementById("time").textContent = d.toLocaleTimeString("sk-SK", {hour: "2-digit", minute: "2-digit"});
+    document.getElementById("date").textContent = DAYS[d.getDay()] + " " + d.toLocaleDateString("sk-SK");
+  }
+  tick(); setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>

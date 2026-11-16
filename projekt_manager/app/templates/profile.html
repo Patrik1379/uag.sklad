@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Profil – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Môj profil</h1></div>
+<div class="card" style="max-width:600px">
+  <p><strong>{{ current_user.name }}</strong><br><span class="muted">{{ current_user.email }} · {{ 'Admin' if current_user.is_admin else 'Používateľ' }}</span></p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="check"><input type="checkbox" name="daily_report" {{ 'checked' if current_user.daily_report }}> Chcem dostávať denný e-mail so stavom projektov</label>
+    <div class="field" style="margin-top:16px">
+      <label for="font_scale">Veľkosť textu</label>
+      <select id="font_scale" name="font_scale" style="max-width:240px">
+        {% for val, lbl in font_scales.items() %}
+          <option value="{{ val }}" {{ 'selected' if current_user.font_scale == val }}>{{ lbl }}{{ ' (+%d %%)' % (val - 100) if val > 100 }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <h2 style="margin-top:20px">Zmena hesla</h2>
+    <div class="field"><label for="old_password">Pôvodné heslo</label><input type="password" id="old_password" name="old_password" autocomplete="current-password"></div>
+    <div class="field"><label for="new_password">Nové heslo (min. 8 znakov)</label><input type="password" id="new_password" name="new_password" autocomplete="new-password"></div>
+    <button class="btn btn-primary">Uložiť</button>
+  </form>
+</div>
+{% endblock %}

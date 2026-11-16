@@ -54,6 +54,7 @@ h3 { font-size: .95rem; margin: 0 0 0.533rem; font-weight: 650; }
 }
 .nav a:hover { background: rgba(255,255,255,.07); text-decoration: none; color: #fff; }
 .nav a.active { background: var(--accent); color: #fff; }
+.nav a.portal-link { color: #9fb0c2; font-size: .9rem; border-bottom: 1px solid rgba(255,255,255,.08); border-radius: 8px 8px 0 0; margin-bottom: 0.4rem; }
 .nav a.primary-action { background: rgba(12,163,12,.18); color: #b8f0b8; margin: 0.4rem 0 0.8rem; }
 .nav a.primary-action.active { background: var(--good); color: #fff; }
 .nav svg { width: 1.15em; height: 1.15em; flex-shrink: 0; }

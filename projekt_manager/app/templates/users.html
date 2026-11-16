@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Používatelia – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Používatelia</h1><a class="btn btn-primary" href="{{ url_for('main.user_edit') }}">+ Pridať používateľa</a></div>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>Meno</th><th>E-mail</th><th>Rola</th><th>Otvorené projekty</th><th>Denný e-mail</th><th>Stav</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr style="{{ 'opacity:.55' if not u.active }}">
+        <td><strong>{{ u.name }}</strong></td><td>{{ u.email }}</td>
+        <td>{{ 'Admin' if u.is_admin else 'Používateľ' }}</td>
+        <td><a href="{{ url_for('main.dashboard', pouzivatel=u.id) }}">{{ u.open_projects }}</a></td>
+        <td>{{ 'áno' if u.daily_report else 'nie' }}</td>
+        <td>{{ 'aktívny' if u.active else 'deaktivovaný' }}</td>
+        <td><a href="{{ url_for('main.user_edit', user_id=u.id) }}">upraviť</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

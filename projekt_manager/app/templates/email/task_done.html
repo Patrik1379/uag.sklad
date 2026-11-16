@@ -1,0 +1,11 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p><strong>{{ done_by.name }}</strong> označil(a) úlohu ako hotovú:</p>
+<div style="background:#e3f5ec;padding:14px;border-radius:8px;margin:12px 0">
+  <div style="font-size:16px;font-weight:700">✓ {{ task.title }}</div>
+  <div style="font-size:13px;color:#677085;margin-top:4px">Projekt: {{ task.project_name }}</div>
+  {% if last_subtask %}<div style="font-size:13px;color:#677085;margin-top:4px">Splnením poslednej podúlohy „{{ last_subtask }}“ ({{ task.sub_total }}/{{ task.sub_total }}).</div>{% endif %}
+  {% if task.assignee_name %}<div style="font-size:13px;color:#677085;margin-top:4px">Riešiteľ: {{ task.assignee_name }}</div>{% endif %}
+</div>
+<p><a href="{{ app_url }}/projekty/{{ task.project_id }}?hotove_ulohy=1#uloha-{{ task.id }}" style="color:#2f5bd3">Otvoriť úlohu →</a></p>
+{% endblock %}

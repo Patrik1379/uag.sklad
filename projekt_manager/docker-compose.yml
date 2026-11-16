@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    image: prehlad-projektov:latest
+    container_name: prehlad-projektov
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /app/data
+      TZ: Europe/Bratislava
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      # databáza + nahraté dokumenty – zostanú zachované pri aktualizácii aj zmazaní kontajnera
+      - ./data:/app/data

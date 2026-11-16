@@ -179,11 +179,64 @@ docker compose --profile server up -d --build
 
 Dáta zostanú zachované a prípadné nové stĺpce v databáze sa doplnia automaticky.
 
+## Úvodná stránka so všetkými aplikáciami
+
+Na hlavnej adrese servera beží úvodná stránka (priečinok `portal/`) s odkazmi na všetky aplikácie.
+Každá aplikácia má vlastnú adresu a v menu odkaz **Všetky aplikácie** späť na úvodnú stránku.
+
+| Adresa (bez vlastnej domény) | Čo tam beží | Premenná v `.env` |
+|---|---|---|
+| `https://80-211-213-65.sslip.io` | úvodná stránka | `PORTAL_DOMAIN`, `PORTAL_URL` |
+| `https://sklad.80-211-213-65.sslip.io` | Sklad dielov | `DOMAIN` |
+| `https://projekty.80-211-213-65.sslip.io` | Projekt manažér | `PM_DOMAIN` |
+
+Staré odkazy na sklad (bez predpony `sklad.`) sa automaticky presmerujú do skladu.
+
+**Pridanie ďalšej aplikácie na úvodnú stránku:** doplňte položku do `portal/aplikacie.json`, napr.
+
+```json
+{ "nazov": "Dochádzka", "popis": "Evidencia dochádzky.", "subdomena": "dochadzka", "ikona": "ludia", "farba": "#7c3aed" }
+```
+
+- `subdomena` – adresa bude `dochadzka.<adresa úvodnej stránky>`; namiesto nej môžete zadať plnú adresu `"adresa": "https://..."`.
+- `ikona` – `sklad`, `projekty`, `dokumenty`, `ludia`, `graf`, `servis` alebo `aplikacia`.
+- Zmena sa prejaví po `git pull` bez reštartu. Ak nová aplikácia beží na tomto serveri, treba ju doplniť aj do `docker-compose.yml` a `Caddyfile`.
+
+## Projekt manažér na tom istom serveri
+
+Aplikácia Projekt manažér (priečinok `projekt_manager/`) beží vedľa skladu a má vlastnú adresu s HTTPS.
+Keď v nej založíte alebo upravíte projekt, automaticky sa založí / aktualizuje aj v sklade
+a v detaile projektu uvidíte, koľko materiálu je naskladnené.
+
+1. Na serveri doplňte do `/opt/sklad-dielov/.env` riadok (bez vlastnej domény cez sslip.io):
+
+   ```
+   PM_DOMAIN=projekty.80-211-213-65.sslip.io
+   ```
+
+2. Spustite aktualizáciu: `sh /opt/sklad-dielov/aktualizuj.sh`
+3. Vytvorte prvého administrátora Projekt manažéra:
+
+   ```bash
+   cd /opt/sklad-dielov
+   docker compose exec -u app projekty flask --app run create-admin
+   ```
+
+4. **Sklad** → Nastavenia → *Prepojenie s Projekt manažérom* → **Zapnúť prepojenie** a skopírujte API kľúč.
+5. **Projekt manažér** (`https://PM_DOMAIN`) → Nastavenia → *Sklad dielov*: adresa skladu je predvyplnená,
+   vložte API kľúč a kliknite **Uložiť**. Mala by sa zobraziť správa „Spojenie so skladom funguje“.
+6. Projekty založené pred prepojením pošlete tlačidlom **Odoslať všetky projekty do skladu**.
+
+Čo sa prenáša: názov, číslo zákazky, zákazník, začiatok, termín a popis (popis len pri založení).
+Keď je projekt v Projekt manažéri *Hotový*, v sklade sa ukončí. Zmazanie projektu sa do skladu
+neprenáša (diely a príjmy v sklade zostanú).
+
 ## Zálohy
 
 - Zálohy sú na serveri v priečinku `/opt/sklad-dielov/zalohy`:
   - `databaza_DATUM.sql.gz` – databáza,
-  - `obrazky_DATUM.tar.gz` – obrázky.
+  - `obrazky_DATUM.tar.gz` – obrázky,
+  - `projekty_DATUM.tar.gz` – databáza a dokumenty Projekt manažéra.
 - Zoznam záloh zobrazíte príkazom `ls -lh /opt/sklad-dielov/zalohy`.
 - Raz za čas si ich stiahnite aj na iný počítač, keby sa niečo stalo celému serveru. Na vašom počítači zadajte:
 

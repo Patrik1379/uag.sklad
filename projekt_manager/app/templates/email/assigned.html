@@ -1,0 +1,13 @@
+{% extends "email/_layout.html" %}{% from "email/_macros.html" import badge %}
+{% block body %}
+<p>Dobrý deň, {{ member.name }},</p>
+<p>bol vám pridelený projekt <strong>{{ project.name }}</strong>.</p>
+<table cellpadding="6" style="border-collapse:collapse;font-size:14px;margin:12px 0">
+  <tr><td style="color:#677085">Termín</td><td>{{ project.start_date.strftime('%d.%m.%Y') }} – <strong>{{ project.deadline.strftime('%d.%m.%Y') }}</strong> ({{ project.deadline_text }})</td></tr>
+  <tr><td style="color:#677085">Stav</td><td>{{ project.status_label }}, {{ project.progress }} %</td></tr>
+  <tr><td style="color:#677085">Tím</td><td>{{ colleagues|join(', ') if colleagues else 'riešite ho sám/sama' }}</td></tr>
+  {% if project.creator_name %}<tr><td style="color:#677085">Zadal</td><td>{{ project.creator_name }}</td></tr>{% endif %}
+</table>
+{% if project.description %}<div style="white-space:pre-wrap;background:#f5f6f8;padding:12px;border-radius:8px;font-size:14px">{{ project.description }}</div>{% endif %}
+<p style="margin-top:20px"><a href="{{ app_url }}/projekty/{{ project.id }}" style="background:#2f5bd3;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;display:inline-block">Otvoriť projekt</a></p>
+{% endblock %}

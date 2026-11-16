@@ -10,7 +10,8 @@
       {{ thumb(project.image, project.name, 'md', kind='project', upload=url_for('main.project_image', pid=project.id) if is_admin else None, paste=is_admin) }}
       <div>
     <h1>{{ project.name }} {% if project.status == 'ukonceny' %}<span class="badge neutral">ukončený</span>{% endif %}</h1>
-    <div class="muted">Zákazka <b class="mono">{{ project.order_no }}</b>{% if project.customer %} · {{ project.customer }}{% endif %}{% if project.deadline %} · termín {{ project.deadline|d }}{% endif %}</div>
+    <div class="muted">Zákazka <b class="mono">{{ project.order_no }}</b>{% if project.customer %} · {{ project.customer }}{% endif %}{% if project.deadline %} · termín {{ project.deadline|d }}{% endif %}
+      {% if project.external_ref %} · <span class="badge neutral" title="Projekt sa založil a aktualizuje z Projekt manažéra">z Projekt manažéra</span>{% if project.external_url %} <a href="{{ project.external_url }}" target="_blank" rel="noopener">otvoriť ↗</a>{% endif %}{% endif %}</div>
       </div>
     </div>
   </div>

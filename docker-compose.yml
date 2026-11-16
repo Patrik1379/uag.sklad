@@ -31,6 +31,7 @@ services:
       WORKERS: ${WORKERS:-3}
       BEHIND_PROXY: ${BEHIND_PROXY:-0}
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      PORTAL_URL: ${PORTAL_URL:-}
     volumes:
       - uploads:/data/uploads
     ports:
@@ -50,13 +51,33 @@ services:
       - web
     environment:
       DOMAIN: ${DOMAIN:-localhost}
+      PM_DOMAIN: ${PM_DOMAIN:-projekty.localhost}
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN:-portal.localhost}
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./portal:/srv/portal:ro
       - caddy_data:/data
       - caddy_config:/config
+
+  # Projekt manažér (Prehľad projektov) – beží vedľa skladu, HTTPS cez Caddy na adrese PM_DOMAIN.
+  # Nové / upravené projekty posiela do skladu cez API (kľúč sa vygeneruje v sklade v Nastaveniach).
+  projekty:
+    build: ./projekt_manager
+    profiles: ["server"]
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-zmen-ma-na-nahodny-retazec}
+      APP_URL: https://${PM_DOMAIN:-projekty.localhost}
+      SKLAD_URL: https://${DOMAIN:-localhost}
+      SESSION_COOKIE_SECURE: "true"
+      PORTAL_URL: ${PORTAL_URL:-}
+      DATA_DIR: /app/data
+      TZ: Europe/Bratislava
+    volumes:
+      - pm_data:/app/data
 
   # Nočná záloha databázy a obrázkov do priečinka ./zalohy (uchováva posledných 14 dní)
   backup:
@@ -72,6 +93,7 @@ services:
     volumes:
       - ./zalohy:/zalohy
       - uploads:/data/uploads:ro
+      - pm_data:/data/projekty:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -85,6 +107,7 @@ services:
           d=$$(date +%Y-%m-%d_%H%M)
           pg_dump -h db -U sklad sklad | gzip > /zalohy/databaza_$$d.sql.gz \
             && tar czf /zalohy/obrazky_$$d.tar.gz -C /data uploads \
+            && tar czf /zalohy/projekty_$$d.tar.gz -C /data projekty \
             && echo "Záloha $$d hotová." || echo "CHYBA zálohy $$d"
           find /zalohy -type f -mtime +14 -delete
         done
@@ -94,3 +117,4 @@ volumes:
   uploads:
   caddy_data:
   caddy_config:
+  pm_data:

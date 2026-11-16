@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Upraviť úlohu – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <div class="small"><a href="{{ url_for('main.project_detail', project_id=project.id) }}#ulohy">← {{ project.name }}</a></div>
+  <h1>Upraviť úlohu</h1></div></div>
+<div class="card" style="max-width:760px">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="title">Úloha *</label><input type="text" id="title" name="title" value="{{ data.title }}" required maxlength="300"></div>
+    <div class="field"><label for="description">Popis</label><textarea id="description" name="description">{{ data.description }}</textarea></div>
+    <div class="form-row">
+      <div><label for="assignee_id">Riešiteľ</label>
+        <select id="assignee_id" name="assignee_id">
+          <option value="">— nepridelená —</option>
+          {% for m in project.members %}<option value="{{ m.id }}" {{ 'selected' if data.assignee_id == m.id }}>{{ m.name }}</option>{% endfor %}
+        </select></div>
+      <div><label for="due_date">Termín</label><input type="date" id="due_date" name="due_date" value="{{ data.due_date or '' }}"></div>
+      <div><label for="weight">Dôležitosť (váha)</label>
+        <select id="weight" name="weight">
+          {% for k, v in task_weights.items() %}<option value="{{ k }}" {{ 'selected' if data.weight == k }}>{{ v }} ({{ k }}×)</option>{% endfor %}
+        </select></div>
+      <div><label for="status">Stav</label>
+        <select id="status" name="status">
+          {% for k, v in task_statuses.items() %}<option value="{{ k }}" {{ 'selected' if data.status == k }}>{{ v }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary">Uložiť</button>
+      <a class="btn" href="{{ url_for('main.project_detail', project_id=project.id) }}#ulohy">Zrušiť</a>
+      <div style="flex:1"></div>
+    </div>
+  </form>
+  <form method="post" action="{{ url_for('main.task_delete', task_id=task.id) }}" onsubmit="return confirm('Zmazať úlohu?')" style="margin-top:12px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger btn-sm">Zmazať úlohu</button>
+  </form>
+</div>
+{% endblock %}

@@ -17,9 +17,15 @@ Webová aplikácia na evidenciu dielov pre plánované projekty (Python / Flask 
 - **Import z EPLAN** – XML export zoznamu dielov (partsList). Pred importom sa zobrazí náhľad: dá sa zvoliť, ktoré štruktúry stránok (napr. =ND+R1, &DOK) sa započítajú a ktoré artikle importovať. Označenia zo schémy (BMK) sa uložia k položke projektu.
 - **Pripomienky** – každý používateľ môže v aplikácii poslať návrh na vylepšenie, nahlásiť chybu alebo položiť otázku (aj s obrázkom). Administrátor vidí počet nových pripomienok v menu, odpovedá na ne a mení ich stav.
 - **Nastavenia** (administrátor) – SMTP server na odosielanie e-mailov, testovací e-mail a oznámenie o novom projekte (všetkým používateľom s e-mailom a/alebo ďalším adresám). E-mail používateľa sa zadáva v časti Používatelia.
+- **Prepojenie s Projekt manažérom** – projekt založený alebo upravený v Projekt manažéri (priečinok `projekt_manager/`) sa automaticky založí / aktualizuje aj v sklade (API s kľúčom z Nastavení). Projekt manažér zobrazuje v detaile projektu, koľko materiálu je naskladnené. Postup nasadenia je v [NASADENIE.md](NASADENIE.md).
 - **Prihlásenie a role:**
   - *Administrátor* – projekty, kusovníky, používatelia, storno príjmov.
   - *Technik* – príjem tovaru a skladové karty.
+
+## Úvodná stránka
+
+Priečinok `portal/` obsahuje úvodnú stránku s odkazmi na všetky firemné aplikácie (na serveri beží na hlavnej adrese).
+Zoznam aplikácií je v `portal/aplikacie.json`. Podrobnosti sú v [NASADENIE.md](NASADENIE.md).
 
 ## Spustenie
 

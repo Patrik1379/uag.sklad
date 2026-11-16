@@ -1,0 +1,6 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p><strong>{{ author.name }}</strong> pridal(a) komentár k úlohe <strong>{{ task.title }}</strong> <span style="color:#677085">({{ task.project_name }})</span>:</p>
+<div style="white-space:pre-wrap;background:#f5f6f8;border-left:4px solid #2f5bd3;padding:12px 14px;border-radius:6px;font-size:14px;margin:12px 0">{{ body }}</div>
+<p><a href="{{ app_url }}/projekty/{{ task.project_id }}?uloha={{ task.id }}#uloha-{{ task.id }}" style="background:#2f5bd3;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;display:inline-block">Odpovedať</a></p>
+{% endblock %}

@@ -1,0 +1,7 @@
+<table cellpadding="0" cellspacing="0" width="100%" style="background:#f3efff;border-left:4px solid #7c4dff;border-radius:8px;margin:12px 0"><tr><td style="padding:14px 16px;font-size:14px;line-height:1.6">
+  <div style="font-size:17px;font-weight:700">🔧 {{ project.name }}</div>
+  <div>📅 <strong>{{ project.install_date.strftime('%d.%m.%Y') }}</strong>{% if project.install_time_text %} · {{ project.install_time_text }}{% endif %}</div>
+  <div>📍 {{ project.install_place or 'miesto nezadané' }}</div>
+  <div>👷 {{ project.installers_text or 'technici neurčení' }}</div>
+  {% if project.install_note %}<div style="white-space:pre-wrap;color:#4b5263;margin-top:6px">{{ project.install_note }}</div>{% endif %}
+</td></tr></table>

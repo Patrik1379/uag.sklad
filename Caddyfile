@@ -1,9 +1,34 @@
-# HTTPS pre aplikáciu Sklad dielov.
-# Doména sa berie z premennej DOMAIN v súbore .env (napr. sklad.vasafirma.sk).
+# HTTPS pre úvodnú stránku a aplikácie. Adresy sa berú zo súboru .env:
+#   PORTAL_DOMAIN – úvodná stránka s odkazmi na aplikácie (priečinok portal/)
+#   DOMAIN        – Sklad dielov
+#   PM_DOMAIN     – Projekt manažér
+
+{$PORTAL_DOMAIN} {
+	encode gzip
+	@portal path / /index.html /aplikacie.json /favicon.ico
+	handle @portal {
+		root * /srv/portal
+		header /aplikacie.json Cache-Control "no-cache"
+		file_server
+	}
+	# staré odkazy (napr. /projekty/5 z čias, keď tu bežal sklad) presmerujeme do skladu
+	handle {
+		redir https://{$DOMAIN}{uri} 302
+	}
+}
+
 {$DOMAIN} {
 	encode gzip
 	request_body {
 		max_size 25MB
 	}
 	reverse_proxy web:8000
+}
+
+{$PM_DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy projekty:8000
 }

@@ -7,7 +7,7 @@
   <title>{% block title %}Sklad dielov{% endblock %} · Sklad dielov</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%232563c9'/><path d='M6 9l6-3 6 3v6l-6 3-6-3z' fill='none' stroke='white' stroke-width='1.8'/></svg>">
   <script>try{var p=parseInt(localStorage.getItem("fontpx"),10),s=localStorage.getItem("fontsize");if(!p&&(s==="l"||s==="xl"))p=17;if(p>=10&&p<=24)document.documentElement.style.fontSize=p+"px";}catch(e){}</script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=21">
 </head>
 <body>
 <div class="layout">
@@ -22,6 +22,8 @@
     </div>
     {% set ep = request.endpoint or '' %}
     <nav class="nav">
+      {% if portal_url %}<a href="{{ portal_url }}" class="portal-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Všetky aplikácie</span></a>{% endif %}
       <a href="{{ url_for('main.receive') }}" class="primary-action {{ 'active' if ep.startswith('main.receive') }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M11 8v8M15 8v8M18 8v8"/></svg><span>Príjem tovaru</span></a>
       <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if ep == 'main.dashboard' }}">

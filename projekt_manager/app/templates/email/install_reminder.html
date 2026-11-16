@@ -1,0 +1,7 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p>Dobrý deň, {{ member.name }},</p>
+<p>pripomíname inštaláciu <strong>{{ project.install_when_text }}</strong>:</p>
+{% include "email/_install_box.html" %}
+<p><a href="{{ app_url }}/projekty/{{ project.id }}#instalacia" style="background:#7c4dff;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;display:inline-block">Detail inštalácie</a></p>
+{% endblock %}

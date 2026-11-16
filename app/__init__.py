@@ -39,6 +39,8 @@ def create_app():
     @app.before_request
     def check_csrf():
         if request.method == "POST":
+            if request.path.startswith("/api/v1/"):
+                return                      # API sa overuje kľúčom (Authorization: Bearer …), nie formulárom
             token = request.form.get("_csrf") or request.headers.get("X-CSRF")
             if not token or token != session.get("_csrf"):
                 abort(400, "Neplatný formulár (CSRF). Obnovte stránku a skúste znova.")
@@ -73,6 +75,7 @@ def create_app():
     app.jinja_env.filters["t"] = tip_escape
     app.jinja_env.filters["iso"] = iso_date
     app.jinja_env.globals["csrf_token"] = csrf_token
+    app.jinja_env.globals["portal_url"] = os.environ.get("PORTAL_URL", "").strip()
 
     from .services import location_label, location_parts, locations_map, racks_map, shelf_text
     app.jinja_env.filters["loc"] = location_label
@@ -83,9 +86,11 @@ def create_app():
 
     from .auth import bp as auth_bp, current_user
     from .routes import bp as main_bp
+    from .api import bp as api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+    app.register_blueprint(api_bp)
 
     @app.context_processor
     def inject_user():

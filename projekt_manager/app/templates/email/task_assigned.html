@@ -1,0 +1,11 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p>Dobrý deň, {{ task.assignee_name }},</p>
+<p>{{ task.creator_name or 'Niekto' }} vám pridelil(a) úlohu v projekte <strong>{{ task.project_name }}</strong>:</p>
+<div style="background:#f5f6f8;padding:14px;border-radius:8px;margin:12px 0">
+  <div style="font-size:16px;font-weight:700">{{ task.title }}</div>
+  {% if task.description %}<div style="white-space:pre-wrap;font-size:14px;margin-top:6px">{{ task.description }}</div>{% endif %}
+  <div style="font-size:13px;color:#677085;margin-top:8px">Termín: {{ task.due_date.strftime('%d.%m.%Y') if task.due_date else 'bez termínu' }}</div>
+</div>
+<p><a href="{{ app_url }}/projekty/{{ task.project_id }}#ulohy" style="background:#2f5bd3;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;display:inline-block">Otvoriť úlohu</a></p>
+{% endblock %}

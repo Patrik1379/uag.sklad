@@ -1230,8 +1230,25 @@ def settings():
         return redirect(url_for("main.settings"))
     cfg = get_settings()
     users = get_db().query("SELECT username, full_name, email FROM users WHERE active = 1 ORDER BY username")
+    linked = get_db().scalar("SELECT COUNT(*) FROM projects WHERE external_ref IS NOT NULL") or 0
     return render_template("settings.html", cfg=cfg, recipients=project_recipients(cfg), users=users,
-                           default_url=request.url_root.rstrip("/"))
+                           default_url=request.url_root.rstrip("/"), linked=linked)
+
+
+@bp.route("/nastavenia/api-kluc", methods=["POST"])
+@admin_required
+def settings_api_key():
+    import secrets
+
+    from .mailer import save_settings
+
+    if request.form.get("action") == "off":
+        save_settings({"api_key": ""})
+        flash("Prepojenie bolo vypnuté – API kľúč je zmazaný.", "ok")
+    else:
+        save_settings({"api_key": "sk_" + secrets.token_urlsafe(24)})
+        flash("Nový API kľúč bol vygenerovaný. Skopírujte ho do Nastavení v Projekt manažéri.", "ok")
+    return redirect(url_for("main.settings") + "#prepojenie")
 
 
 @bp.route("/nastavenia/test", methods=["POST"])

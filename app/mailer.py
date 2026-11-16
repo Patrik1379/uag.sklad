@@ -21,6 +21,7 @@ DEFAULTS = {
     "notify_project_all_users": "1",
     "notify_project_extra": "",
     "mail_last_status": "",
+    "api_key": "",                    # kľúč pre prepojenie s Projekt manažérom
 }
 
 
@@ -62,6 +63,27 @@ def smtp_ready(cfg):
     return bool(cfg.get("smtp_host") and cfg.get("smtp_from"))
 
 
+def _login(server, user, password):
+    """Prihlásenie na SMTP. smtplib vie len ASCII – heslo s diakritikou (š, č, ž…) posielame v UTF-8 ručne."""
+    import base64
+
+    try:
+        (user + password).encode("ascii")
+        server.login(user, password)
+        return
+    except UnicodeEncodeError:
+        pass
+    token = base64.b64encode(b"\0" + user.encode("utf-8") + b"\0" + password.encode("utf-8")).decode("ascii")
+    code, resp = server.docmd("AUTH", "PLAIN " + token)
+    if code == 235:
+        return
+    code, resp = server.docmd("AUTH", "LOGIN " + base64.b64encode(user.encode("utf-8")).decode("ascii"))
+    if code == 334:
+        code, resp = server.docmd(base64.b64encode(password.encode("utf-8")).decode("ascii"))
+    if code != 235:
+        raise smtplib.SMTPAuthenticationError(code, resp)
+
+
 def send_mail(cfg, recipients, subject, text, html=None):
     """Odošle e-mail (blokujúco). Pri chybe vyhodí výnimku so zrozumiteľným popisom."""
     if not smtp_ready(cfg):
@@ -89,7 +111,7 @@ def send_mail(cfg, recipients, subject, text, html=None):
             server.starttls(context=ctx)
             server.ehlo()
         if cfg.get("smtp_user"):
-            server.login(cfg["smtp_user"], cfg.get("smtp_password") or "")
+            _login(server, cfg["smtp_user"], cfg.get("smtp_password") or "")
         server.send_message(msg)
     finally:
         try:
@@ -121,7 +143,7 @@ def project_recipients(cfg):
     return list(dict.fromkeys(out))
 
 
-def notify_new_project(project_id, author=None, base_url=""):
+def notify_new_project(project_id, author=None, base_url="", source=None):
     """Pošle oznámenie o novom projekte, ak je zapnuté v nastaveniach."""
     from markupsafe import escape
 
@@ -150,6 +172,8 @@ def notify_new_project(project_id, author=None, base_url=""):
     rows = [("Projekt", p["name"]), ("Číslo zakázky", p["order_no"]), ("Zákazník", p.get("customer") or "—"),
             ("Začiatok", fmt(p.get("start_date"))), ("Termín", fmt(p.get("deadline"))),
             ("Počet položiek v kusovníku", str(items)), ("Vytvoril", author or "—")]
+    if source:
+        rows.append(("Založené z", source))
     subject = f"Nový projekt: {p['name']} ({p['order_no']})"
     text = "V aplikácii Sklad dielov bol vytvorený nový projekt.\n\n" + "\n".join(
         f"{k}: {v}" for k, v in rows) + (f"\n\nOtvoriť projekt: {link}" if link else "")

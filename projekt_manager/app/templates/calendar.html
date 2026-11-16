@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Kalendár – {{ app_name }}{% endblock %}
+{% block content %}
+{% set qargs = {} %}
+{% if current_user.is_admin and user_filter %}{% set _ = qargs.update({'pouzivatel': user_filter}) %}{% endif %}
+{% if only_mine %}{% set _ = qargs.update({'moje': 1}) %}{% endif %}
+<div class="page-head">
+  <div>
+    <h1 class="cal-title">Kalendár – {{ cal.title }}</h1>
+    <div class="muted">Deadliny projektov, inštalácie a termíny úloh</div>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.calendar_view', mesiac=prev_month, **qargs) }}" title="Predchádzajúci mesiac">‹</a>
+    <a class="btn {{ 'btn-primary' if is_current }}" href="{{ url_for('main.calendar_view', **qargs) }}">Dnes</a>
+    <a class="btn" href="{{ url_for('main.calendar_view', mesiac=next_month, **qargs) }}" title="Nasledujúci mesiac">›</a>
+  </div>
+</div>
+
+<div class="card">
+  <form class="filters" method="get">
+    <input type="hidden" name="mesiac" value="{{ request.args.get('mesiac', '') }}">
+    {% if current_user.is_admin %}
+    <select name="pouzivatel" onchange="this.form.submit()">
+      <option value="">Všetci používatelia</option>
+      {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if user_filter == u.id }}>{{ u.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <label class="check" style="margin:0"><input type="checkbox" name="moje" value="1" {{ 'checked' if only_mine }} onchange="this.form.submit()"> Len moje projekty a úlohy</label>
+    <div style="flex:1"></div>
+    <div class="legend">
+      <span><i class="lg-flag"></i>deadline projektu</span>
+      <span><i class="lg-dot"></i>termín úlohy</span>
+      <span><i class="lg-install">🔧</i>inštalácia</span>
+      <span><i style="background:var(--overdue)"></i>po termíne</span>
+      <span><i style="background:var(--risk)"></i>blíži sa</span>
+      <span><i style="background:var(--ok)"></i>v poriadku</span>
+      <span><i style="background:var(--done)"></i>hotové</span>
+    </div>
+  </form>
+</div>
+
+<div class="card cal-card">
+  <div class="cal-grid cal-head">
+    {% for d in ['Pondelok','Utorok','Streda','Štvrtok','Piatok','Sobota','Nedeľa'] %}<div>{{ d }}</div>{% endfor %}
+  </div>
+  {% for week in cal.weeks %}
+  <div class="cal-grid">
+    {% for day in week %}
+    <div class="cal-day{{ ' other' if not day.in_month }}{{ ' today' if day.today }}{{ ' weekend' if day.weekend }}">
+      <div class="cal-num">{{ day.date.day }}{% if day.today %} <span class="today-pill">dnes</span>{% endif %}</div>
+      {% for ev in day.events[:4] %}{% set o = ev.obj %}
+        {% if ev.kind == 'install' %}
+        <a class="cal-ev install {{ o.install_health }}" href="{{ url_for('main.project_detail', project_id=o.id) }}#instalacia"
+           title="Inštalácia: {{ o.name }} · {{ o.install_time_text }} · {{ o.install_place or '' }} · {{ o.installers_text or 'technici neurčení' }} · {{ o.install_status_label }}">🔧 {% if o.install_time_from %}{{ o.install_time_from }} {% endif %}{{ o.name }}</a>
+        {% elif ev.kind == 'project' %}
+        <a class="cal-ev project {{ o.health[0] }}" href="{{ url_for('main.project_detail', project_id=o.id) }}"
+           title="Deadline projektu: {{ o.name }} · {{ o.members_text or 'nepridelený' }} · {{ o.progress }} %">⚑ {{ o.name }}</a>
+        {% else %}
+        <a class="cal-ev task {{ o.health[0] }}{{ ' mine' if o.assignee_id == current_user.id }}"
+           href="{{ url_for('main.project_detail', project_id=o.project_id, uloha=o.id, hotove_ulohy=1 if o.is_done else None) }}#uloha-{{ o.id }}"
+           title="Úloha: {{ o.title }} · {{ o.project_name }} · {{ o.assignee_name or 'nepridelená' }} · {{ o.status_label }}">{{ o.title }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if day.events|length > 4 %}<div class="cal-more">+ ďalšie {{ day.events|length - 4 }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+{# na mobile namiesto mriežky zoznam #}
+<div class="card cal-agenda">
+  <h2>{{ cal.title|capitalize }}</h2>
+  {% for d, evs in cal.agenda %}
+  <div class="agenda-day">
+    <div class="agenda-date"><b>{{ d.day }}.{{ d.month }}.</b> {{ d|sk_weekday }}</div>
+    <div>
+      {% for ev in evs %}{% set o = ev.obj %}
+        {% if ev.kind == 'install' %}
+        <a class="cal-ev install {{ o.install_health }}" href="{{ url_for('main.project_detail', project_id=o.id) }}#instalacia">🔧 {% if o.install_time_from %}{{ o.install_time_from }} {% endif %}{{ o.name }} <span class="muted">· {{ o.install_place or '' }}</span></a>
+        {% elif ev.kind == 'project' %}
+        <a class="cal-ev project {{ o.health[0] }}" href="{{ url_for('main.project_detail', project_id=o.id) }}">⚑ {{ o.name }}</a>
+        {% else %}
+        <a class="cal-ev task {{ o.health[0] }}" href="{{ url_for('main.project_detail', project_id=o.project_id, uloha=o.id) }}#uloha-{{ o.id }}">{{ o.title }} <span class="muted">· {{ o.assignee_name or 'nepridelená' }}</span></a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}<p class="muted">V tomto mesiaci nie sú žiadne termíny.</p>{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "email/_layout.html" %}{% from "email/_macros.html" import badge %}
+{% block body %}
+<p><strong>{{ changed_by.name }}</strong> aktualizoval(a) projekt <strong>{{ project.name }}</strong>:</p>
+<p>Stav: <strong>{{ project.status_label }}</strong> · Plnenie: <strong>{{ project.progress }} %</strong> · {{ badge(project) }}</p>
+{% if note %}<div style="white-space:pre-wrap;background:#f5f6f8;padding:12px;border-radius:8px;font-size:14px">{{ note }}</div>{% endif %}
+<p>Deadline: {{ project.deadline.strftime('%d.%m.%Y') }} ({{ project.deadline_text }})</p>
+<p><a href="{{ app_url }}/projekty/{{ project.id }}" style="color:#2f5bd3">Otvoriť projekt →</a></p>
+{% endblock %}

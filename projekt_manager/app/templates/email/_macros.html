@@ -1,0 +1,9 @@
+{% macro badge(p) -%}
+{%- set colors = {'ok': ('#e3f5ec','#1f9d63'), 'risk': ('#fdf1dc','#a86a00'), 'overdue': ('#fde6e6','#d33b3b'),
+                  'paused': ('#eef0f3','#5f6778'), 'done': ('#e6eefc','#4d7fe0')} -%}
+{%- set h = p.health -%}{%- set c = colors[h[0]] -%}
+<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:{{ c[0] }};color:{{ c[1] }}">{{ h[1] }}</span>
+{%- endmacro %}
+{% macro bar(p) -%}
+<div style="background:#edf0f4;border-radius:99px;height:8px;width:100px"><div style="background:#2f5bd3;border-radius:99px;height:8px;width:{{ p.progress }}px"></div></div>
+{%- endmacro %}

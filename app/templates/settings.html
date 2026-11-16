@@ -65,4 +65,29 @@
     <button class="btn">Odoslať testovací e-mail</button>
   </div>
 </form>
+
+<div class="card" id="prepojenie" style="margin-top:1.2rem">
+  <h2>Prepojenie s Projekt manažérom</h2>
+  <p class="small muted" style="margin-top:0">Projekt založený alebo upravený v Projekt manažéri sa automaticky vytvorí / aktualizuje aj v sklade.
+    V Projekt manažéri (Nastavenia → Sklad dielov) zadajte adresu skladu a tento kľúč.</p>
+  {% if cfg.api_key %}
+  <div class="form-grid">
+    <div><label>Adresa skladu</label><input type="text" readonly value="{{ cfg.app_url or default_url }}" class="mono" onclick="this.select()"></div>
+    <div><label>API kľúč</label>
+      <div style="display:flex;gap:0.5rem"><input type="text" readonly value="{{ cfg.api_key }}" id="api-key" class="mono" onclick="this.select()">
+        <button type="button" class="btn" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('api-key').value);this.textContent='Skopírované'">Kopírovať</button></div></div>
+  </div>
+  <p class="small muted">Prepojených projektov: <b>{{ linked }}</b></p>
+  <form method="post" action="{{ url_for('main.settings_api_key') }}" style="display:flex;gap:0.6rem;flex-wrap:wrap">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn" onclick="return confirm('Vygenerovať nový kľúč? Starý prestane fungovať a v Projekt manažéri ho bude treba zmeniť.')">Vygenerovať nový kľúč</button>
+    <button class="btn" name="action" value="off" onclick="return confirm('Vypnúť prepojenie? Projekt manažér nebude môcť zakladať projekty v sklade.')">Vypnúť prepojenie</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('main.settings_api_key') }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn primary">Zapnúť prepojenie (vygenerovať kľúč)</button>
+  </form>
+  {% endif %}
+</div>
 {% endblock %}

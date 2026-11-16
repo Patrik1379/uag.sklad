@@ -1,0 +1,58 @@
+{% extends "email/_layout.html" %}{% from "email/_macros.html" import badge, bar %}
+{% block body %}
+<p>Dobré ráno, {{ user.name }},</p>
+{% if installs %}
+<p style="margin-bottom:6px"><strong>🔧 Inštalácie v najbližších 7 dňoch:</strong></p>
+<table cellpadding="7" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:14px;margin-bottom:20px">
+  {% for p in installs %}
+  <tr>
+    <td style="border-bottom:1px solid #eef0f3;white-space:nowrap;color:#7c4dff;font-weight:700">{{ p.install_date.strftime('%d.%m.') }}{% if p.install_time_from %}<br><span style="font-weight:400;color:#677085">{{ p.install_time_from }}</span>{% endif %}</td>
+    <td style="border-bottom:1px solid #eef0f3"><a href="{{ app_url }}/projekty/{{ p.id }}#instalacia" style="color:#1d2330;font-weight:600;text-decoration:none">{{ p.name }}</a><br>
+      <span style="font-size:12px;color:#677085">📍 {{ p.install_place or 'miesto nezadané' }} · 👷 {{ p.installers_text or 'technici neurčení' }}</span></td>
+    <td style="border-bottom:1px solid #eef0f3;font-size:12px;color:#677085;white-space:nowrap">{{ p.install_when_text }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% if tasks %}
+<p style="margin-bottom:6px"><strong>Vaše úlohy ({{ tasks|length }}):</strong></p>
+<table cellpadding="7" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:14px;margin-bottom:20px">
+  {% for t in tasks %}
+  <tr>
+    <td style="border-bottom:1px solid #eef0f3">☐ <strong>{{ t.title }}</strong>{% if t.sub_total %} <span style="font-size:12px;color:#677085">({{ t.sub_done }}/{{ t.sub_total }} podúloh)</span>{% endif %}<br><span style="font-size:12px;color:#677085">{{ t.project_name }}</span></td>
+    <td style="border-bottom:1px solid #eef0f3;white-space:nowrap">{{ t.due_date.strftime('%d.%m.%Y') if t.due_date else '—' }}</td>
+    <td style="border-bottom:1px solid #eef0f3">{{ badge(t) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% if projects %}
+<p>{{ 'prehľad všetkých otvorených projektov:' if user.is_admin else 'stav vašich otvorených projektov:' }}</p>
+<table cellpadding="0" cellspacing="0" width="100%" style="margin:8px 0 18px"><tr>
+  <td style="padding:10px;background:#f5f6f8;border-radius:8px;text-align:center"><div style="font-size:22px;font-weight:700">{{ stats.open }}</div><div style="font-size:12px;color:#677085">otvorených</div></td>
+  <td width="8"></td>
+  <td style="padding:10px;background:#fde6e6;border-radius:8px;text-align:center"><div style="font-size:22px;font-weight:700;color:#d33b3b">{{ stats.overdue }}</div><div style="font-size:12px;color:#677085">po termíne</div></td>
+  <td width="8"></td>
+  <td style="padding:10px;background:#fdf1dc;border-radius:8px;text-align:center"><div style="font-size:22px;font-weight:700;color:#a86a00">{{ stats.due_soon }}</div><div style="font-size:12px;color:#677085">termín do {{ config.DUE_SOON_DAYS }} dní</div></td>
+</tr></table>
+<table cellpadding="8" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:14px">
+  <tr style="color:#677085;font-size:12px;text-align:left">
+    <th align="left" style="border-bottom:1px solid #e3e6ec">Projekt</th>
+    {% if user.is_admin %}<th align="left" style="border-bottom:1px solid #e3e6ec">Riešitelia</th>{% endif %}
+    <th align="left" style="border-bottom:1px solid #e3e6ec">Plnenie</th>
+    <th align="left" style="border-bottom:1px solid #e3e6ec">Deadline</th>
+    <th align="left" style="border-bottom:1px solid #e3e6ec"></th>
+  </tr>
+  {% for p in projects %}
+  <tr>
+    <td style="border-bottom:1px solid #eef0f3"><a href="{{ app_url }}/projekty/{{ p.id }}" style="color:#1d2330;font-weight:600;text-decoration:none">{{ p.name }}</a><br><span style="font-size:12px;color:#677085">{{ p.status_label }}</span></td>
+    {% if user.is_admin %}<td style="border-bottom:1px solid #eef0f3">{{ p.members_text or '—' }}</td>{% endif %}
+    <td style="border-bottom:1px solid #eef0f3">{{ bar(p) }}<span style="font-size:12px;color:#677085">{{ p.progress }} %</span></td>
+    <td style="border-bottom:1px solid #eef0f3">{{ p.deadline.strftime('%d.%m.%Y') }}<br><span style="font-size:12px;color:#677085">{{ p.deadline_text }}</span></td>
+    <td style="border-bottom:1px solid #eef0f3">{{ badge(p) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+<p style="margin-top:20px"><a href="{{ app_url }}/" style="background:#2f5bd3;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;display:inline-block">Otvoriť dashboard</a></p>
+{% endblock %}

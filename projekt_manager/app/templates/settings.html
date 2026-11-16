@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Nastavenia – {{ app_name }}{% endblock %}
+{% macro val(key) %}{{ form[key] if form is not none and key in form else (cfg[key] if cfg[key] is not none else '') }}{% endmacro %}
+{% macro checked(key) %}{{ 'checked' if (key in form if form is not none else cfg[key]) }}{% endmacro %}
+{% macro envhint(key, secret=False) %}{% if key in overridden %}<div class="set-hint">Upravené v aplikácii · v .env: {{ ('••••' if env[key] else 'prázdne') if secret else (('áno' if env[key] else 'nie') if env[key] is sameas true or env[key] is sameas false else (env[key] if env[key] not in (none, '') else 'prázdne')) }}</div>{% endif %}{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Nastavenia</h1>
+    <div class="muted">Zmeny platia hneď, bez reštartu. Hodnoty zo súboru <code>.env</code> slúžia ako predvolené.</div>
+  </div>
+  {% if overridden %}
+  <form method="post" onsubmit="return confirm('Vrátiť všetky nastavenia na hodnoty zo súboru .env?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn" name="action" value="reset">↺ Obnoviť z .env</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="settings-layout">
+<form method="post" class="settings-main" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="card" id="email">
+    <div class="set-head">
+      <h2>✉ E-mail (SMTP)</h2>
+      <label class="switch"><input type="checkbox" name="MAIL_ENABLED" {{ checked('MAIL_ENABLED') }}><span></span> Odosielať e-maily</label>
+    </div>
+    {{ envhint('MAIL_ENABLED') }}
+    <div class="field">
+      <label>Rýchle nastavenie</label>
+      <div class="actions">
+        <button type="button" class="btn btn-sm" data-preset="smtp.gmail.com|587|starttls">Gmail</button>
+        <button type="button" class="btn btn-sm" data-preset="smtp.office365.com|587|starttls">Microsoft 365 / Outlook</button>
+        <button type="button" class="btn btn-sm" data-preset="smtp.m1.websupport.sk|465|ssl">Websupport</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <div style="grid-column: span 2"><label for="MAIL_SERVER">SMTP server</label>
+        <input type="text" id="MAIL_SERVER" name="MAIL_SERVER" value="{{ val('MAIL_SERVER') }}" placeholder="smtp.firma.sk">{{ envhint('MAIL_SERVER') }}</div>
+      <div><label for="MAIL_PORT">Port</label>
+        <input type="number" id="MAIL_PORT" name="MAIL_PORT" min="1" max="65535" value="{{ val('MAIL_PORT') }}">{{ envhint('MAIL_PORT') }}</div>
+      <div><label for="security">Zabezpečenie</label>
+        {% set sec = form.security if form is not none else security %}
+        <select id="security" name="security">
+          <option value="starttls" {{ 'selected' if sec == 'starttls' }}>STARTTLS (port 587)</option>
+          <option value="ssl" {{ 'selected' if sec == 'ssl' }}>SSL/TLS (port 465)</option>
+          <option value="none" {{ 'selected' if sec == 'none' }}>Žiadne (port 25)</option>
+        </select></div>
+    </div>
+    <div class="form-row">
+      <div><label for="MAIL_USERNAME">Používateľské meno</label>
+        <input type="text" id="MAIL_USERNAME" name="MAIL_USERNAME" value="{{ val('MAIL_USERNAME') }}" autocomplete="off">{{ envhint('MAIL_USERNAME') }}</div>
+      <div><label for="MAIL_PASSWORD">Heslo</label>
+        <input type="password" id="MAIL_PASSWORD" name="MAIL_PASSWORD" autocomplete="new-password"
+               placeholder="{{ '•••••••• (uložené – nechajte prázdne)' if has_password else 'zadajte heslo' }}">
+        {% if has_password %}<label class="check small" style="margin-top:6px"><input type="checkbox" name="clear_password"> Vymazať uložené heslo</label>{% endif %}
+        {{ envhint('MAIL_PASSWORD', True) }}</div>
+    </div>
+    <div class="form-row">
+      <div><label for="MAIL_SENDER">Odosielateľ (adresa From)</label>
+        <input type="email" id="MAIL_SENDER" name="MAIL_SENDER" value="{{ val('MAIL_SENDER') }}" placeholder="projekty@firma.sk">{{ envhint('MAIL_SENDER') }}</div>
+      <div></div>
+    </div>
+    <p class="muted small">Gmail: treba zapnúť dvojstupňové overenie a vytvoriť <b>heslo aplikácie</b> (bežné heslo nefunguje).
+      Odosielateľ by mal byť rovnaký ako prihlasovací účet, inak ho server môže odmietnuť.</p>
+  </section>
+
+  <section class="card">
+    <h2>🕖 Denný report</h2>
+    <div class="form-row">
+      <div><label for="DAILY_REPORT_TIME">Čas odoslania</label>
+        <input type="time" id="DAILY_REPORT_TIME" name="DAILY_REPORT_TIME" value="{{ val('DAILY_REPORT_TIME') }}">{{ envhint('DAILY_REPORT_TIME') }}</div>
+      <div style="align-self:end"><label class="check"><input type="checkbox" name="DAILY_REPORT_SKIP_WEEKEND" {{ checked('DAILY_REPORT_SKIP_WEEKEND') }}> Cez víkend neposielať</label>
+        {{ envhint('DAILY_REPORT_SKIP_WEEKEND') }}</div>
+    </div>
+    <p class="muted small">Report dostanú používatelia, ktorí ho majú zapnutý v profile. V rovnaký čas odchádzajú aj pripomienky inštalácií.</p>
+  </section>
+
+  <section class="card">
+    <h2>⚙ Všeobecné</h2>
+    <div class="form-row">
+      <div><label for="APP_NAME">Názov aplikácie</label>
+        <input type="text" id="APP_NAME" name="APP_NAME" value="{{ val('APP_NAME') }}">{{ envhint('APP_NAME') }}</div>
+      <div><label for="APP_URL">Verejná adresa (odkazy v e-mailoch)</label>
+        <input type="text" id="APP_URL" name="APP_URL" value="{{ val('APP_URL') }}" placeholder="http://server:8000">{{ envhint('APP_URL') }}</div>
+      <div><label for="DUE_SOON_DAYS">„Blíži sa termín“ (dní pred deadlinom)</label>
+        <input type="number" id="DUE_SOON_DAYS" name="DUE_SOON_DAYS" min="1" max="90" value="{{ val('DUE_SOON_DAYS') }}">{{ envhint('DUE_SOON_DAYS') }}</div>
+    </div>
+  </section>
+
+  <div class="actions settings-save"><button class="btn btn-primary" name="action" value="save">Uložiť nastavenia</button></div>
+</form>
+
+<aside class="settings-side">
+  <section class="card">
+    <h2>Otestovať e-mail</h2>
+    <p class="muted small">Pošle skúšobný e-mail podľa <b>uložených</b> nastavení (aj keď je odosielanie vypnuté). Zmeny najprv uložte.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label for="test_to">Komu (napíšte ľubovoľnú adresu)</label>
+        <input type="email" id="test_to" name="test_to" value="{{ test_to }}" list="test_to_list" required
+               placeholder="napr. patrik.ondrus@gmail.com" onfocus="this.select()">
+        <datalist id="test_to_list">{% for e in user_emails %}<option value="{{ e }}">{% endfor %}</datalist>
+        <div class="set-hint" style="color:var(--muted)">Aplikácia si zapamätá poslednú použitú adresu.</div></div>
+      <button class="btn" name="action" value="test" onclick="this.textContent='Odosielam…'">✉ Poslať testovací e-mail</button>
+    </form>
+  </section>
+  <section class="card" id="sklad">
+    <h2>📦 Sklad dielov</h2>
+    <p class="muted small">Nový alebo upravený projekt sa automaticky založí / aktualizuje aj v aplikácii Sklad dielov
+      a v detaile projektu uvidíte, koľko materiálu je naskladnené. Kľúč vygenerujete v sklade: Nastavenia → Prepojenie s Projekt manažérom.</p>
+    <p><span class="badge {{ 'ok' if sklad_on else 'paused' }}">{{ 'Zapnuté' if sklad_on else 'Vypnuté' }}</span></p>
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label for="SKLAD_URL">Adresa skladu</label>
+        <input type="text" id="SKLAD_URL" name="SKLAD_URL" value="{{ cfg.SKLAD_URL or '' }}" placeholder="https://80-211-213-65.sslip.io"></div>
+      <div class="field"><label for="SKLAD_API_KEY">API kľúč</label>
+        <input type="password" id="SKLAD_API_KEY" name="SKLAD_API_KEY" autocomplete="new-password"
+               placeholder="{{ '•••••••• (uložený – nechajte prázdne)' if has_sklad_key else 'sk_…' }}">
+        {% if has_sklad_key %}<label class="check small" style="margin-top:6px"><input type="checkbox" name="clear_sklad_key"> Vymazať kľúč (vypnúť prepojenie)</label>{% endif %}</div>
+      <div class="actions">
+        <button class="btn btn-primary" name="action" value="sklad">Uložiť</button>
+        {% if sklad_on %}<button class="btn" name="action" value="sklad_test">Otestovať</button>{% endif %}
+      </div>
+      {% if sklad_on %}
+      <p class="muted small" style="margin-top:12px">Projekty založené pred prepojením (okrem hotových) pošlete do skladu naraz:</p>
+      <button class="btn btn-sm" name="action" value="sklad_all" onclick="return confirm('Odoslať všetky rozpracované projekty do skladu?')">Odoslať všetky projekty do skladu</button>
+      {% endif %}
+    </form>
+  </section>
+  <section class="card">
+    <h2>📺 Prehľad na TV</h2>
+    <p class="muted small">Stránka s prehľadom projektov bez prihlásenia (tajný odkaz).</p>
+    <p><span class="badge {{ 'ok' if board_on else 'paused' }}">{{ 'Zapnutý' if board_on else 'Vypnutý' }}</span></p>
+    <a class="btn" href="{{ url_for('main.board_admin') }}">Spravovať odkaz</a>
+  </section>
+</aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-preset]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var p = b.dataset.preset.split('|');
+    document.getElementById('MAIL_SERVER').value = p[0];
+    document.getElementById('MAIL_PORT').value = p[1];
+    document.getElementById('security').value = p[2];
+  });
+});
+document.getElementById('security').addEventListener('change', function () {
+  var port = document.getElementById('MAIL_PORT');
+  var def = {starttls: '587', ssl: '465', none: '25'};
+  if (['587', '465', '25', ''].indexOf(port.value) >= 0) port.value = def[this.value];
+});
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Upraviť projekt' if project else 'Nový projekt' }} – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Upraviť: ' ~ project.name if project else 'Nový projekt' }}</h1></div>
+<div class="card" style="max-width:860px">
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="name">Názov projektu *</label>
+      <input type="text" id="name" name="name" value="{{ data.name or '' }}" required maxlength="200"></div>
+    <div class="form-row">
+      <div><label for="order_no">Číslo zákazky</label>
+        <input type="text" id="order_no" name="order_no" value="{{ data.order_no or '' }}" maxlength="100" placeholder="napr. 26ZK031"></div>
+      <div><label for="customer">Zákazník</label>
+        <input type="text" id="customer" name="customer" value="{{ data.customer or '' }}" maxlength="200"></div>
+    </div>
+    <div class="field"><label for="description">Popis</label>
+      <textarea id="description" name="description">{{ data.description or '' }}</textarea></div>
+    <div class="form-row">
+      <div><label>Riešitelia</label>
+        <input type="text" id="member-filter" placeholder="Hľadať meno…" style="margin-bottom:6px">
+        <div class="member-box" id="member-box">
+          {% for u in users %}
+          <label class="check member"><input type="checkbox" name="member_ids" value="{{ u.id }}" {{ 'checked' if u.id in (data.member_ids or []) }}>
+            {{ u.name }} <span class="muted small">{{ u.email }}</span></label>
+          {% endfor %}
+        </div>
+        <div class="small muted"><span id="member-count">0</span> vybraných · novým riešiteľom príde e-mail o pridelení.</div></div>
+      <div><label for="status">Stav</label>
+        <select id="status" name="status">
+          {% for key, label in statuses.items() %}<option value="{{ key }}" {{ 'selected' if data.status == key }}>{{ label }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <div class="form-row">
+      <div><label for="start_date">Začiatok</label><input type="date" id="start_date" name="start_date" value="{{ data.start_date }}"></div>
+      <div><label for="deadline">Deadline *</label><input type="date" id="deadline" name="deadline" value="{{ data.deadline or '' }}" required></div>
+      <div><label for="progress">Plnenie (%)</label><input type="number" id="progress" name="progress" min="0" max="100" value="{{ data.progress or 0 }}" {{ 'disabled' if data.auto_progress }}>
+        <label class="check small" style="margin-top:6px"><input type="checkbox" name="auto_progress" id="auto_progress" {{ 'checked' if data.auto_progress }}
+          onchange="document.getElementById('progress').disabled=this.checked"> Počítať automaticky z hotových úloh</label></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary">{{ 'Uložiť zmeny' if project else 'Vytvoriť projekt' }}</button>
+      <a class="btn" href="{{ url_for('main.project_detail', project_id=project.id) if project else url_for('main.dashboard') }}">Zrušiť</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const box = document.getElementById('member-box'), filter = document.getElementById('member-filter'),
+        count = document.getElementById('member-count');
+  const update = () => count.textContent = box.querySelectorAll('input:checked').length;
+  box.addEventListener('change', update); update();
+  filter.addEventListener('input', () => {
+    const q = filter.value.toLowerCase();
+    box.querySelectorAll('.member').forEach(l => l.style.display = l.textContent.toLowerCase().includes(q) ? '' : 'none');
+  });
+})();
+</script>
+{% endblock %}

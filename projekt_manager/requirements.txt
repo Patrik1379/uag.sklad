@@ -1,0 +1,5 @@
+Flask>=3.0
+python-dotenv>=1.0
+# produkčný server – vyber podľa OS:
+gunicorn>=22.0; sys_platform != "win32"
+waitress>=3.0; sys_platform == "win32"

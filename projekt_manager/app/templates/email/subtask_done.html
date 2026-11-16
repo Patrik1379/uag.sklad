@@ -1,0 +1,13 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p><strong>{{ done_by.name }}</strong> splnil(a) podúlohu:</p>
+<div style="background:#e3f5ec;padding:14px;border-radius:8px;margin:12px 0">
+  <div style="font-size:16px;font-weight:700">✓ {{ subtask_title }}</div>
+  <div style="font-size:13px;color:#677085;margin-top:4px">Úloha: <strong>{{ task.title }}</strong> · Projekt: {{ task.project_name }}</div>
+  <div style="font-size:13px;color:#677085;margin-top:8px">Postup úlohy: {{ task.sub_done }} z {{ task.sub_total }} podúloh splnených</div>
+  <div style="height:8px;background:#d5e9de;border-radius:999px;margin-top:6px;overflow:hidden">
+    <div style="height:8px;width:{{ (100 * task.sub_done / task.sub_total)|round|int if task.sub_total else 0 }}%;background:#1f9d63"></div>
+  </div>
+</div>
+<p><a href="{{ app_url }}/projekty/{{ task.project_id }}#uloha-{{ task.id }}" style="color:#2f5bd3">Otvoriť úlohu →</a></p>
+{% endblock %}

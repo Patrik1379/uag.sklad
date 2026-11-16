@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="sk"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f6f8;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1d2330">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:24px 0">
+<tr><td align="center">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border:1px solid #e3e6ec;border-radius:10px">
+  <tr><td style="padding:18px 24px;border-bottom:1px solid #e3e6ec;font-weight:700;font-size:16px">{{ app_name }}</td></tr>
+  <tr><td style="padding:24px;font-size:15px;line-height:1.5">{% block body %}{% endblock %}</td></tr>
+  <tr><td style="padding:14px 24px;border-top:1px solid #e3e6ec;font-size:12px;color:#677085">
+    Automatická správa z aplikácie {{ app_name }}. Nastavenia notifikácií: <a href="{{ app_url }}/profil" style="color:#2f5bd3">{{ app_url }}/profil</a>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>

@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ 'Prehľad projektov' if current_user.is_admin else 'Moje projekty' }}</h1>
+    <div class="muted">Stav k {{ today_str }}</div>
+  </div>
+  {% if current_user.is_admin %}
+  <div class="actions">
+    <form method="post" action="{{ url_for('main.send_report_now') }}"
+          onsubmit="return confirm('Odoslať denný report všetkým používateľom teraz?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn">✉ Poslať denný report teraz</button>
+    </form>
+    <a class="btn" href="{{ url_for('main.board_admin') }}">📺 Prehľad na TV</a>
+    <a class="btn btn-primary" href="{{ url_for('main.project_new') }}">+ Nový projekt</a>
+  </div>
+  {% endif %}
+</div>
+
+{% set base_args = {'pouzivatel': user_filter} if current_user.is_admin and user_filter else {} %}
+<div class="stats">
+  <a class="stat accent-primary {{ 'active' if not deadline_filter }}" href="{{ url_for('main.dashboard', **base_args) }}">
+    <div class="label">Otvorené projekty</div><div class="value">{{ stats.open }}</div></a>
+  <a class="stat overdue {{ 'active' if deadline_filter == 'po' }} {{ 'zero' if not stats.overdue }}" href="{{ url_for('main.dashboard', termin='po', **base_args) }}">
+    <div class="label">Po termíne</div><div class="value">{{ stats.overdue }}</div>
+    <div class="hint">{{ 'zobraziť' if stats.overdue else 'všetko načas' }}</div></a>
+  <a class="stat risk {{ 'active' if deadline_filter == 'tyzden' }} {{ 'zero' if not stats.due_soon }}" href="{{ url_for('main.dashboard', termin='tyzden', **base_args) }}">
+    <div class="label">Deadline do {{ config.DUE_SOON_DAYS }} dní</div><div class="value">{{ stats.due_soon }}</div>
+    <div class="hint">{{ 'zobraziť' if stats.due_soon else 'nič nehorí' }}</div></a>
+  <div class="stat accent-primary"><div class="label">Priemerné plnenie</div><div class="value">{{ stats.avg_progress }} %</div>
+    <div class="progress" style="margin-top:6px"><span style="width:{{ stats.avg_progress }}%"></span></div></div>
+  <div class="stat accent-done"><div class="label">Dokončené</div><div class="value">{{ stats.done }}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Najbližšie deadliny</h2><span class="small muted">zoradené podľa termínu</span></div>
+  {% if upcoming %}
+  <div class="deadlines">
+    {% for p in upcoming %}{% set h = p.health %}{% set cd = p.countdown %}
+    <a class="dl-card {{ 'overdue' if p.is_overdue else 'soon' if p.days_left <= config.DUE_SOON_DAYS else 'paused' if p.status == 'pozastaveny' else 'later' }}"
+       href="{{ url_for('main.project_detail', project_id=p.id) }}">
+      <div class="dl-count"><span class="num">{{ cd[0] }}</span><span class="unit">{{ cd[1] }}</span></div>
+      <div class="dl-name" title="{{ p.name }}">{{ p.name }}</div>
+      <div class="dl-date">📅 {{ p.deadline|sk_weekday }} {{ p.deadline|sk_date }}</div>
+      <div class="dl-progress"><div class="progress"><span style="width:{{ p.progress }}%"></span></div><span>{{ p.progress }} %</span></div>
+      <div class="dl-who" title="{{ p.members_text }}">{{ p.members_text or 'nepridelený' }}</div>
+      {% if p.install_open %}<div class="dl-install">🔧 inštalácia {{ p.install_date|sk_weekday }} {{ p.install_date.day }}.{{ p.install_date.month }}.{% if p.install_time_from %} {{ p.install_time_from }}{% endif %}</div>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-inline">
+    Žiadne otvorené projekty – deadliny sa tu zobrazia, keď bude nejaký projekt v stave Nový, Prebieha alebo Pozastavený.
+    {% if current_user.is_admin %}<a href="{{ url_for('main.project_new') }}">+ Nový projekt</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if installations %}
+<div class="card">
+  <div class="card-head"><h2>🔧 Plánované inštalácie</h2><span class="small muted">najbližšie termíny</span></div>
+  <div class="install-list">
+    {% for p in installations %}
+    <a class="install-row {{ p.install_health }}" href="{{ url_for('main.project_detail', project_id=p.id) }}#instalacia">
+      <div class="install-date small-date">
+        <div class="w">{{ p.install_date|sk_weekday }}</div><div class="d">{{ p.install_date.day }}</div><div class="m">{{ p.install_date|sk_month }}</div>
+      </div>
+      <div class="install-info">
+        <div><strong>{{ p.name }}</strong>{% if p.install_time_text %} <span class="muted">· {{ p.install_time_text }}</span>{% endif %}</div>
+        <div class="small muted">📍 {{ p.install_place or 'miesto nezadané' }} · 👷 {{ p.installers_text or 'technici neurčení' }}</div>
+      </div>
+      <div class="install-side">
+        <span class="badge inst-{{ p.install_status }}">{{ p.install_status_label }}</span>
+        <span class="countdown {{ 'overdue' if p.install_health == 'overdue' else 'risk' if p.install_health == 'risk' else 'ok' }}">{{ p.install_when_text }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Moje úlohy <span class="muted small">({{ my_tasks|length }} otvorených)</span></h2>
+  {% if my_tasks %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:44px"></th><th>Úloha</th><th>Projekt</th><th>Termín</th><th>Stav</th></tr></thead>
+    <tbody>
+    {% for t in my_tasks %}{% set h = t.health %}
+      <tr>
+        <td><form method="post" action="{{ url_for('main.task_status', task_id=t.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="status" value="hotova"><input type="hidden" name="next" value="{{ request.full_path }}">
+          <button class="tick" title="Označiť ako hotovú"></button></form></td>
+        <td><strong>{{ t.title }}</strong>{% if t.status == 'prebieha' %} <span class="badge status">Rieši sa</span>{% endif %}
+          {% if t.sub_total %}<span class="sub-progress" title="Hotové podúlohy"><span class="bar"><span style="width:{{ t.percent }}%"></span></span>{{ t.sub_done }}/{{ t.sub_total }}</span>{% endif %}</td>
+        <td><a href="{{ url_for('main.project_detail', project_id=t.project_id) }}#ulohy">{{ t.project_name }}</a></td>
+        <td>{{ t.due_date|sk_date if t.due_date else '—' }}</td>
+        <td><span class="badge {{ h[0] }}">{{ h[1] }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-inline">Nemáte žiadne otvorené úlohy. Úlohy sa zadávajú v detaile projektu v časti „Úlohy“.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <form class="filters" method="get">
+    {% if current_user.is_admin %}
+    <select name="pouzivatel" onchange="this.form.submit()">
+      <option value="">Všetci používatelia</option>
+      {% for u in users %}<option value="{{ u.id }}" {{ 'selected' if user_filter == u.id }}>{{ u.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <select name="stav" onchange="this.form.submit()">
+      <option value="">Všetky stavy</option>
+      {% for key, label in statuses.items() %}<option value="{{ key }}" {{ 'selected' if status_filter == key }}>{{ label }}</option>{% endfor %}
+    </select>
+    <label class="check" style="margin:0"><input type="checkbox" name="hotove" value="1" {{ 'checked' if show_done }} onchange="this.form.submit()"> Zobraziť aj dokončené</label>
+    {% if deadline_filter %}
+    <input type="hidden" name="termin" value="{{ deadline_filter }}">
+    <a class="chip filter-chip" href="{{ url_for('main.dashboard', **base_args) }}">{{ 'Len po termíne' if deadline_filter == 'po' else 'Len deadline do ' ~ config.DUE_SOON_DAYS ~ ' dní' }} ✕</a>
+    {% endif %}
+    <div style="flex:1"></div>
+    <div class="legend">
+      <span><i style="background:var(--ok)"></i>V poriadku</span>
+      <span><i style="background:var(--risk)"></i>Blíži sa termín / ohrozený</span>
+      <span><i style="background:var(--overdue)"></i>Po termíne</span>
+      <span><i style="background:var(--paused)"></i>Pozastavený</span>
+      <span><i style="background:var(--done)"></i>Hotový</span>
+      <span><i class="lg-flag"></i>deadline projektu</span>
+      <span><i class="lg-dot"></i>termín úlohy</span>
+      <span><i class="lg-install">🔧</i>inštalácia</span>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Časová os</h2>
+  {% if timeline %}
+  <div class="timeline">
+    <div class="tl-grid">
+      {% for t in timeline.ticks %}<div class="line" style="left:{{ t.left }}%"></div>{% endfor %}
+      <div class="tl-today" style="left:{{ timeline.today }}%"></div>
+    </div>
+    <div class="tl-head">
+      <div class="tl-label muted small">Projekt</div>
+      <div class="tl-track">{% for t in timeline.ticks %}<span class="tl-tick" style="left:{{ t.left }}%">{{ t.label }}</span>{% endfor %}</div>
+    </div>
+    {% for r in timeline.rows %}{% set p = r.p %}{% set h = p.health %}
+    <div class="tl-row {{ h[0] }}">
+      <div class="tl-label">
+        <a href="{{ url_for('main.project_detail', project_id=p.id) }}">{{ p.name }}</a><br>
+        <span class="who" title="{{ p.members_text }}">{{ p.members_text or 'nepridelený' }}</span>
+      </div>
+      <div class="tl-track">
+        <a class="tl-bar {{ h[0] }}" href="{{ url_for('main.project_detail', project_id=p.id) }}"
+           style="left:{{ r.left }}%;width:{{ r.width }}%"
+           title="{{ p.name }} | {{ p.start_date|sk_date }} – {{ p.deadline|sk_date }} | {{ p.status_label }}, {{ p.progress }} % | {{ h[1] }}">
+          <span class="fill" style="width:{{ p.progress }}%"></span>
+          <span class="txt">{{ p.progress }} %</span>
+        </a>
+        {% for td in r.tasks %}{% set t = td.t %}
+        <a class="tl-task {{ t.health[0] }}" style="left:{{ td.left }}%" href="{{ url_for('main.project_detail', project_id=p.id, uloha=t.id, hotove_ulohy=1 if t.is_done else None) }}#uloha-{{ t.id }}"
+           title="Úloha: {{ t.title }} · {{ t.assignee_name or 'nepridelená' }} · do {{ t.due_date|sk_date }} · {{ t.health[1] }}"></a>
+        {% endfor %}
+        {% if r.install is not none %}
+        <a class="tl-install {{ p.install_health }}" style="left:{{ r.install }}%" href="{{ url_for('main.project_detail', project_id=p.id) }}#instalacia"
+           title="Inštalácia {{ p.install_date|sk_weekday }} {{ p.install_date|sk_date }} {{ p.install_time_text }} · {{ p.install_place or '' }} · {{ p.install_status_label }}">🔧</a>
+        {% endif %}
+        <span class="tl-deadline {{ h[0] }}{{ ' flip' if r.flip }}" style="left:{{ r.end }}%" title="Deadline {{ p.deadline|sk_weekday }} {{ p.deadline|sk_date }}">
+          <span class="flag"></span>
+          <span class="dl-label"><b>{{ p.deadline.day }}.{{ p.deadline.month }}.</b> {{ p.countdown_short }}</span>
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Žiadne projekty na zobrazenie.
+    {% if not show_done and stats.done %}<br><a href="{{ url_for('main.dashboard', hotove=1, **base_args) }}">Zobraziť aj dokončené projekty ({{ stats.done }})</a>{% endif %}</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Zoznam projektov</h2>
+  {% if projects %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Projekt</th><th>Riešitelia</th><th>Stav</th><th>Plnenie</th><th>Deadline</th><th>Hodnotenie</th><th>Úlohy</th><th>Dok.</th></tr></thead>
+    <tbody>
+    {% for p in projects %}{% set h = p.health %}
+      <tr class="row-{{ h[0] }}">
+        <td><a href="{{ url_for('main.project_detail', project_id=p.id) }}"><strong>{{ p.name }}</strong></a></td>
+        <td>{{ p.members_text or '—' }}</td>
+        <td><span class="badge status">{{ p.status_label }}</span></td>
+        <td style="min-width:120px"><div class="progress"><span style="width:{{ p.progress }}%"></span></div><span class="small muted">{{ p.progress }} %</span></td>
+        <td class="nowrap"><strong>{{ p.deadline|sk_date }}</strong> <span class="small muted">{{ p.deadline|sk_weekday }}</span><br>
+          <span class="countdown {{ h[0] }}">{{ p.deadline_text }}</span></td>
+        <td><span class="badge {{ h[0] }}">{{ h[1] }}</span></td>
+        <td>{% if p.task_count %}{{ p.task_done }}/{{ p.task_count }}{% else %}—{% endif %}</td>
+        <td>{{ p.doc_count }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty">Zatiaľ tu nie sú žiadne projekty.{% if current_user.is_admin %} <a href="{{ url_for('main.project_new') }}">Založte prvý.</a>{% endif %}</div>
+  {% endif %}
+</div>
+{% endblock %}
