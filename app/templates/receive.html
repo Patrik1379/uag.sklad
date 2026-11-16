@@ -36,10 +36,10 @@
 
 {% if candidates %}
 <div class="card">
-  <h2>Presné objednávacie číslo sa nenašlo – podobné diely ({{ candidates|length }})</h2>
+  <h2>Presné objednávacie číslo ani EAN sa nenašli – podobné diely ({{ candidates|length }})</h2>
   <p class="small muted" style="margin-top:-0.4rem">Hľadané vo všetkých údajoch skladovej karty (názov, výrobca, parametre, poznámka…). Vyberte správny diel.</p>
   <table class="data">
-    <thead><tr><th></th><th>Označenie</th><th>Objednávacie číslo</th><th>Názov</th><th>Výrobca</th><th></th></tr></thead>
+    <thead><tr><th></th><th>Označenie</th><th>Objednávacie číslo</th><th>Názov</th><th>Výrobca</th><th>Dodávateľ</th><th></th></tr></thead>
     <tbody>
     {% for c in candidates %}
       <tr>
@@ -48,6 +48,7 @@
         <td class="mono">{{ c.order_code or '' }}{% if c.ean %}<div class="small muted">EAN {{ c.ean }}</div>{% endif %}</td>
         <td>{{ c.name }}{% if c.matched %}<div class="small muted">nájdené v: {{ c.matched|join(', ') }}</div>{% endif %}</td>
         <td>{{ c.manufacturer or '' }}</td>
+        <td>{{ c.supplier or '' }}</td>
         <td class="num"><a class="btn sm primary" href="{{ url_for('main.receive', diel=c.id) }}">Vybrať</a></td>
       </tr>
     {% endfor %}
@@ -72,7 +73,7 @@
         <dt>Objednávacie číslo</dt><dd class="mono">{{ part.order_code or '—' }}</dd>
         {% if part.ean %}<dt>EAN</dt><dd class="mono">{{ part.ean }}</dd>{% endif %}
         {% if part.manufacturer %}<dt>Výrobca</dt><dd>{{ part.manufacturer }}</dd>{% endif %}
-        {% if part.supplier %}<dt>Dodávateľ</dt><dd>{{ part.supplier }}</dd>{% endif %}
+        <dt>Dodávateľ</dt><dd>{{ part.supplier or '—' }}</dd>
         {% if part|loc %}<dt>Umiestnenie</dt><dd>{{ location(part) }}</dd>{% endif %}
         <dt>Voľný sklad</dt><dd>{{ part.free }} {{ part.unit }}</dd>
       </dl>

@@ -170,10 +170,14 @@ def receive():
         # naskenovaný kód môže obsahovať viac údajov alebo predpony (1P…, ]C1…) – skúšame varianty
         variants = scan_variants(q)
         exact = []
-        for v in variants:
-            exact = db.query(
-                "SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?) OR LOWER(code) = LOWER(?) "
-                "OR ean = ? ORDER BY code", (v, v, normalize_ean(v) or v))
+        # 1. objednávacie číslo alebo EAN, 2. interné označenie karty, 3. hľadanie vo všetkých údajoch
+        for sql, args in (
+                ("LOWER(order_code) = LOWER(?) OR ean = ?", lambda v: (v, normalize_ean(v) or v)),
+                ("LOWER(code) = LOWER(?)", lambda v: (v,))):
+            for v in variants:
+                exact = db.query(f"SELECT * FROM parts WHERE {sql} ORDER BY code", args(v))
+                if exact:
+                    break
             if exact:
                 break
         if len(exact) == 1:

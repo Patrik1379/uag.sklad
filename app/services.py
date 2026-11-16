@@ -436,6 +436,8 @@ def search_parts(q, limit=50):
             score += 1000
         elif q_compact and (q_compact in compact["order_code"] or q_compact in compact["code"]):
             score += 500
+        if q_compact and (q_compact == compact["order_code"] or (q_ean and q_ean == p.get("ean"))):
+            score += 300                       # objednávacie číslo / EAN má prednosť pred označením
         if q_compact and q_compact in compact["name"]:
             score += 200
         score += 10 * sum(1 for t in tokens if t in folded["name"])
