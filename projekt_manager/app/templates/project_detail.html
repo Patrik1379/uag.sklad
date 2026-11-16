@@ -18,7 +18,7 @@
   <div class="actions">
     <a class="btn" href="{{ url_for('main.project_edit', project_id=project.id) }}">Upraviť</a>
     <form method="post" action="{{ url_for('main.project_delete', project_id=project.id) }}"
-          onsubmit="return confirm('Naozaj zmazať projekt aj so všetkými dokumentmi?')">
+          onsubmit="return confirm('Naozaj zmazať projekt aj so všetkými dokumentmi?{% if project.sklad_id %} Zmaže sa aj v sklade (ak tam už má kusovník alebo príjmy, len sa ukončí).{% endif %}')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-danger">Zmazať</button>
     </form>

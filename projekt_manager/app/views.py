@@ -354,8 +354,10 @@ def project_delete(project_id):
         os.rmdir(folder)
     except OSError:
         pass
+    sklad_msg = sklad.remove(project_id) if project.sklad_id else None
+    images.delete(project.image)
     execute("DELETE FROM projects WHERE id = ?", (project_id,))
-    flash(f"Projekt „{project.name}“ bol zmazaný.", "success")
+    flash(f"Projekt „{project.name}“ bol zmazaný." + (f" {sklad_msg}" if sklad_msg else ""), "success")
     return redirect(url_for("main.dashboard"))
 
 

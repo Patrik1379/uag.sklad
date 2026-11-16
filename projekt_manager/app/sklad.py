@@ -160,3 +160,20 @@ def download_image(project_id, timeout=20):
     except Exception as exc:
         log.warning("Sklad – obrázok projektu %s sa nepodarilo stiahnuť: %s", project_id, exc)
         return False, None
+
+
+def remove(project_id):
+    """Projekt bol zmazaný tu → zmaže ho aj v sklade (alebo ho tam ukončí, ak už má kusovník / príjmy)."""
+    if not enabled():
+        return None
+    ok, data = _call("DELETE", f"/projekty/pm:{project_id}")
+    forget()
+    if not ok:
+        return f"V sklade sa projekt nepodarilo zmazať ({data}) – zmažte ho tam ručne."
+    res = data.get("result")
+    if res == "deleted":
+        return "Zmazaný aj v sklade."
+    if res == "closed":
+        return ("V sklade má projekt kusovník alebo príjmy, preto sa tam len ukončil – "
+                "ak už nie je potrebný, zmažte ho v sklade (naskladnené kusy sa presunú do voľného skladu).")
+    return None

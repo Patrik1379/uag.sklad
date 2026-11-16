@@ -7,6 +7,8 @@ GET  /api/v1/projekty          stav všetkých prepojených projektov naraz (pre
 GET  /api/v1/projekty/<ref>    stav projektu v sklade (kompletnosť dielov)
 GET  /api/v1/projekty/<ref>/obrazok   obrázok projektu (súbor JPEG)
 POST /api/v1/projekty/<ref>/obrazok   nahratie nového obrázka projektu (pole "image")
+DELETE /api/v1/projekty/<ref>         projekt bol zmazaný v Projektoch → zmaže sa aj tu (ak nemá diely),
+                                      inak sa len ukončí a odpojí, aby sa kusovník a príjmy nestratili
 GET  /api/v1/ping              overenie spojenia a kľúča
 """
 import secrets
@@ -170,3 +172,31 @@ def project_image_set(ref):
     db.commit()
     delete_image(p.get("image"))
     return jsonify(ok=True, image=name)
+
+
+@bp.route("/projekty/<ref>", methods=["DELETE"])
+def project_remove(ref):
+    from datetime import datetime
+
+    from .services import delete_image
+
+    _check_key()
+    p = _by_ref(ref)
+    if not p:
+        return jsonify(ok=True, result="missing")
+    db = get_db()
+    items = db.scalar("SELECT COUNT(*) FROM project_parts WHERE project_id = ?", (p["id"],)) or 0
+    received = db.scalar("SELECT COUNT(*) FROM receipts WHERE project_id = ?", (p["id"],)) or 0
+    if not items and not received:
+        db.execute("UPDATE racks SET project_id = NULL WHERE project_id = ?", (p["id"],))
+        db.execute("DELETE FROM projects WHERE id = ?", (p["id"],))
+        db.commit()
+        delete_image(p.get("image"))
+        return jsonify(ok=True, result="deleted")
+    note = (p.get("note") or "").rstrip()
+    note += ("\n\n" if note else "") + (f"Projekt bol {datetime.now():%d.%m.%Y} zmazaný v Projektoch – v sklade zostal "
+                                         f"ukončený kvôli kusovníku a príjmom. Ak už nie je potrebný, zmažte ho tu.")
+    db.execute("UPDATE projects SET status = 'ukonceny', external_ref = NULL, external_url = NULL, note = ? WHERE id = ?",
+               (note, p["id"]))
+    db.commit()
+    return jsonify(ok=True, result="closed", items=items, receipts=received)

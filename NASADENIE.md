@@ -228,8 +228,8 @@ a v detaile projektu uvidíte, koľko materiálu je naskladnené.
 6. Projekty založené pred prepojením pošlete tlačidlom **Odoslať všetky projekty do skladu**.
 
 Čo sa prenáša: názov, číslo zákazky, zákazník, začiatok, termín a popis (popis len pri založení).
-Keď je projekt v Projekt manažéri *Hotový*, v sklade sa ukončí. Zmazanie projektu sa do skladu
-neprenáša (diely a príjmy v sklade zostanú).
+Keď je projekt v Projekt manažéri *Hotový*, v sklade sa ukončí. Zmazaný projekt sa zmaže aj v sklade;
+ak tam už má kusovník alebo príjmy, len sa ukončí a odpojí (zmazať ho potom môže administrátor skladu).
 
 ## Zálohy
 
