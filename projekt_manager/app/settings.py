@@ -14,6 +14,7 @@ FIELDS = {
     "APP_NAME":                  ("str",  "Názov aplikácie"),
     "APP_URL":                   ("str",  "Verejná adresa aplikácie"),
     "DUE_SOON_DAYS":             ("int",  "Upozorniť na deadline (dni vopred)"),
+    "RISK_MARGIN":               ("int",  "Ohrozený projekt – povolené zaostávanie (%)"),
     "MAIL_ENABLED":              ("bool", "Odosielať e-maily"),
     "MAIL_SERVER":               ("str",  "SMTP server"),
     "MAIL_PORT":                 ("int",  "Port"),

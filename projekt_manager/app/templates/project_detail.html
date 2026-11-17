@@ -172,8 +172,18 @@
                 <form method="post" action="{{ url_for('main.subtask_toggle', subtask_id=s.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="tick sm{{ ' on' if s.done }}" title="{{ 'Vrátiť ako nesplnenú' if s.done else 'Označiť ako splnenú' }}">{{ '✓' if s.done }}</button>
                 </form>
-                <span class="sub-title">{{ s.title }}</span>
+                {% set can_edit = current_user.is_admin or current_user.id in (t.created_by_id, t.assignee_id, s.created_by_id) %}
+                <span class="sub-title"{% if can_edit %} title="Dvojklikom upravíte"{% endif %}>{{ s.title }}</span>
+                {% if can_edit %}
+                <form method="post" action="{{ url_for('main.subtask_edit', subtask_id=s.id) }}" class="sub-edit" hidden>
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="text" name="title" value="{{ s.title }}" maxlength="300" required>
+                  <button class="btn btn-sm btn-primary">Uložiť</button>
+                  <button type="button" class="btn btn-sm sub-cancel">Zrušiť</button>
+                </form>
+                {% endif %}
                 {% if s.done and s.done_by %}<span class="sub-who">{{ s.done_by }}</span>{% endif %}
+                {% if can_edit %}<button type="button" class="btn-link muted sub-pen" title="Upraviť podúlohu">✎</button>{% endif %}
                 {% if current_user.is_admin or t.created_by_id == current_user.id or s.created_by_id == current_user.id %}
                 <form method="post" action="{{ url_for('main.subtask_delete', subtask_id=s.id) }}" class="sub-del" onsubmit="return confirm('Zmazať podúlohu?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn-link muted" title="Zmazať podúlohu">✕</button>
@@ -387,6 +397,29 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script>
+// úprava podúlohy priamo v zozname: ✎ alebo dvojklik na názov, Enter uloží, Esc zruší
+(function () {
+  function open(li) {
+    const f = li.querySelector('.sub-edit'); if (!f) return;
+    li.classList.add('editing'); f.hidden = false;
+    const inp = f.querySelector('input[name=title]'); inp.focus(); inp.select();
+  }
+  function close(li) {
+    const f = li.querySelector('.sub-edit'); if (!f) return;
+    li.classList.remove('editing'); f.hidden = true;
+    f.querySelector('input[name=title]').value = li.querySelector('.sub-title').textContent;
+  }
+  document.querySelectorAll('.subtask').forEach(function (li) {
+    const pen = li.querySelector('.sub-pen'), t = li.querySelector('.sub-title'), f = li.querySelector('.sub-edit');
+    if (!f) return;
+    pen && pen.addEventListener('click', function () { open(li); });
+    t.addEventListener('dblclick', function () { open(li); });
+    f.querySelector('.sub-cancel').addEventListener('click', function () { close(li); });
+    f.querySelector('input[name=title]').addEventListener('keydown', function (e) { if (e.key === 'Escape') close(li); });
+  });
+})();
+</script>
 <script>
 (function () {
   const dz = document.getElementById('dropzone'), input = document.getElementById('files'),

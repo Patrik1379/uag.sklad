@@ -662,3 +662,11 @@ table.docs .folder-row td { background: #fafbfc; }
 .disk-bar.warn span { background: var(--risk); }
 .disk-bar.crit span { background: var(--overdue); }
 .flash.warn { background: #fff6e0; border-color: #f3dca3; color: #7a5300; }
+
+/* úprava podúlohy */
+.subtask .sub-pen { opacity: 0; transition: opacity .12s; font-size: .95rem; }
+.subtask:hover .sub-pen { opacity: 1; }
+.subtask .sub-edit { flex: 1; display: flex; gap: 6px; align-items: center; }
+.subtask .sub-edit input[name=title] { flex: 1; padding: 3px 8px; font-size: .88rem; }
+.subtask.editing .sub-title, .subtask.editing .sub-who, .subtask.editing .sub-pen, .subtask.editing .sub-del { display: none; }
+@media (hover: none) { .subtask .sub-pen { opacity: 1; } }

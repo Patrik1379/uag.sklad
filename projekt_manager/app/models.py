@@ -177,8 +177,10 @@ class Project:
         soon = current_app.config.get("DUE_SOON_DAYS", 7)
         if self.status == "pozastaveny":
             return "paused", "Pozastavený"
-        if self.days_left <= soon or self.progress + 20 < self.expected_progress:
-            return "risk", "Ohrozený" if self.progress + 20 < self.expected_progress else f"Termín o {self.days_left} d"
+        margin = current_app.config.get("RISK_MARGIN", 20)
+        behind = self.progress + margin < self.expected_progress
+        if self.days_left <= soon or behind:
+            return "risk", "Ohrozený" if behind else f"Termín o {self.days_left} d"
         if not getattr(self, "task_count", 0):
             return "paused", "Bez úloh"           # bez úloh sa nedá posúdiť, či je projekt v poriadku
         return "ok", "Podľa plánu"

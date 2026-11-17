@@ -76,7 +76,11 @@
         <input type="text" id="APP_URL" name="APP_URL" value="{{ val('APP_URL') }}" placeholder="http://server:8000"></div>
       <div><label for="DUE_SOON_DAYS">„Blíži sa termín“ (dní pred deadlinom)</label>
         <input type="number" id="DUE_SOON_DAYS" name="DUE_SOON_DAYS" min="1" max="90" value="{{ val('DUE_SOON_DAYS') }}"></div>
+      <div><label for="RISK_MARGIN">„Ohrozený“ – povolené zaostávanie (%)</label>
+        <input type="number" id="RISK_MARGIN" name="RISK_MARGIN" min="0" max="100" value="{{ val('RISK_MARGIN') }}"></div>
     </div>
+    <p class="muted small">Projekt je <b>ohrozený</b>, keď jeho plnenie zaostáva za uplynutým časom o viac, než je povolené zaostávanie.
+      Napr. pri 20 %: polovica času uplynula (≈ 50 %) a plnenie je pod 30 %. Menšie číslo = prísnejšie hodnotenie.</p>
   </section>
 
   <div class="actions settings-save"><button class="btn btn-primary" name="action" value="save">Uložiť nastavenia</button></div>

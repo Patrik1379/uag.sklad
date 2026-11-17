@@ -45,6 +45,8 @@ class Config:
     DAILY_REPORT_TIME = os.getenv("DAILY_REPORT_TIME", "07:30")  # HH:MM, čas servera
     DAILY_REPORT_SKIP_WEEKEND = _bool("DAILY_REPORT_SKIP_WEEKEND", "true")
     DUE_SOON_DAYS = int(os.getenv("DUE_SOON_DAYS", "7"))
+    # o koľko percentuálnych bodov môže plnenie zaostávať za uplynutým časom, kým je projekt „Ohrozený“
+    RISK_MARGIN = int(os.getenv("RISK_MARGIN", "20"))
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

@@ -811,6 +811,21 @@ def subtask_toggle(subtask_id):
     return _subtask_redirect(task)
 
 
+@bp.route("/podulohy/<int:subtask_id>/upravit", methods=["POST"])
+@login_required
+def subtask_edit(subtask_id):
+    """Oprava názvu podúlohy (upraviť môže admin, zadávateľ úlohy, jej riešiteľ a autor podúlohy)."""
+    s, task, _project = _subtask_or_404(subtask_id)
+    if not (g.user["is_admin"] or g.user["id"] in (task.created_by_id, task.assignee_id, s["created_by_id"])):
+        abort(403)
+    title = request.form.get("title", "").strip()[:300]
+    if not title:
+        flash("Názov podúlohy nemôže byť prázdny.", "error")
+    elif title != s["title"]:
+        execute("UPDATE subtasks SET title = ? WHERE id = ?", (title, subtask_id))
+    return _subtask_redirect(task)
+
+
 @bp.route("/podulohy/<int:subtask_id>/zmazat", methods=["POST"])
 @login_required
 def subtask_delete(subtask_id):
@@ -1100,6 +1115,10 @@ def _read_settings_form(f, cfg):
     if days is None or not 1 <= days <= 90:
         errors.append("Upozornenie na deadline: zadajte počet dní 1 – 90.")
     v["DUE_SOON_DAYS"] = days or 7
+    margin = f.get("RISK_MARGIN", type=int)
+    if margin is None or not 0 <= margin <= 100:
+        errors.append("Ohrozený projekt: zadajte povolené zaostávanie 0 – 100 %.")
+    v["RISK_MARGIN"] = 20 if margin is None else margin
 
     v["MAIL_ENABLED"] = "MAIL_ENABLED" in f
     v["MAIL_SERVER"] = f.get("MAIL_SERVER", "").strip()
