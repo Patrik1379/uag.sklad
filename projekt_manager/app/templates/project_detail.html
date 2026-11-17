@@ -254,10 +254,12 @@
         <h2>Dokumenty ({{ doc_total }})</h2>
         <button type="button" class="btn btn-sm" onclick="var f=document.getElementById('new-folder');f.hidden=!f.hidden;if(!f.hidden)f.querySelector('input[name=name]').focus()">📁 Nový priečinok</button>
       </div>
+      {% if breadcrumb %}
       <nav class="crumbs">
-        <a href="{{ url_for('main.project_detail', project_id=project.id) }}#dokumenty">📂 Dokumenty</a>
+        <a href="{{ url_for('main.project_detail', project_id=project.id) }}#dokumenty">Dokumenty</a>
         {% for f in breadcrumb %}<span>/</span>{% if not loop.last %}<a href="{{ url_for('main.project_detail', project_id=project.id, priecinok=f.id) }}#dokumenty">{{ f.name }}</a>{% else %}<b>{{ f.name }}</b>{% endif %}{% endfor %}
       </nav>
+      {% endif %}
       <form method="post" action="{{ url_for('main.folder_create', project_id=project.id) }}" id="new-folder" class="inline-row" hidden>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="parent_id" value="{{ cur_id or '' }}">
