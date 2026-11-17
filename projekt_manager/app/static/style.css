@@ -640,3 +640,18 @@ a.mat-link:hover .progress { outline: 2px solid var(--line); }
 /* logo v hornej lište */
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none !important; }
 .brand-logo { flex-shrink: 0; display: block; }
+
+/* priečinky dokumentov */
+.crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .92rem; margin: 2px 0 8px; }
+.crumbs span { color: var(--muted); }
+.inline-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.inline-row input[type=text], .inline-row select { flex: 1; min-width: 160px; width: auto; }
+table.docs .ficon { margin-right: 6px; }
+table.docs .folder-row td { background: #fafbfc; }
+.doc-actions { text-align: right; white-space: nowrap; }
+.mini-menu { display: inline-block; text-align: left; }
+.mini-menu > summary { list-style: none; cursor: pointer; }
+.mini-menu > summary::-webkit-details-marker { display: none; }
+.mini-menu[open] { display: block; min-width: 260px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
+.mini-menu[open] > summary { margin-bottom: 4px; }
+[hidden] { display: none !important; }

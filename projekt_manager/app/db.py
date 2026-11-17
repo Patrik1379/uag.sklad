@@ -98,6 +98,16 @@ CREATE TABLE IF NOT EXISTS documents (
     uploaded_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
+-- priečinky dokumentov projektu (vnorené cez parent_id; NULL = hlavný priečinok)
+CREATE TABLE IF NOT EXISTS doc_folders (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id    INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    parent_id     INTEGER REFERENCES doc_folders(id) ON DELETE CASCADE,
+    name          TEXT NOT NULL,
+    created_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
 CREATE TABLE IF NOT EXISTS project_log (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -143,6 +153,9 @@ def close_db(_exc=None):
 
 def _migrate(conn):
     """Prevod zo staršej verzie (jeden riešiteľ v stĺpci projects.assignee_id)."""
+    doc_cols = [r[1] for r in conn.execute("PRAGMA table_info(documents)")]
+    if "folder_id" not in doc_cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN folder_id INTEGER REFERENCES doc_folders(id) ON DELETE SET NULL")
     user_cols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
     if "font_scale" not in user_cols:
         conn.execute("ALTER TABLE users ADD COLUMN font_scale INTEGER NOT NULL DEFAULT 100")

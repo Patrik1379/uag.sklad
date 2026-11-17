@@ -249,40 +249,96 @@
     </div>
 
     <div class="card" id="dokumenty">
-      <h2>Dokumenty ({{ documents|length }})</h2>
-      <form method="post" enctype="multipart/form-data" action="{{ url_for('main.document_upload', project_id=project.id) }}" id="upload-form">
+      {% set cur_id = cur_folder.id if cur_folder else none %}
+      <div class="card-head">
+        <h2>Dokumenty ({{ doc_total }})</h2>
+        <button type="button" class="btn btn-sm" onclick="var f=document.getElementById('new-folder');f.hidden=!f.hidden;if(!f.hidden)f.querySelector('input[name=name]').focus()">📁 Nový priečinok</button>
+      </div>
+      <nav class="crumbs">
+        <a href="{{ url_for('main.project_detail', project_id=project.id) }}#dokumenty">📂 Dokumenty</a>
+        {% for f in breadcrumb %}<span>/</span>{% if not loop.last %}<a href="{{ url_for('main.project_detail', project_id=project.id, priecinok=f.id) }}#dokumenty">{{ f.name }}</a>{% else %}<b>{{ f.name }}</b>{% endif %}{% endfor %}
+      </nav>
+      <form method="post" action="{{ url_for('main.folder_create', project_id=project.id) }}" id="new-folder" class="inline-row" hidden>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="parent_id" value="{{ cur_id or '' }}">
+        <input type="text" name="name" maxlength="80" placeholder="Názov priečinka, napr. Výkresy" required>
+        <button class="btn btn-primary btn-sm">Vytvoriť</button>
+      </form>
+
+      {% if subfolders or documents or cur_folder %}
+      <div class="table-wrap" style="margin-top:8px">
+      <table class="docs">
+        <thead><tr><th>Názov</th><th>Veľkosť</th><th>Nahral</th><th>Dátum</th><th></th></tr></thead>
+        <tbody>
+        {% if cur_folder %}
+          <tr class="folder-row"><td colspan="5"><a href="{{ url_for('main.project_detail', project_id=project.id, priecinok=cur_folder.parent_id) }}#dokumenty">⬑ o úroveň vyššie</a></td></tr>
+        {% endif %}
+        {% for f in subfolders %}
+          <tr class="folder-row">
+            <td><a href="{{ url_for('main.project_detail', project_id=project.id, priecinok=f.id) }}#dokumenty"><span class="ficon">📁</span><b>{{ f.name }}</b></a>
+              <span class="small muted">· {{ f.files }} {{ 'súbor' if f.files == 1 else 'súbory' if 1 < f.files < 5 else 'súborov' }}{% if f.dirs %}, {{ f.dirs }} {{ 'priečinok' if f.dirs == 1 else 'priečinky' if f.dirs < 5 else 'priečinkov' }}{% endif %}</span></td>
+            <td></td><td></td><td class="small">{{ f.created_at|sk_date }}</td>
+            <td class="doc-actions">{% if current_user.is_admin or f.created_by_id == current_user.id %}
+              <details class="mini-menu"><summary class="btn-link small">upraviť</summary>
+                <form method="post" action="{{ url_for('main.folder_rename', folder_id=f.id) }}" class="inline-row">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="text" name="name" value="{{ f.name }}" maxlength="80" required>
+                  <button class="btn btn-sm">Premenovať</button>
+                </form>
+                <form method="post" action="{{ url_for('main.folder_delete', folder_id=f.id) }}"
+                      onsubmit="return confirm('Zmazať priečinok {{ f.name }}{% if f.files %} aj so všetkými súbormi ({{ f.files }}){% endif %}? Akciu nie je možné vrátiť.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn-link btn-danger small">zmazať priečinok</button>
+                </form>
+              </details>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        {% for d in documents %}
+          <tr>
+            <td><span class="ficon">📄</span><a href="{{ url_for('main.document_download', doc_id=d.id) }}">{{ d.filename }}</a>
+              <a class="small" href="{{ url_for('main.document_download', doc_id=d.id, zobrazit=1) }}" target="_blank">(zobraziť)</a></td>
+            <td class="small">{{ d.size|filesize }}</td>
+            <td class="small">{{ d.uploader or '—' }}</td>
+            <td class="small">{{ d.uploaded_at|sk_date }}</td>
+            <td class="doc-actions">{% if current_user.is_admin or d.uploaded_by_id == current_user.id %}
+              <details class="mini-menu"><summary class="btn-link small">upraviť</summary>
+                {% if folder_choices %}
+                <form method="post" action="{{ url_for('main.document_move', doc_id=d.id) }}" class="inline-row">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <select name="folder_id">
+                    <option value="" {{ 'selected' if not d.folder_id }}>Dokumenty (hlavný priečinok)</option>
+                    {% for fid, path in folder_choices %}<option value="{{ fid }}" {{ 'selected' if d.folder_id == fid }}>{{ path }}</option>{% endfor %}
+                  </select>
+                  <button class="btn btn-sm">Presunúť</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{{ url_for('main.document_delete', doc_id=d.id) }}" onsubmit="return confirm('Zmazať dokument {{ d.filename }}?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn-link btn-danger small">zmazať súbor</button>
+                </form>
+              </details>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        {% if cur_folder and not subfolders and not documents %}
+          <tr><td colspan="5" class="small muted">Priečinok je prázdny – nahrajte doň súbory nižšie.</td></tr>
+        {% endif %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('main.document_upload', project_id=project.id) }}" id="upload-form" style="margin-top:14px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="folder_id" value="{{ cur_id or '' }}">
         <div class="dropzone" id="dropzone">
           Pretiahnite súbory sem alebo <label for="files" class="btn-link" style="display:inline;font-weight:600">vyberte zo zariadenia</label>
+          <div class="small">nahrajú sa do priečinka <b>{{ cur_folder.name if cur_folder else 'Dokumenty' }}</b></div>
           <input type="file" id="files" name="files" multiple hidden>
           <div class="small" id="file-names"></div>
         </div>
         <div class="actions" style="margin-top:10px"><button class="btn btn-primary btn-sm">Nahrať</button>
           <span class="small muted">Max. {{ (config.MAX_CONTENT_LENGTH / 1048576)|int }} MB na jedno nahratie</span></div>
       </form>
-      {% if documents %}
-      <div class="table-wrap" style="margin-top:14px">
-      <table>
-        <thead><tr><th>Súbor</th><th>Veľkosť</th><th>Nahral</th><th>Dátum</th><th></th></tr></thead>
-        <tbody>
-        {% for d in documents %}
-          <tr>
-            <td><a href="{{ url_for('main.document_download', doc_id=d.id) }}">{{ d.filename }}</a>
-              <a class="small" href="{{ url_for('main.document_download', doc_id=d.id, zobrazit=1) }}" target="_blank">(zobraziť)</a></td>
-            <td class="small">{{ d.size|filesize }}</td>
-            <td class="small">{{ d.uploader or '—' }}</td>
-            <td class="small">{{ d.uploaded_at|sk_date }}</td>
-            <td>{% if current_user.is_admin or d.uploaded_by_id == current_user.id %}
-              <form method="post" action="{{ url_for('main.document_delete', doc_id=d.id) }}" onsubmit="return confirm('Zmazať dokument?')">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn-link btn-danger small">zmazať</button>
-              </form>{% endif %}</td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      </div>
-      {% endif %}
     </div>
   </div>
 

@@ -192,9 +192,21 @@ def project_new():
 @login_required
 def project_detail(project_id):
     project = project_or_404(project_id)
+    folders = _folders(project_id)
+    cur = request.args.get("priecinok", type=int)
+    if cur not in folders:
+        cur = None
     documents = query(
         "SELECT d.*, u.name AS uploader FROM documents d LEFT JOIN users u ON u.id = d.uploaded_by_id "
-        "WHERE d.project_id = ? ORDER BY d.uploaded_at DESC", (project_id,))
+        "WHERE d.project_id = ? AND d.folder_id IS ? ORDER BY d.filename COLLATE NOCASE", (project_id, cur))
+    counts = {r["folder_id"]: r["n"] for r in query(
+        "SELECT folder_id, COUNT(*) AS n FROM documents WHERE project_id = ? GROUP BY folder_id", (project_id,))}
+    subfolders = sorted((f for f in folders.values() if f["parent_id"] == cur), key=lambda f: f["name"].lower())
+    for f in subfolders:
+        inside = _folder_tree_ids(folders, f["id"])
+        f["files"] = sum(counts.get(i, 0) for i in inside)
+        f["dirs"] = len(inside) - 1
+    doc_total = sum(counts.values())
     history = query(
         "SELECT l.*, u.name AS user_name FROM project_log l LEFT JOIN users u ON u.id = l.user_id "
         "WHERE l.project_id = ? ORDER BY l.id DESC LIMIT 50", (project_id,))
@@ -203,6 +215,10 @@ def project_detail(project_id):
                    "LEFT JOIN users u ON u.id = k.user_id WHERE t.project_id = ? ORDER BY k.id", (project_id,)):
         comments.setdefault(c["task_id"], []).append(c)
     return render_template("project_detail.html", project=project, documents=documents,
+                           folders=folders, cur_folder=folders.get(cur), subfolders=subfolders,
+                           breadcrumb=_folder_path(folders, cur), doc_total=doc_total,
+                           folder_choices=sorted(((fid, "/".join(x["name"] for x in _folder_path(folders, fid)))
+                                                  for fid in folders), key=lambda t: t[1].lower()),
                            history=history, statuses=STATUSES,
                            tasks=list_tasks(project_id=project_id), task_statuses=TASK_STATUSES,
                            task_weights=TASK_WEIGHTS,
@@ -374,6 +390,9 @@ def document_upload(project_id):
 
     folder = os.path.join(current_app.config["UPLOAD_FOLDER"], str(project.id))
     os.makedirs(folder, exist_ok=True)
+    folder_id = request.form.get("folder_id", type=int)
+    if folder_id not in _folders(project.id):
+        folder_id = None
     names = []
     for f in files:
         original = os.path.basename(f.filename.replace("\\", "/"))[:200]
@@ -381,12 +400,13 @@ def document_upload(project_id):
         stored = uuid.uuid4().hex + "".join(c for c in ext if c.isalnum() or c == ".")
         path = os.path.join(folder, stored)
         f.save(path)
-        execute("INSERT INTO documents(project_id, filename, stored_name, size, uploaded_by_id) VALUES (?,?,?,?,?)",
-                (project.id, original, stored, os.path.getsize(path), g.user["id"]))
+        execute("INSERT INTO documents(project_id, filename, stored_name, size, uploaded_by_id, folder_id) "
+                "VALUES (?,?,?,?,?,?)", (project.id, original, stored, os.path.getsize(path), g.user["id"], folder_id))
         names.append(original)
-    log_event(project.id, "Nahrané dokumenty: " + ", ".join(names))
+    where = _folder_label(project.id, folder_id)
+    log_event(project.id, "Nahrané dokumenty" + (f" do priečinka {where}" if folder_id else "") + ": " + ", ".join(names))
     flash(f"Nahraných súborov: {len(names)}.", "success")
-    return redirect(url_for("main.project_detail", project_id=project_id) + "#dokumenty")
+    return _docs_redirect(project_id, folder_id)
 
 
 def _document_or_404(doc_id):
@@ -420,7 +440,134 @@ def document_delete(doc_id):
     execute("DELETE FROM documents WHERE id = ?", (doc_id,))
     log_event(doc["project_id"], f"Zmazaný dokument: {doc['filename']}")
     flash("Dokument bol zmazaný.", "success")
-    return redirect(url_for("main.project_detail", project_id=doc["project_id"]) + "#dokumenty")
+    return _docs_redirect(doc["project_id"], doc["folder_id"])
+
+
+# ------------------------------------------------------- priečinky dokumentov
+
+def _folders(project_id):
+    return {f["id"]: dict(f) for f in query("SELECT * FROM doc_folders WHERE project_id = ?", (project_id,))}
+
+
+def _folder_path(folders, folder_id):
+    """Cesta od hlavného priečinka po zadaný (pre navigáciu „Dokumenty / Výkresy / Elektro“)."""
+    path, seen = [], set()
+    while folder_id in folders and folder_id not in seen:
+        seen.add(folder_id)
+        path.append(folders[folder_id])
+        folder_id = folders[folder_id]["parent_id"]
+    return list(reversed(path))
+
+
+def _folder_tree_ids(folders, folder_id):
+    """Priečinok a všetky jeho podpriečinky."""
+    out, todo = [], [folder_id]
+    while todo:
+        fid = todo.pop()
+        out.append(fid)
+        todo += [f["id"] for f in folders.values() if f["parent_id"] == fid]
+    return out
+
+
+def _folder_label(project_id, folder_id):
+    return "/".join(f["name"] for f in _folder_path(_folders(project_id), folder_id)) or "Dokumenty"
+
+
+def _docs_redirect(project_id, folder_id=None):
+    return redirect(url_for("main.project_detail", project_id=project_id, priecinok=folder_id) + "#dokumenty")
+
+
+def _clean_folder_name(name):
+    name = " ".join((name or "").replace("/", "-").replace("\\", "-").split())[:80]
+    return name.strip(". ")
+
+
+@bp.route("/projekty/<int:project_id>/priecinky", methods=["POST"])
+@login_required
+def folder_create(project_id):
+    project_or_404(project_id)
+    folders = _folders(project_id)
+    parent = request.form.get("parent_id", type=int)
+    parent = parent if parent in folders else None
+    name = _clean_folder_name(request.form.get("name"))
+    if not name:
+        flash("Zadajte názov priečinka.", "error")
+    elif any(f["parent_id"] == parent and f["name"].lower() == name.lower() for f in folders.values()):
+        flash(f"Priečinok „{name}“ tu už existuje.", "error")
+    else:
+        execute("INSERT INTO doc_folders(project_id, parent_id, name, created_by_id) VALUES (?,?,?,?)",
+                (project_id, parent, name, g.user["id"]))
+        log_event(project_id, f"Vytvorený priečinok dokumentov: {_folder_label(project_id, parent) + '/' if parent else ''}{name}")
+        flash(f"Priečinok „{name}“ bol vytvorený.", "success")
+    return _docs_redirect(project_id, parent)
+
+
+def _folder_or_404(folder_id):
+    f = query("SELECT * FROM doc_folders WHERE id = ?", (folder_id,), one=True) or abort(404)
+    project_or_404(f["project_id"])
+    return f
+
+
+@bp.route("/priecinky/<int:folder_id>/premenovat", methods=["POST"])
+@login_required
+def folder_rename(folder_id):
+    f = _folder_or_404(folder_id)
+    if not (g.user["is_admin"] or f["created_by_id"] == g.user["id"]):
+        abort(403)
+    name = _clean_folder_name(request.form.get("name"))
+    siblings = [x for x in _folders(f["project_id"]).values() if x["parent_id"] == f["parent_id"] and x["id"] != f["id"]]
+    if not name:
+        flash("Zadajte názov priečinka.", "error")
+    elif any(x["name"].lower() == name.lower() for x in siblings):
+        flash(f"Priečinok „{name}“ tu už existuje.", "error")
+    else:
+        execute("UPDATE doc_folders SET name = ? WHERE id = ?", (name, folder_id))
+        log_event(f["project_id"], f"Priečinok „{f['name']}“ premenovaný na „{name}“.")
+        flash("Priečinok bol premenovaný.", "success")
+    return _docs_redirect(f["project_id"], f["parent_id"])
+
+
+@bp.route("/priecinky/<int:folder_id>/zmazat", methods=["POST"])
+@login_required
+def folder_delete(folder_id):
+    f = _folder_or_404(folder_id)
+    folders = _folders(f["project_id"])
+    ids = _folder_tree_ids(folders, folder_id)
+    marks = ",".join("?" * len(ids))
+    docs = query(f"SELECT * FROM documents WHERE folder_id IN ({marks})", ids)
+    if docs and not g.user["is_admin"]:
+        flash("Priečinok obsahuje súbory – zmazať ho môže len administrátor (alebo súbory najprv presuňte či zmažte).", "error")
+        return _docs_redirect(f["project_id"], f["parent_id"])
+    if not (g.user["is_admin"] or f["created_by_id"] == g.user["id"]):
+        abort(403)
+    base = os.path.join(current_app.config["UPLOAD_FOLDER"], str(f["project_id"]))
+    for d in docs:
+        try:
+            os.remove(os.path.join(base, d["stored_name"]))
+        except OSError:
+            pass
+    execute(f"DELETE FROM documents WHERE folder_id IN ({marks})", ids)
+    execute(f"DELETE FROM doc_folders WHERE id IN ({marks})", ids)
+    log_event(f["project_id"], f"Zmazaný priečinok „{f['name']}“" + (f" aj s {len(docs)} súbormi." if docs else "."))
+    flash(f"Priečinok „{f['name']}“ bol zmazaný.", "success")
+    return _docs_redirect(f["project_id"], f["parent_id"])
+
+
+@bp.route("/dokumenty/<int:doc_id>/presunut", methods=["POST"])
+@login_required
+def document_move(doc_id):
+    doc = _document_or_404(doc_id)
+    if not (g.user["is_admin"] or doc["uploaded_by_id"] == g.user["id"]):
+        abort(403)
+    target = request.form.get("folder_id", type=int)
+    if target not in _folders(doc["project_id"]):
+        target = None
+    if target != doc["folder_id"]:
+        execute("UPDATE documents SET folder_id = ? WHERE id = ?", (target, doc_id))
+        where = _folder_label(doc["project_id"], target)
+        log_event(doc["project_id"], f"Dokument {doc['filename']} presunutý do: {where}")
+        flash(f"Súbor bol presunutý do priečinka {where}.", "success")
+    return _docs_redirect(doc["project_id"], doc["folder_id"])
 
 
 # ------------------------------------------------------------ inštalácia
