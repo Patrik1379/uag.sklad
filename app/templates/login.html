@@ -22,6 +22,7 @@
     <label for="p">Heslo</label>
     <input type="password" id="p" name="password" autocomplete="current-password" required>
     <div class="form-actions"><button class="btn primary" style="width:100%;justify-content:center">Prihlásiť sa</button></div>
+    <p class="small" style="text-align:center;margin:0.8rem 0 0"><a href="{{ url_for('auth.forgot_password') }}">Zabudli ste heslo?</a></p>
   </form>
 </body>
 </html>

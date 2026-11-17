@@ -244,6 +244,31 @@ ak tam už má kusovník alebo príjmy, len sa ukončí a odpojí (zmazať ho po
   scp -r root@IP_SERVERA:/opt/sklad-dielov/zalohy "C:\Zalohy\sklad"
   ```
 
+## Zabudnuté heslo
+
+Heslo sa nedá zistiť (ukladá sa len jeho nevratný odtlačok), dá sa však nastaviť nové.
+
+**Sám cez e-mail:** na prihlasovacej stránke oboch aplikácií je odkaz **Zabudli ste heslo?**. Po zadaní mena
+alebo e-mailu príde e-mail s odkazom na nastavenie nového hesla (platí 1 hodinu, dá sa použiť len raz).
+Funguje, ak má používateľ zadaný e-mail a v aplikácii je nastavený e-mailový server (SMTP).
+
+**Administrátor cez príkaz** (keď e-mail nefunguje):
+
+**Sklad dielov** (v priečinku aplikácie – na serveri `/opt/sklad-dielov`, na PC priečinok `sklad-dielov`):
+
+```
+docker compose cp zmen_heslo.py web:/tmp/zmen_heslo.py
+docker compose exec web python /tmp/zmen_heslo.py
+```
+
+**Projekty** (na serveri):
+
+```
+docker compose exec -u app projekty flask --app run create-admin
+```
+
+Zadajte e-mail, ktorým sa používateľ prihlasuje – heslo sa mu prepíše.
+
 ## Užitočné príkazy (na serveri, v priečinku /opt/sklad-dielov)
 
 | Čo | Príkaz |

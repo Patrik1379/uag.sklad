@@ -1,0 +1,8 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p>Dobrý deň {{ user.name }},</p>
+<p>niekto (pravdepodobne vy) požiadal o nové heslo do aplikácie <b>{{ app_name }}</b> pre účet <b>{{ user.email }}</b>.</p>
+<p><a href="{{ link }}" style="display:inline-block;background:#2f5bd3;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Nastaviť nové heslo</a></p>
+<p style="color:#677085">Odkaz platí 1 hodinu a dá sa použiť len raz. Ak ste o obnovu nežiadali, tento e-mail ignorujte – heslo zostáva nezmenené.</p>
+<p style="color:#677085;font-size:12px;word-break:break-all">{{ link }}</p>
+{% endblock %}

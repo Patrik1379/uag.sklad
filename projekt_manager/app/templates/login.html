@@ -11,5 +11,6 @@
     <div class="field"><label for="password">Heslo</label><input type="password" id="password" name="password" required></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center">Prihlásiť</button>
   </form>
+  <p class="small" style="text-align:center;margin:14px 0 0"><a href="{{ url_for('auth.forgot_password') }}">Zabudli ste heslo?</a></p>
 </div>
 {% endblock %}
