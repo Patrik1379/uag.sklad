@@ -66,6 +66,19 @@
   </div>
 </form>
 
+<div class="card" id="server" style="margin-top:1.2rem">
+  <h2>Server – voľné miesto</h2>
+  {% set d = server.disk %}
+  {% if d %}
+  <div class="disk-bar {{ d.level }}"><span style="width:{{ d.pct }}%"></span></div>
+  <p style="margin:0.5rem 0 0"><b>{{ d.free|bytes }} voľných</b> z {{ d.total|bytes }} · obsadené {{ d.pct }} %
+    {% if d.level == 'crit' %}<span class="badge missing">kritické</span>{% elif d.level == 'warn' %}<span class="badge partial">dochádza miesto</span>{% else %}<span class="badge ok">v poriadku</span>{% endif %}</p>
+  <p class="small muted" style="margin:0.4rem 0 0">Sklad zaberá: databáza {{ server.db|bytes if server.db is not none else '—' }}, obrázky {{ server.uploads|bytes }}.
+    Upozornenie sa zobrazí, keď je obsadených viac ako 80 % alebo voľných menej ako 5 GB.
+    Najviac miesta zvyčajne zaberajú zálohy (<code>/opt/sklad-dielov/zalohy</code>) a staré Docker obrazy.</p>
+  {% else %}<p class="muted">Údaje o disku sa nepodarilo zistiť.</p>{% endif %}
+</div>
+
 <div class="card" id="prepojenie" style="margin-top:1.2rem">
   <h2>Prepojenie s Projekt manažérom</h2>
   <p class="small muted" style="margin-top:0">Projekt založený alebo upravený v Projekt manažéri sa automaticky vytvorí / aktualizuje aj v sklade.

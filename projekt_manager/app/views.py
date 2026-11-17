@@ -1206,6 +1206,19 @@ def _settings_sklad(app, action):
     return redirect(url_for("main.settings_page") + "#sklad")
 
 
+def _server_info(app):
+    """Úložisko servera pre Nastavenia: disk + koľko zaberajú dáta Projektov."""
+    from .disk import folder_size, usage
+
+    cfg = app.config
+    try:
+        db = os.path.getsize(cfg["DATABASE"])
+    except OSError:
+        db = None
+    return {"disk": usage(cfg["DATA_DIR"], max_age=0), "db": db,
+            "docs": folder_size(cfg["UPLOAD_FOLDER"]), "images": folder_size(cfg["IMAGE_FOLDER"])}
+
+
 def _settings_ctx(app):
     cfg = app.config
     env = app.extensions["env_settings"]
@@ -1214,6 +1227,7 @@ def _settings_ctx(app):
         "security": "ssl" if cfg["MAIL_USE_SSL"] else "starttls" if cfg["MAIL_USE_TLS"] else "none",
         "has_password": bool(cfg["MAIL_PASSWORD"]),
         "has_sklad_key": bool(cfg.get("SKLAD_API_KEY")),
+        "server": _server_info(app),
         "sklad_on": sklad.enabled(cfg),
         "board_on": bool(_board_token()),
         "test_to": (query("SELECT value FROM settings WHERE key = 'test_mail_to'", one=True) or {"value": g.user["email"]})["value"],

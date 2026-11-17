@@ -244,6 +244,22 @@ ak tam už má kusovník alebo príjmy, len sa ukončí a odpojí (zmazať ho po
   scp -r root@IP_SERVERA:/opt/sklad-dielov/zalohy "C:\Zalohy\sklad"
   ```
 
+## Voľné miesto na serveri
+
+Obe aplikácie sledujú disk servera. V **Nastaveniach** (časť *Server – voľné miesto*) vidíte voľné miesto
+a koľko zaberajú dáta. Keď je obsadených viac ako 80 % alebo voľných menej ako 5 GB, administrátorom sa
+v aplikácii zobrazí upozornenie a Projekty im raz denne pošlú e-mail.
+
+Ako uvoľniť miesto (na serveri):
+
+```bash
+df -h /                                   # koľko miesta je voľné
+du -sh /opt/sklad-dielov/zalohy           # koľko zaberajú zálohy
+docker system prune -f                    # zmaže nepoužívané Docker obrazy a medzivýsledky
+```
+
+Staré zálohy si pred zmazaním stiahnite na iný počítač (príkaz `scp` v časti Zálohy).
+
 ## Zabudnuté heslo
 
 Heslo sa nedá zistiť (ukladá sa len jeho nevratný odtlačok), dá sa však nastaviť nové.

@@ -18,6 +18,7 @@ Webová aplikácia na evidenciu dielov pre plánované projekty (Python / Flask 
 - **Pripomienky** – každý používateľ môže v aplikácii poslať návrh na vylepšenie, nahlásiť chybu alebo položiť otázku (aj s obrázkom). Administrátor vidí počet nových pripomienok v menu, odpovedá na ne a mení ich stav.
 - **Nastavenia** (administrátor) – SMTP server na odosielanie e-mailov, testovací e-mail a oznámenie o novom projekte (všetkým používateľom s e-mailom a/alebo ďalším adresám). E-mail používateľa sa zadáva v časti Používatelia.
 - **Prepojenie s Projekt manažérom** – projekt založený alebo upravený v Projekt manažéri (priečinok `projekt_manager/`) sa automaticky založí / aktualizuje aj v sklade (API s kľúčom z Nastavení). Projekt manažér zobrazuje v detaile projektu, koľko materiálu je naskladnené. Postup nasadenia je v [NASADENIE.md](NASADENIE.md).
+- **Voľné miesto na serveri** – v Nastaveniach obsadenosť disku a veľkosť dát; pri nedostatku miesta upozornenie pre administrátora.
 - **Zabudnuté heslo** – odkaz na prihlasovacej stránke; používateľovi príde e-mail s odkazom na nastavenie nového hesla (platí 1 hodinu, jednorazový). Vyžaduje nastavené SMTP a e-mail pri používateľovi.
 - **Prihlásenie a role** (menom alebo e-mailom):
   - *Administrátor* – projekty, kusovníky, používatelia, storno príjmov.

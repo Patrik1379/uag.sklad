@@ -48,6 +48,7 @@ def _loop(app):
             if _is_due(app, datetime.now()) and claim_today(app.config["DATABASE"]):
                 with app.app_context():
                     send_daily_reports()
+            _check_disk(app)
             if _is_due(app, datetime.now()) and claim_today(app.config["DATABASE"], "last_install_reminder"):
                 from .mailer import send_install_reminders
                 with app.app_context():
@@ -55,6 +56,23 @@ def _loop(app):
         except Exception:  # noqa: BLE001
             log.exception("Chyba v plánovači denného reportu")
         time.sleep(60)
+
+
+def _check_disk(app):
+    """Keď na serveri dochádza miesto, pošle administrátorom raz denne upozornenie."""
+    from .disk import usage
+
+    d = usage(app.config["DATA_DIR"])
+    if not d or d["level"] == "ok" or not claim_today(app.config["DATABASE"], "last_disk_warning"):
+        return
+    from .db import query
+    from .mailer import send_mail
+
+    with app.app_context():
+        for admin in query("SELECT * FROM users WHERE active = 1 AND is_admin = 1"):
+            send_mail(admin["email"], f"Upozornenie: na serveri dochádza miesto ({100 - d['pct']} % voľných)",
+                      "email/disk.html", disk=d)
+        log.warning("Na serveri dochádza miesto: %s %% obsadených", d["pct"])
 
 
 def start_scheduler(app):

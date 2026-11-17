@@ -6,7 +6,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%230f8a5f'/><g fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'><rect x='5.5' y='6.5' width='13' height='12' rx='1.6'/><path d='M5.5 10h13M9 5v3M15 5v3'/></g></svg>">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=9">
 </head>
 <body>
 {% from "_text_size.html" import text_size_switch with context %}
@@ -40,6 +40,9 @@
 <div class="text-size-corner">{{ text_size_switch() }}</div>
 {% endif %}
 <main class="{% block main_class %}container{% endblock %}">
+  {% if disk_alert %}<div class="flash {{ 'error' if disk_alert.level == 'crit' else 'warn' }}">
+    Na serveri dochádza miesto: voľných je už len {{ disk_alert.free|bytes }} ({{ 100 - disk_alert.pct }} %).
+    <a href="{{ url_for('main.settings_page') }}#server">Podrobnosti</a></div>{% endif %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
   {% endwith %}

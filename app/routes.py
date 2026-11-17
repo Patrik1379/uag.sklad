@@ -1232,7 +1232,24 @@ def settings():
     users = get_db().query("SELECT username, full_name, email FROM users WHERE active = 1 ORDER BY username")
     linked = get_db().scalar("SELECT COUNT(*) FROM projects WHERE external_ref IS NOT NULL") or 0
     return render_template("settings.html", cfg=cfg, recipients=project_recipients(cfg), users=users,
-                           default_url=request.url_root.rstrip("/"), linked=linked)
+                           default_url=request.url_root.rstrip("/"), linked=linked, server=_server_info())
+
+
+def _server_info():
+    """Úložisko servera pre Nastavenia: disk + koľko zaberajú dáta skladu."""
+    from .db import DATABASE_URL, is_pg
+    from .disk import folder_size, usage
+
+    disk = usage(current_app.config["UPLOAD_FOLDER"], max_age=0)
+    db_size = None
+    try:
+        if is_pg():
+            db_size = get_db().scalar("SELECT pg_database_size(current_database())")
+        else:
+            db_size = os.path.getsize(DATABASE_URL.split("///", 1)[1])
+    except Exception:
+        pass
+    return {"disk": disk, "uploads": folder_size(current_app.config["UPLOAD_FOLDER"]), "db": db_size}
 
 
 @bp.route("/nastavenia/api-kluc", methods=["POST"])

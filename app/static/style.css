@@ -381,3 +381,9 @@ input.stock-input { width: 5.067rem; text-align: right; padding: 0.333rem 0.467r
 .refresh-box svg { width: 1.05rem; height: 1.05rem; color: var(--ink-2); }
 .refresh-box label { margin: 0; color: var(--ink); }
 .refresh-box select { width: auto; padding: 0.3rem 0.5rem; }
+
+/* voľné miesto na serveri */
+.disk-bar { height: 0.8rem; background: #e8e8e2; border-radius: 99px; overflow: hidden; }
+.disk-bar span { display: block; height: 100%; background: var(--good, #0ca30c); border-radius: 99px; }
+.disk-bar.warn span { background: #e0a100; }
+.disk-bar.crit span { background: #d33b3b; }

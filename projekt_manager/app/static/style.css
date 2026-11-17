@@ -655,3 +655,10 @@ table.docs .folder-row td { background: #fafbfc; }
 .mini-menu[open] { display: block; min-width: 260px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
 .mini-menu[open] > summary { margin-bottom: 4px; }
 [hidden] { display: none !important; }
+
+/* voľné miesto na serveri */
+.disk-bar { height: 10px; background: #edf0f4; border-radius: 99px; overflow: hidden; }
+.disk-bar span { display: block; height: 100%; background: var(--ok); border-radius: 99px; }
+.disk-bar.warn span { background: var(--risk); }
+.disk-bar.crit span { background: var(--overdue); }
+.flash.warn { background: #fff6e0; border-color: #f3dca3; color: #7a5300; }

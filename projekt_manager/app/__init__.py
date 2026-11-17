@@ -53,6 +53,9 @@ def create_app(config_class=Config):
         from .models import MONTHS_SK
         return MONTHS_SK[value.month - 1] if value else ""
 
+    from .disk import human as _human
+    app.jinja_env.filters["bytes"] = _human
+
     @app.template_filter("filesize")
     def filesize(n):
         for unit in ("B", "kB", "MB", "GB"):
@@ -73,7 +76,12 @@ def create_app(config_class=Config):
             scale = user["font_scale"]
         elif has_request_context():  # e-maily z plánovača sa renderujú mimo požiadavky
             scale = request.cookies.get("font_scale", type=int)
-        return {"app_name": app.config["APP_NAME"], "current_user": user,
+        disk_alert = None
+        if user and user["is_admin"]:
+            from .disk import usage
+            d = usage(app.config["DATA_DIR"])
+            disk_alert = d if d and d["level"] != "ok" else None
+        return {"app_name": app.config["APP_NAME"], "current_user": user, "disk_alert": disk_alert,
                 "font_scale": scale if scale in FONT_SCALES else 100, "font_scales": FONT_SCALES,
                 "statuses": STATUSES, "today_str": date.today().strftime("%d.%m.%Y")}
 

@@ -1,0 +1,12 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p><b style="color:{{ '#d33b3b' if disk.level == 'crit' else '#a86a00' }}">Na serveri dochádza miesto na disku.</b></p>
+<p>Voľných je už len <b>{{ disk.free|bytes }}</b> z {{ disk.total|bytes }} (obsadené {{ disk.pct }} %).</p>
+<p>Keď sa disk zaplní, aplikácie prestanú ukladať dáta, dokumenty aj zálohy. Odporúčame:</p>
+<ul>
+  <li>stiahnuť staré zálohy z priečinka <code>/opt/sklad-dielov/zalohy</code> na iný počítač a zmazať ich na serveri,</li>
+  <li>na serveri spustiť <code>docker system prune -f</code> (zmaže nepoužívané Docker obrazy),</li>
+  <li>prípadne zväčšiť disk servera u poskytovateľa.</li>
+</ul>
+<p><a href="{{ app_url }}/admin/nastavenia#server">Podrobnosti v Nastaveniach</a></p>
+{% endblock %}

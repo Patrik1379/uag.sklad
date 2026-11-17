@@ -75,6 +75,8 @@ def create_app():
     app.jinja_env.filters["t"] = tip_escape
     app.jinja_env.filters["iso"] = iso_date
     app.jinja_env.globals["csrf_token"] = csrf_token
+    from .disk import human as _human
+    app.jinja_env.filters["bytes"] = _human
     app.jinja_env.globals["portal_url"] = os.environ.get("PORTAL_URL", "").strip()
 
     from .services import location_label, location_parts, locations_map, racks_map, shelf_text
@@ -95,10 +97,13 @@ def create_app():
     @app.context_processor
     def inject_user():
         user = current_user()
-        new_feedback = 0
+        new_feedback, disk_alert = 0, None
         if user and user["role"] == "admin":
             from .db import get_db
+            from .disk import usage
             new_feedback = int(get_db().scalar("SELECT COUNT(*) FROM feedback WHERE status = 'nova'") or 0)
-        return {"current_user": user, "new_feedback": new_feedback}
+            d = usage(app.config["UPLOAD_FOLDER"])
+            disk_alert = d if d and d["level"] != "ok" else None
+        return {"current_user": user, "new_feedback": new_feedback, "disk_alert": disk_alert}
 
     return app

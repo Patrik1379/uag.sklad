@@ -2,19 +2,12 @@
 {% block title %}Nastavenia – {{ app_name }}{% endblock %}
 {% macro val(key) %}{{ form[key] if form is not none and key in form else (cfg[key] if cfg[key] is not none else '') }}{% endmacro %}
 {% macro checked(key) %}{{ 'checked' if (key in form if form is not none else cfg[key]) }}{% endmacro %}
-{% macro envhint(key, secret=False) %}{% if key in overridden %}<div class="set-hint">Upravené v aplikácii · v .env: {{ ('••••' if env[key] else 'prázdne') if secret else (('áno' if env[key] else 'nie') if env[key] is sameas true or env[key] is sameas false else (env[key] if env[key] not in (none, '') else 'prázdne')) }}</div>{% endif %}{% endmacro %}
 {% block content %}
 <div class="page-head">
   <div>
     <h1>Nastavenia</h1>
-    <div class="muted">Zmeny platia hneď, bez reštartu. Hodnoty zo súboru <code>.env</code> slúžia ako predvolené.</div>
+    <div class="muted">Zmeny platia hneď, bez reštartu.</div>
   </div>
-  {% if overridden %}
-  <form method="post" onsubmit="return confirm('Vrátiť všetky nastavenia na hodnoty zo súboru .env?')">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn" name="action" value="reset">↺ Obnoviť z .env</button>
-  </form>
-  {% endif %}
 </div>
 
 <div class="settings-layout">
@@ -26,7 +19,6 @@
       <h2>✉ E-mail (SMTP)</h2>
       <label class="switch"><input type="checkbox" name="MAIL_ENABLED" {{ checked('MAIL_ENABLED') }}><span></span> Odosielať e-maily</label>
     </div>
-    {{ envhint('MAIL_ENABLED') }}
     <div class="field">
       <label>Rýchle nastavenie</label>
       <div class="actions">
@@ -37,9 +29,9 @@
     </div>
     <div class="form-row">
       <div style="grid-column: span 2"><label for="MAIL_SERVER">SMTP server</label>
-        <input type="text" id="MAIL_SERVER" name="MAIL_SERVER" value="{{ val('MAIL_SERVER') }}" placeholder="smtp.firma.sk">{{ envhint('MAIL_SERVER') }}</div>
+        <input type="text" id="MAIL_SERVER" name="MAIL_SERVER" value="{{ val('MAIL_SERVER') }}" placeholder="smtp.firma.sk"></div>
       <div><label for="MAIL_PORT">Port</label>
-        <input type="number" id="MAIL_PORT" name="MAIL_PORT" min="1" max="65535" value="{{ val('MAIL_PORT') }}">{{ envhint('MAIL_PORT') }}</div>
+        <input type="number" id="MAIL_PORT" name="MAIL_PORT" min="1" max="65535" value="{{ val('MAIL_PORT') }}"></div>
       <div><label for="security">Zabezpečenie</label>
         {% set sec = form.security if form is not none else security %}
         <select id="security" name="security">
@@ -50,16 +42,15 @@
     </div>
     <div class="form-row">
       <div><label for="MAIL_USERNAME">Používateľské meno</label>
-        <input type="text" id="MAIL_USERNAME" name="MAIL_USERNAME" value="{{ val('MAIL_USERNAME') }}" autocomplete="off">{{ envhint('MAIL_USERNAME') }}</div>
+        <input type="text" id="MAIL_USERNAME" name="MAIL_USERNAME" value="{{ val('MAIL_USERNAME') }}" autocomplete="off"></div>
       <div><label for="MAIL_PASSWORD">Heslo</label>
         <input type="password" id="MAIL_PASSWORD" name="MAIL_PASSWORD" autocomplete="new-password"
                placeholder="{{ '•••••••• (uložené – nechajte prázdne)' if has_password else 'zadajte heslo' }}">
-        {% if has_password %}<label class="check small" style="margin-top:6px"><input type="checkbox" name="clear_password"> Vymazať uložené heslo</label>{% endif %}
-        {{ envhint('MAIL_PASSWORD', True) }}</div>
+        {% if has_password %}<label class="check small" style="margin-top:6px"><input type="checkbox" name="clear_password"> Vymazať uložené heslo</label>{% endif %}</div>
     </div>
     <div class="form-row">
       <div><label for="MAIL_SENDER">Odosielateľ (adresa From)</label>
-        <input type="email" id="MAIL_SENDER" name="MAIL_SENDER" value="{{ val('MAIL_SENDER') }}" placeholder="projekty@firma.sk">{{ envhint('MAIL_SENDER') }}</div>
+        <input type="email" id="MAIL_SENDER" name="MAIL_SENDER" value="{{ val('MAIL_SENDER') }}" placeholder="projekty@firma.sk"></div>
       <div></div>
     </div>
     <p class="muted small">Gmail: treba zapnúť dvojstupňové overenie a vytvoriť <b>heslo aplikácie</b> (bežné heslo nefunguje).
@@ -70,9 +61,8 @@
     <h2>🕖 Denný report</h2>
     <div class="form-row">
       <div><label for="DAILY_REPORT_TIME">Čas odoslania</label>
-        <input type="time" id="DAILY_REPORT_TIME" name="DAILY_REPORT_TIME" value="{{ val('DAILY_REPORT_TIME') }}">{{ envhint('DAILY_REPORT_TIME') }}</div>
-      <div style="align-self:end"><label class="check"><input type="checkbox" name="DAILY_REPORT_SKIP_WEEKEND" {{ checked('DAILY_REPORT_SKIP_WEEKEND') }}> Cez víkend neposielať</label>
-        {{ envhint('DAILY_REPORT_SKIP_WEEKEND') }}</div>
+        <input type="time" id="DAILY_REPORT_TIME" name="DAILY_REPORT_TIME" value="{{ val('DAILY_REPORT_TIME') }}"></div>
+      <div style="align-self:end"><label class="check"><input type="checkbox" name="DAILY_REPORT_SKIP_WEEKEND" {{ checked('DAILY_REPORT_SKIP_WEEKEND') }}> Cez víkend neposielať</label></div>
     </div>
     <p class="muted small">Report dostanú používatelia, ktorí ho majú zapnutý v profile. V rovnaký čas odchádzajú aj pripomienky inštalácií.</p>
   </section>
@@ -81,11 +71,11 @@
     <h2>⚙ Všeobecné</h2>
     <div class="form-row">
       <div><label for="APP_NAME">Názov aplikácie</label>
-        <input type="text" id="APP_NAME" name="APP_NAME" value="{{ val('APP_NAME') }}">{{ envhint('APP_NAME') }}</div>
+        <input type="text" id="APP_NAME" name="APP_NAME" value="{{ val('APP_NAME') }}"></div>
       <div><label for="APP_URL">Verejná adresa (odkazy v e-mailoch)</label>
-        <input type="text" id="APP_URL" name="APP_URL" value="{{ val('APP_URL') }}" placeholder="http://server:8000">{{ envhint('APP_URL') }}</div>
+        <input type="text" id="APP_URL" name="APP_URL" value="{{ val('APP_URL') }}" placeholder="http://server:8000"></div>
       <div><label for="DUE_SOON_DAYS">„Blíži sa termín“ (dní pred deadlinom)</label>
-        <input type="number" id="DUE_SOON_DAYS" name="DUE_SOON_DAYS" min="1" max="90" value="{{ val('DUE_SOON_DAYS') }}">{{ envhint('DUE_SOON_DAYS') }}</div>
+        <input type="number" id="DUE_SOON_DAYS" name="DUE_SOON_DAYS" min="1" max="90" value="{{ val('DUE_SOON_DAYS') }}"></div>
     </div>
   </section>
 
@@ -93,6 +83,17 @@
 </form>
 
 <aside class="settings-side">
+  <section class="card" id="server">
+    <h2>🖴 Server – voľné miesto</h2>
+    {% set d = server.disk %}
+    {% if d %}
+    <div class="disk-bar {{ d.level }}"><span style="width:{{ d.pct }}%"></span></div>
+    <p style="margin:8px 0 4px"><b>{{ d.free|bytes }} voľných</b> z {{ d.total|bytes }} · obsadené {{ d.pct }} %</p>
+    <p><span class="badge {{ 'overdue' if d.level == 'crit' else 'risk' if d.level == 'warn' else 'done' }}">{{ 'kritické' if d.level == 'crit' else 'dochádza miesto' if d.level == 'warn' else 'v poriadku' }}</span></p>
+    <p class="muted small">Projekty zaberajú: databáza {{ server.db|bytes if server.db is not none else '—' }}, dokumenty {{ server.docs|bytes }}, obrázky {{ server.images|bytes }}.
+      Pri obsadenosti nad 80 % alebo menej ako 5 GB voľného miesta sa administrátorom zobrazí upozornenie a raz denne príde e-mail.</p>
+    {% else %}<p class="muted">Údaje o disku sa nepodarilo zistiť.</p>{% endif %}
+  </section>
   <section class="card">
     <h2>Otestovať e-mail</h2>
     <p class="muted small">Pošle skúšobný e-mail podľa <b>uložených</b> nastavení (aj keď je odosielanie vypnuté). Zmeny najprv uložte.</p>
