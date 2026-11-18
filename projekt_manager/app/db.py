@@ -156,6 +156,8 @@ def _migrate(conn):
     doc_cols = [r[1] for r in conn.execute("PRAGMA table_info(documents)")]
     if "folder_id" not in doc_cols:
         conn.execute("ALTER TABLE documents ADD COLUMN folder_id INTEGER REFERENCES doc_folders(id) ON DELETE SET NULL")
+    if "note" not in doc_cols:
+        conn.execute("ALTER TABLE documents ADD COLUMN note TEXT NOT NULL DEFAULT ''")   # krátky popis súboru
     user_cols = [r[1] for r in conn.execute("PRAGMA table_info(users)")]
     if "font_scale" not in user_cols:
         conn.execute("ALTER TABLE users ADD COLUMN font_scale INTEGER NOT NULL DEFAULT 100")

@@ -393,6 +393,7 @@ def document_upload(project_id):
     folder_id = request.form.get("folder_id", type=int)
     if folder_id not in _folders(project.id):
         folder_id = None
+    note = " ".join(request.form.get("note", "").split())[:300]   # popis platí pre všetky práve nahrávané súbory
     names = []
     for f in files:
         original = os.path.basename(f.filename.replace("\\", "/"))[:200]
@@ -400,8 +401,8 @@ def document_upload(project_id):
         stored = uuid.uuid4().hex + "".join(c for c in ext if c.isalnum() or c == ".")
         path = os.path.join(folder, stored)
         f.save(path)
-        execute("INSERT INTO documents(project_id, filename, stored_name, size, uploaded_by_id, folder_id) "
-                "VALUES (?,?,?,?,?,?)", (project.id, original, stored, os.path.getsize(path), g.user["id"], folder_id))
+        execute("INSERT INTO documents(project_id, filename, stored_name, size, uploaded_by_id, folder_id, note) "
+                "VALUES (?,?,?,?,?,?,?)", (project.id, original, stored, os.path.getsize(path), g.user["id"], folder_id, note))
         names.append(original)
     where = _folder_label(project.id, folder_id)
     log_event(project.id, "Nahrané dokumenty" + (f" do priečinka {where}" if folder_id else "") + ": " + ", ".join(names))
@@ -551,6 +552,21 @@ def folder_delete(folder_id):
     log_event(f["project_id"], f"Zmazaný priečinok „{f['name']}“" + (f" aj s {len(docs)} súbormi." if docs else "."))
     flash(f"Priečinok „{f['name']}“ bol zmazaný.", "success")
     return _docs_redirect(f["project_id"], f["parent_id"])
+
+
+@bp.route("/dokumenty/<int:doc_id>/popis", methods=["POST"])
+@login_required
+def document_note(doc_id):
+    """Krátky popis k súboru (napr. „zmena na strane 3“)."""
+    doc = _document_or_404(doc_id)
+    if not (g.user["is_admin"] or doc["uploaded_by_id"] == g.user["id"]):
+        abort(403)
+    note = " ".join(request.form.get("note", "").split())[:300]
+    if note != (doc["note"] or ""):
+        execute("UPDATE documents SET note = ? WHERE id = ?", (note, doc_id))
+        log_event(doc["project_id"], f"Popis dokumentu {doc['filename']}: {note or '(zmazaný)'}")
+        flash("Popis bol uložený." if note else "Popis bol odstránený.", "success")
+    return _docs_redirect(doc["project_id"], doc["folder_id"])
 
 
 @bp.route("/dokumenty/<int:doc_id>/presunut", methods=["POST"])

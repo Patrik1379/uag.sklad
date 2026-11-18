@@ -308,12 +308,18 @@
         {% for d in documents %}
           <tr>
             <td><span class="ficon">📄</span><a href="{{ url_for('main.document_download', doc_id=d.id) }}">{{ d.filename }}</a>
-              <a class="small" href="{{ url_for('main.document_download', doc_id=d.id, zobrazit=1) }}" target="_blank">(zobraziť)</a></td>
+              <a class="small" href="{{ url_for('main.document_download', doc_id=d.id, zobrazit=1) }}" target="_blank">(zobraziť)</a>
+              {% if d.note %}<div class="doc-note">{{ d.note }}</div>{% endif %}</td>
             <td class="small">{{ d.size|filesize }}</td>
             <td class="small">{{ d.uploader or '—' }}</td>
             <td class="small">{{ d.uploaded_at|sk_date }}</td>
             <td class="doc-actions">{% if current_user.is_admin or d.uploaded_by_id == current_user.id %}
               <details class="mini-menu"><summary class="btn-link small">upraviť</summary>
+                <form method="post" action="{{ url_for('main.document_note', doc_id=d.id) }}" class="inline-row">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="text" name="note" value="{{ d.note or '' }}" maxlength="300" placeholder="Popis, napr. zmena na strane 3">
+                  <button class="btn btn-sm">Uložiť popis</button>
+                </form>
                 {% if folder_choices %}
                 <form method="post" action="{{ url_for('main.document_move', doc_id=d.id) }}" class="inline-row">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -348,6 +354,8 @@
           <input type="file" id="files" name="files" multiple hidden>
           <div class="small" id="file-names"></div>
         </div>
+        <input type="text" name="note" maxlength="300" class="doc-note-input"
+               placeholder="Popis (nepovinný) – napr. „zmena na strane 3“, „revízia B“…">
         <div class="actions" style="margin-top:10px"><button class="btn btn-primary btn-sm">Nahrať</button>
           <span class="small muted">Max. {{ (config.MAX_CONTENT_LENGTH / 1048576)|int }} MB na jedno nahratie</span></div>
       </form>

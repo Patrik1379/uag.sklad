@@ -670,3 +670,8 @@ table.docs .folder-row td { background: #fafbfc; }
 .subtask .sub-edit input[name=title] { flex: 1; padding: 3px 8px; font-size: .88rem; }
 .subtask.editing .sub-title, .subtask.editing .sub-who, .subtask.editing .sub-pen, .subtask.editing .sub-del { display: none; }
 @media (hover: none) { .subtask .sub-pen { opacity: 1; } }
+
+/* popis dokumentu */
+.doc-note { font-size: .82rem; color: var(--muted); margin: 2px 0 0 24px; white-space: pre-line; }
+.doc-note::before { content: "📝 "; }
+.doc-note-input { margin-top: 8px; }
