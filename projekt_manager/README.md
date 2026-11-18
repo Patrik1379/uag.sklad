@@ -6,7 +6,7 @@ Webová aplikácia v Pythone (Flask + SQLite) na správu projektov používateľ
 
 - **Dashboard** – štatistiky (otvorené, po termíne, blížiaci sa deadline, priemerné plnenie), **časová os (Gantt)** s čiarou „dnes“ a farbami podľa stavu, tabuľka projektov, filtre podľa riešiteľa a stavu.
 - **Projekty** – názov, popis, **jeden alebo viac riešiteľov**, stav (Nový / Prebieha / Pozastavený / Hotový), plnenie v %, začiatok, deadline, história zmien.
-- **Úlohy** – v projekte sa dajú zadávať úlohy konkrétnym riešiteľom (termín, popis, stav Na riešenie / Rieši sa / Hotová). Každý vidí na dashboarde „Moje úlohy“ a odškrtne ich jedným klikom.
+- **Úlohy** – v projekte sa dajú zadávať úlohy jednému alebo **viacerým riešiteľom naraz** (každý ju vidí v „Moje úlohy“ a dostane e-mail) (termín, popis, stav Na riešenie / Rieši sa / Hotová). Každý vidí na dashboarde „Moje úlohy“ a odškrtne ich jedným klikom.
 - **Podúlohy** – každá úloha môže mať zoznam podúloh, ktoré sa odškrtávajú samostatne. Keď sú splnené všetky, úloha sa sama označí ako hotová; keď sa niektorá odškrtne späť alebo pribudne nová, úloha sa znovu otvorí.
 - **Komentáre k úlohám** – krátka diskusia pod každou úlohou; riešiteľ, zadávateľ a ostatní diskutujúci dostanú e-mail.
 - **Plnenie z úloh a podúloh** – pri projekte sa dá zapnúť automatický výpočet % (pri nových projektoch je zapnutý). Každá úloha má rovnakú váhu: hotová úloha = 100 %, rozpracovaná podľa podielu splnených podúloh, bez podúloh 0 %. Projekt = priemer úloh.

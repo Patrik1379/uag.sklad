@@ -109,15 +109,16 @@ def notify_status_change(project, changed_by, note):
     return sent
 
 
-def notify_task_assigned(task):
-    if not task.assignee_email:
-        return False
-    return send_mail(
-        task.assignee_email,
-        f"Nová úloha: {task.title} ({task.project_name})",
-        "email/task_assigned.html",
-        task=task,
-    )
+def notify_task_assigned(task, user_ids=None):
+    """E-mail novým riešiteľom úlohy (user_ids = komu; None = všetkým riešiteľom)."""
+    sent = 0
+    for a in task.assignees:
+        if user_ids is not None and a["id"] not in user_ids:
+            continue
+        if a.get("email"):
+            sent += send_mail(a["email"], f"Nová úloha: {task.title} ({task.project_name})",
+                              "email/task_assigned.html", task=task, recipient=a)
+    return sent
 
 
 def _done_recipients(task, done_by):
@@ -153,7 +154,8 @@ def notify_subtask_done(task, subtask_title, done_by):
 def notify_task_comment(task, author, body):
     """Komentár dostane riešiteľ úlohy, jej autor a ostatní, ktorí ju komentovali (okrem autora komentára)."""
     recipients = {}
-    for uid, email in ((task.assignee_id, task.assignee_email), (task.created_by_id, task.creator_email)):
+    people = [(a["id"], a["email"]) for a in task.assignees] + [(task.created_by_id, task.creator_email)]
+    for uid, email in people:
         if uid and email and uid != author["id"]:
             recipients[email.lower()] = email
     for row in query("SELECT DISTINCT u.id, u.email FROM task_comments k JOIN users u ON u.id = k.user_id "

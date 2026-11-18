@@ -98,6 +98,13 @@ CREATE TABLE IF NOT EXISTS documents (
     uploaded_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
+-- riešitelia úlohy (úlohu môže robiť viac ľudí naraz); tasks.assignee_id = prvý z nich (kvôli spätnej kompatibilite)
+CREATE TABLE IF NOT EXISTS task_assignees (
+    task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (task_id, user_id)
+);
+
 -- priečinky dokumentov projektu (vnorené cez parent_id; NULL = hlavný priečinok)
 CREATE TABLE IF NOT EXISTS doc_folders (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -153,6 +160,9 @@ def close_db(_exc=None):
 
 def _migrate(conn):
     """Prevod zo staršej verzie (jeden riešiteľ v stĺpci projects.assignee_id)."""
+    # pôvodne mala úloha jedného riešiteľa – prenesieme ho do tabuľky task_assignees
+    conn.execute("INSERT OR IGNORE INTO task_assignees(task_id, user_id) "
+                 "SELECT id, assignee_id FROM tasks WHERE assignee_id IS NOT NULL")
     doc_cols = [r[1] for r in conn.execute("PRAGMA table_info(documents)")]
     if "folder_id" not in doc_cols:
         conn.execute("ALTER TABLE documents ADD COLUMN folder_id INTEGER REFERENCES doc_folders(id) ON DELETE SET NULL")

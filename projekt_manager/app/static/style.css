@@ -675,3 +675,14 @@ table.docs .folder-row td { background: #fafbfc; }
 .doc-note { font-size: .82rem; color: var(--muted); margin: 2px 0 0 24px; white-space: pre-line; }
 .doc-note::before { content: "📝 "; }
 .doc-note-input { margin-top: 8px; }
+
+/* výber viacerých riešiteľov úlohy */
+.pick-people { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick { display: inline-flex; align-items: center; cursor: pointer; margin: 0; font-weight: 500; }
+.pick input { position: absolute; opacity: 0; pointer-events: none; }
+.pick span { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: .88rem; transition: background .1s, border-color .1s; }
+.pick span:hover { border-color: var(--primary); }
+.pick input:checked + span { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pick input:checked + span::before { content: "✓ "; }
+.pick input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+.task-meta .chip + .chip { margin-left: -2px; }

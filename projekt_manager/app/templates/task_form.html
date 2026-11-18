@@ -10,11 +10,10 @@
     <div class="field"><label for="title">Úloha *</label><input type="text" id="title" name="title" value="{{ data.title }}" required maxlength="300"></div>
     <div class="field"><label for="description">Popis</label><textarea id="description" name="description">{{ data.description }}</textarea></div>
     <div class="form-row">
-      <div><label for="assignee_id">Riešiteľ</label>
-        <select id="assignee_id" name="assignee_id">
-          <option value="">— nepridelená —</option>
-          {% for m in project.members %}<option value="{{ m.id }}" {{ 'selected' if data.assignee_id == m.id }}>{{ m.name }}</option>{% endfor %}
-        </select></div>
+      <div style="grid-column:1/-1"><label>Riešitelia <span class="small muted">(môžete vybrať aj viacerých; noví dostanú e-mail)</span></label>
+        <div class="pick-people">
+          {% for m in project.members %}<label class="pick"><input type="checkbox" name="assignee_ids" value="{{ m.id }}" {{ 'checked' if m.id in (data.assignee_ids or []) }}><span>{{ m.name }}</span></label>{% else %}<span class="muted small">Projekt nemá riešiteľov.</span>{% endfor %}
+        </div></div>
       <div><label for="due_date">Termín</label><input type="date" id="due_date" name="due_date" value="{{ data.due_date or '' }}"></div>
       <div><label for="weight">Dôležitosť (váha)</label>
         <select id="weight" name="weight">

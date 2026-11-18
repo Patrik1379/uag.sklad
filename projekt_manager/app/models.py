@@ -358,7 +358,9 @@ SELECT t.*, p.name AS project_name,
        (SELECT COUNT(*) FROM task_comments k WHERE k.task_id = t.id) AS comment_count,
        (SELECT COUNT(*) FROM subtasks s WHERE s.task_id = t.id) AS sub_total,
        (SELECT COUNT(*) FROM subtasks s WHERE s.task_id = t.id AND s.done = 1) AS sub_done,
-       (SELECT SUM(x.weight) FROM tasks x WHERE x.project_id = t.project_id) AS project_weight
+       (SELECT SUM(x.weight) FROM tasks x WHERE x.project_id = t.project_id) AS project_weight,
+       (SELECT GROUP_CONCAT(a.id || char(31) || a.name || char(31) || a.email, char(30))
+          FROM task_assignees ta JOIN users a ON a.id = ta.user_id WHERE ta.task_id = t.id) AS assignees_raw
 FROM tasks t
 JOIN projects p ON p.id = t.project_id
 LEFT JOIN users u ON u.id = t.assignee_id
@@ -370,6 +372,14 @@ class Task:
     def __init__(self, row):
         self.__dict__.update(dict(row))
         self.due_date = parse_date(self.due_date)
+        self.assignees = _parse_people(self.assignees_raw)
+        if not self.assignees and self.assignee_id and self.assignee_name:   # staršie dáta
+            self.assignees = [{"id": self.assignee_id, "name": self.assignee_name, "email": self.assignee_email}]
+        self.assignee_name = ", ".join(a["name"] for a in self.assignees) or None
+
+    @property
+    def assignee_ids(self):
+        return [a["id"] for a in self.assignees]
 
     @property
     def fraction(self):
@@ -438,8 +448,8 @@ def list_tasks(project_id=None, assignee_id=None, include_done=True):
         where.append("t.project_id = ?")
         args.append(project_id)
     if assignee_id:
-        where.append("t.assignee_id = ?")
-        args.append(assignee_id)
+        where.append("(t.assignee_id = ? OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?))")
+        args += [assignee_id, assignee_id]
     if not include_done:
         where.append("t.status <> 'hotova'")
     if where:
@@ -508,3 +518,25 @@ def build_calendar(year, month, projects, tasks):
                        "weekend": d.weekday() >= 5, "events": events.get(d, [])} for d in week])
     agenda = [(d, ev) for d, ev in sorted(events.items()) if d.year == year and d.month == month]
     return {"weeks": weeks, "agenda": agenda, "title": f"{MONTHS_SK_FULL[month - 1]} {year}"}
+
+
+def set_task_assignees(task_id, user_ids):
+    """Nastaví riešiteľov úlohy. Vracia množinu novo pridaných (tým ide e-mail)."""
+    from .db import execute
+    user_ids = list(dict.fromkeys(int(u) for u in user_ids))
+    old = {r["user_id"] for r in query("SELECT user_id FROM task_assignees WHERE task_id = ?", (task_id,))}
+    if not old:
+        row = query("SELECT assignee_id FROM tasks WHERE id = ?", (task_id,), one=True)
+        if row and row["assignee_id"]:
+            old = {row["assignee_id"]}
+    execute("DELETE FROM task_assignees WHERE task_id = ?", (task_id,))
+    for uid in user_ids:
+        execute("INSERT INTO task_assignees(task_id, user_id) VALUES (?, ?)", (task_id, uid))
+    execute("UPDATE tasks SET assignee_id = ? WHERE id = ?", (user_ids[0] if user_ids else None, task_id))
+    return set(user_ids) - old
+
+
+def resync_task_primary():
+    """Po odobratí riešiteľov: tasks.assignee_id = niektorý zo zostávajúcich riešiteľov (alebo NULL)."""
+    from .db import execute
+    execute("UPDATE tasks SET assignee_id = (SELECT MIN(user_id) FROM task_assignees ta WHERE ta.task_id = tasks.id)")

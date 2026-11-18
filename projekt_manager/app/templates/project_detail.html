@@ -150,7 +150,7 @@
             <div class="task-title">{{ t.title }}</div>
             {% if t.description %}<div class="small muted desc">{{ t.description }}</div>{% endif %}
             <div class="task-meta">
-              <span class="chip">{{ t.assignee_name or 'nepridelená' }}</span>
+              {% for a in t.assignees %}<span class="chip" title="{{ a.email }}">{{ a.name }}</span>{% else %}<span class="chip">nepridelená</span>{% endfor %}
               {% if t.due_date %}<span class="small muted">do {{ t.due_date|sk_date }}</span>{% endif %}
               <span class="badge {{ h[0] }}">{{ h[1] }}</span>
               {% if t.status == 'prebieha' %}<span class="badge status">Rieši sa</span>{% endif %}
@@ -172,7 +172,7 @@
                 <form method="post" action="{{ url_for('main.subtask_toggle', subtask_id=s.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="tick sm{{ ' on' if s.done }}" title="{{ 'Vrátiť ako nesplnenú' if s.done else 'Označiť ako splnenú' }}">{{ '✓' if s.done }}</button>
                 </form>
-                {% set can_edit = current_user.is_admin or current_user.id in (t.created_by_id, t.assignee_id, s.created_by_id) %}
+                {% set can_edit = current_user.is_admin or current_user.id in (t.created_by_id, s.created_by_id) or current_user.id in t.assignee_ids %}
                 <span class="sub-title"{% if can_edit %} title="Dvojklikom upravíte"{% endif %}>{{ s.title }}</span>
                 {% if can_edit %}
                 <form method="post" action="{{ url_for('main.subtask_edit', subtask_id=s.id) }}" class="sub-edit" hidden>
@@ -240,11 +240,10 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="field"><input type="text" name="title" placeholder="Čo treba urobiť…" required maxlength="300"></div>
           <div class="form-row">
-            <div><label>Riešiteľ</label>
-              <select name="assignee_id">
-                <option value="">— nepridelená —</option>
-                {% for m in project.members %}<option value="{{ m.id }}" {{ 'selected' if m.id == current_user.id and not current_user.is_admin }}>{{ m.name }}</option>{% endfor %}
-              </select></div>
+            <div style="grid-column:1/-1"><label>Riešitelia <span class="small muted">(môžete vybrať aj viacerých)</span></label>
+              <div class="pick-people">
+                {% for m in project.members %}<label class="pick"><input type="checkbox" name="assignee_ids" value="{{ m.id }}" {{ 'checked' if m.id == current_user.id and not current_user.is_admin }}><span>{{ m.name }}</span></label>{% endfor %}
+              </div></div>
             <div><label>Termín</label><input type="date" name="due_date"></div>
             <div><label>Dôležitosť</label>
               <select name="weight">

@@ -19,7 +19,8 @@ from .models import (STATUSES, TASK_STATUSES, build_timeline, get_project,
                      get_task, list_projects, list_tasks, parse_date,
                      project_stats, set_members, recalc_progress, tasks_progress,
                      build_calendar, INSTALL_STATUSES, set_installers,
-                     list_installations, list_subtasks, TASK_WEIGHTS)
+                     list_installations, list_subtasks, TASK_WEIGHTS,
+                     set_task_assignees, resync_task_primary)
 
 bp = Blueprint("main", __name__)
 
@@ -310,8 +311,11 @@ def project_edit(project_id):
                 changes.append("odobratí riešitelia: " + ", ".join(sorted(names[i] for i in removed)))
                 # nedokončené úlohy odobratých riešiteľov ostanú nepridelené
                 marks = ",".join("?" * len(removed))
+                execute(f"DELETE FROM task_assignees WHERE user_id IN ({marks}) AND task_id IN "
+                        f"(SELECT id FROM tasks WHERE project_id = ? AND status <> 'hotova')", (*removed, project_id))
                 execute(f"UPDATE tasks SET assignee_id = NULL WHERE project_id = ? AND status <> 'hotova' "
                         f"AND assignee_id IN ({marks})", (project_id, *removed))
+                resync_task_primary()
                 execute(f"DELETE FROM project_installers WHERE project_id = ? AND user_id IN ({marks})",
                         (project_id, *removed))
             log_event(project_id, "Projekt upravený" + (": " + ", ".join(changes) if changes else "."))
@@ -688,15 +692,15 @@ def _read_task_form(project):
     data = {
         "title": f.get("title", "").strip()[:300],
         "description": f.get("description", "").strip(),
-        "assignee_id": f.get("assignee_id", type=int) or None,
+        "assignee_ids": [int(x) for x in f.getlist("assignee_ids") if x.isdigit()],
         "due_date": f.get("due_date") or None,
         "weight": f.get("weight", 2, type=int) if f.get("weight", type=int) in TASK_WEIGHTS else 2,
     }
     errors = []
     if not data["title"]:
         errors.append("Zadajte názov úlohy.")
-    if data["assignee_id"] and data["assignee_id"] not in project.member_ids:
-        errors.append("Úlohu možno prideliť len riešiteľovi projektu.")
+    if any(uid not in project.member_ids for uid in data["assignee_ids"]):
+        errors.append("Úlohu možno prideliť len riešiteľom projektu.")
     if data["due_date"]:
         try:
             parse_date(data["due_date"])
@@ -719,17 +723,17 @@ def task_new(project_id):
             flash(e, "error")
         return _task_redirect(project_id)
     cur = execute(
-        "INSERT INTO tasks(project_id, title, description, assignee_id, due_date, weight, created_by_id) "
-        "VALUES (?,?,?,?,?,?,?)",
-        (project_id, data["title"], data["description"], data["assignee_id"], data["due_date"], data["weight"],
-         g.user["id"]),
+        "INSERT INTO tasks(project_id, title, description, due_date, weight, created_by_id) VALUES (?,?,?,?,?,?)",
+        (project_id, data["title"], data["description"], data["due_date"], data["weight"], g.user["id"]),
     )
+    added = set_task_assignees(cur.lastrowid, data["assignee_ids"])
     task = get_task(cur.lastrowid)
     recalc_progress(project_id)
     log_event(project_id, f"Nová úloha: {task.title}" + (f" → {task.assignee_name}" if task.assignee_name else ""))
-    if task.assignee_id and task.assignee_id != g.user["id"]:
-        run_in_background(mailer.notify_task_assigned, task)
-    flash("Úloha bola pridaná." + (f" {task.assignee_name} dostane e-mail." if task.assignee_id and task.assignee_id != g.user["id"] else ""), "success")
+    notify = [a for a in task.assignees if a["id"] in added and a["id"] != g.user["id"]]
+    if notify:
+        run_in_background(mailer.notify_task_assigned, task, [a["id"] for a in notify])
+    flash("Úloha bola pridaná." + (f" E-mail dostane: {', '.join(a['name'] for a in notify)}." if notify else ""), "success")
     return _task_redirect(project_id)
 
 
@@ -832,7 +836,7 @@ def subtask_toggle(subtask_id):
 def subtask_edit(subtask_id):
     """Oprava názvu podúlohy (upraviť môže admin, zadávateľ úlohy, jej riešiteľ a autor podúlohy)."""
     s, task, _project = _subtask_or_404(subtask_id)
-    if not (g.user["is_admin"] or g.user["id"] in (task.created_by_id, task.assignee_id, s["created_by_id"])):
+    if not (g.user["is_admin"] or g.user["id"] in (task.created_by_id, s["created_by_id"], *task.assignee_ids)):
         abort(403)
     title = request.form.get("title", "").strip()[:300]
     if not title:
@@ -888,7 +892,7 @@ def task_edit(task_id):
     task, project = task_or_404(task_id)
     if not can_edit_task(task):
         abort(403)
-    data = {"title": task.title, "description": task.description, "assignee_id": task.assignee_id,
+    data = {"title": task.title, "description": task.description, "assignee_ids": task.assignee_ids,
             "due_date": task.due_date.isoformat() if task.due_date else "", "status": task.status,
             "weight": task.weight}
     if request.method == "POST":
@@ -898,16 +902,19 @@ def task_edit(task_id):
             errors.append("Neplatný stav.")
         if not errors:
             execute(
-                "UPDATE tasks SET title=?, description=?, assignee_id=?, due_date=?, status=?, weight=?, "
+                "UPDATE tasks SET title=?, description=?, due_date=?, status=?, weight=?, "
                 "completed_at = CASE WHEN ? = 'hotova' THEN COALESCE(completed_at, datetime('now','localtime')) "
                 "ELSE NULL END WHERE id=?",
-                (data["title"], data["description"], data["assignee_id"], data["due_date"],
+                (data["title"], data["description"], data["due_date"],
                  data["status"], data["weight"], data["status"], task_id),
             )
+            added = set_task_assignees(task_id, data["assignee_ids"])
             updated = get_task(task_id)
-            log_event(project.id, f"Úloha „{updated.title}“ upravená")
-            if updated.assignee_id and updated.assignee_id != task.assignee_id and updated.assignee_id != g.user["id"]:
-                run_in_background(mailer.notify_task_assigned, updated)
+            log_event(project.id, f"Úloha „{updated.title}“ upravená" + (f" – riešitelia: {updated.assignee_name}"
+                                                                          if updated.assignee_ids != task.assignee_ids else ""))
+            notify = [uid for uid in added if uid != g.user["id"]]
+            if notify:
+                run_in_background(mailer.notify_task_assigned, updated, notify)
             recalc_progress(project.id)
             flash("Úloha bola uložená.", "success")
             return _task_redirect(project.id)
@@ -984,7 +991,7 @@ def calendar_view():
     ids = {p.id for p in projects}
     tasks = [t for t in list_tasks() if t.project_id in ids and t.due_date]
     if only_mine:
-        tasks = [t for t in tasks if t.assignee_id == g.user["id"]]
+        tasks = [t for t in tasks if g.user["id"] in t.assignee_ids]
         projects = [p for p in projects if g.user["id"] in p.member_ids]
 
     prev_m = date(year - (month == 1), 12 if month == 1 else month - 1, 1)
@@ -1080,7 +1087,8 @@ def _user_impact(user_id):
     return {
         "projects": one("SELECT COUNT(*) FROM project_members m JOIN projects p ON p.id = m.project_id "
                         "WHERE m.user_id = ? AND p.status <> 'hotovy'"),
-        "tasks": one("SELECT COUNT(*) FROM tasks WHERE assignee_id = ? AND status <> 'hotova'"),
+        "tasks": one("SELECT COUNT(*) FROM tasks t WHERE status <> 'hotova' AND EXISTS "
+                     "(SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?)"),
     }
 
 
@@ -1104,6 +1112,7 @@ def user_delete(user_id):
     # (odkazy upravíme aj ručne – staršie databázy nemusia mať pravidlá ON DELETE)
     for sql in ("DELETE FROM project_members WHERE user_id = ?", "DELETE FROM project_installers WHERE user_id = ?",
                 "UPDATE projects SET created_by_id = NULL WHERE created_by_id = ?",
+                "DELETE FROM task_assignees WHERE user_id = ?",
                 "UPDATE tasks SET assignee_id = NULL WHERE assignee_id = ?",
                 "UPDATE tasks SET created_by_id = NULL WHERE created_by_id = ?",
                 "UPDATE subtasks SET done_by_id = NULL WHERE done_by_id = ?",
@@ -1113,6 +1122,7 @@ def user_delete(user_id):
                 "UPDATE project_log SET user_id = NULL WHERE user_id = ?"):
         execute(sql, (user_id,))
     execute("DELETE FROM users WHERE id = ?", (user_id,))
+    resync_task_primary()
     flash(f"Používateľ {user['name']} bol zmazaný.", "success")
     return redirect(url_for("main.users"))
 

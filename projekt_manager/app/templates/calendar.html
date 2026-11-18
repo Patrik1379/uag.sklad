@@ -56,7 +56,7 @@
         <a class="cal-ev project {{ o.health[0] }}" href="{{ url_for('main.project_detail', project_id=o.id) }}"
            title="Deadline projektu: {{ o.name }} · {{ o.members_text or 'nepridelený' }} · {{ o.progress }} %">⚑ {{ o.name }}</a>
         {% else %}
-        <a class="cal-ev task {{ o.health[0] }}{{ ' mine' if o.assignee_id == current_user.id }}"
+        <a class="cal-ev task {{ o.health[0] }}{{ ' mine' if current_user.id in o.assignee_ids }}"
            href="{{ url_for('main.project_detail', project_id=o.project_id, uloha=o.id, hotove_ulohy=1 if o.is_done else None) }}#uloha-{{ o.id }}"
            title="Úloha: {{ o.title }} · {{ o.project_name }} · {{ o.assignee_name or 'nepridelená' }} · {{ o.status_label }}">{{ o.title }}</a>
         {% endif %}
