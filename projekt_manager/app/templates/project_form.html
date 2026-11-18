@@ -13,6 +13,9 @@
       <div><label for="customer">Zákazník</label>
         <input type="text" id="customer" name="customer" value="{{ data.customer or '' }}" maxlength="200"></div>
     </div>
+    <div class="field"><label for="docs_url">Zložka projektu na OneDrive (odkaz)</label>
+      <input type="url" id="docs_url" name="docs_url" value="{{ data.docs_url or '' }}" maxlength="1000" placeholder="https://…sharepoint.com/… alebo https://1drv.ms/…">
+      <div class="small muted">V OneDrive kliknite na zložku → <b>Zdieľať</b> / <b>Kopírovať odkaz</b> a vložte ho sem.</div></div>
     <div class="field"><label for="description">Popis</label>
       <textarea id="description" name="description">{{ data.description or '' }}</textarea></div>
     <div class="form-row">

@@ -128,6 +128,7 @@ def _read_project_form():
     data = {
         "name": f.get("name", "").strip(),
         "order_no": f.get("order_no", "").strip()[:100],
+        "docs_url": f.get("docs_url", "").strip()[:1000],
         "customer": f.get("customer", "").strip()[:200],
         "description": f.get("description", "").strip(),
         "status": f.get("status", "novy"),
@@ -144,6 +145,8 @@ def _read_project_form():
     errors = []
     if not data["name"]:
         errors.append("Zadajte názov projektu.")
+    if data["docs_url"] and not data["docs_url"].lower().startswith(("http://", "https://")):
+        errors.append("Odkaz na zložku projektu musí začínať https:// (skopírujte ho z OneDrive cez „Zdieľať“ / „Kopírovať odkaz“).")
     if data["status"] not in STATUSES:
         errors.append("Neplatný stav.")
     try:
@@ -165,9 +168,9 @@ def project_new():
         data, errors = _read_project_form()
         if not errors:
             cur = execute(
-                "INSERT INTO projects(name, order_no, customer, description, status, progress, start_date, deadline, "
-                "auto_progress, created_by_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (data["name"], data["order_no"], data["customer"], data["description"], data["status"],
+                "INSERT INTO projects(name, order_no, customer, docs_url, description, status, progress, start_date, "
+                "deadline, auto_progress, created_by_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (data["name"], data["order_no"], data["customer"], data["docs_url"], data["description"], data["status"],
                  data["progress"], data["start_date"], data["deadline"], data["auto_progress"], g.user["id"]),
             )
             pid = cur.lastrowid
@@ -290,9 +293,9 @@ def project_edit(project_id):
         data, errors = _read_project_form()
         if not errors:
             execute(
-                "UPDATE projects SET name=?, order_no=?, customer=?, description=?, status=?, progress=?, "
+                "UPDATE projects SET name=?, order_no=?, customer=?, docs_url=?, description=?, status=?, progress=?, "
                 "start_date=?, deadline=?, auto_progress=?, updated_at=datetime('now','localtime') WHERE id=?",
-                (data["name"], data["order_no"], data["customer"], data["description"], data["status"], data["progress"],
+                (data["name"], data["order_no"], data["customer"], data["docs_url"], data["description"], data["status"], data["progress"],
                  data["start_date"], data["deadline"], data["auto_progress"], project_id),
             )
             recalc_progress(project_id)
@@ -485,6 +488,21 @@ def _docs_redirect(project_id, folder_id=None):
 def _clean_folder_name(name):
     name = " ".join((name or "").replace("/", "-").replace("\\", "-").split())[:80]
     return name.strip(". ")
+
+
+@bp.route("/projekty/<int:project_id>/zlozka", methods=["POST"])
+@admin_required
+def project_docs_url(project_id):
+    """Odkaz na hlavnú zložku projektu (OneDrive / SharePoint) – nastavuje sa priamo v časti Dokumenty."""
+    project_or_404(project_id)
+    url = request.form.get("docs_url", "").strip()[:1000]
+    if url and not url.lower().startswith(("http://", "https://")):
+        flash("Odkaz musí začínať https:// – skopírujte ho z OneDrive cez „Zdieľať“ → „Kopírovať odkaz“.", "error")
+    else:
+        execute("UPDATE projects SET docs_url = ? WHERE id = ?", (url, project_id))
+        log_event(project_id, "Odkaz na zložku projektu " + ("nastavený." if url else "odstránený."))
+        flash("Odkaz na zložku projektu bol uložený." if url else "Odkaz na zložku projektu bol odstránený.", "success")
+    return redirect(url_for("main.project_detail", project_id=project_id) + "#dokumenty")
 
 
 @bp.route("/projekty/<int:project_id>/priecinky", methods=["POST"])

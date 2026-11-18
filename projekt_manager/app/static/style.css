@@ -686,3 +686,13 @@ table.docs .folder-row td { background: #fafbfc; }
 .pick input:checked + span::before { content: "✓ "; }
 .pick input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
 .task-meta .chip + .chip { margin-left: -2px; }
+
+/* odkaz na zložku projektu (OneDrive) */
+.docs-link { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid #cfe2f7;
+  background: #f1f7fe; border-radius: 10px; color: var(--text); text-decoration: none !important; }
+.docs-link:hover { background: #e6f1fd; border-color: #a9cdf3; }
+.docs-link > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.docs-link-go { font-weight: 600; color: #0364b8; white-space: nowrap; }
+.docs-link-edit { margin: 0 0 10px; }
+.docs-link-edit > summary { list-style: none; cursor: pointer; display: inline-block; }
+.docs-link-edit > summary::-webkit-details-marker { display: none; }
