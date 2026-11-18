@@ -696,3 +696,6 @@ table.docs .folder-row td { background: #fafbfc; }
 .docs-link-edit { margin: 0 0 10px; }
 .docs-link-edit > summary { list-style: none; cursor: pointer; display: inline-block; }
 .docs-link-edit > summary::-webkit-details-marker { display: none; }
+.od-title { display: flex; align-items: center; gap: 10px; }
+.od-url { display: block; margin-top: 4px; color: var(--muted); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-link-edit { margin: 10px 0 0; }

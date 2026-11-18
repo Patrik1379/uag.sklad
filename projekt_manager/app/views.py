@@ -502,7 +502,7 @@ def project_docs_url(project_id):
         execute("UPDATE projects SET docs_url = ? WHERE id = ?", (url, project_id))
         log_event(project_id, "Odkaz na zložku projektu " + ("nastavený." if url else "odstránený."))
         flash("Odkaz na zložku projektu bol uložený." if url else "Odkaz na zložku projektu bol odstránený.", "success")
-    return redirect(url_for("main.project_detail", project_id=project_id) + "#dokumenty")
+    return redirect(url_for("main.project_detail", project_id=project_id) + "#onedrive")
 
 
 @bp.route("/projekty/<int:project_id>/priecinky", methods=["POST"])

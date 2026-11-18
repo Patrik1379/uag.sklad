@@ -257,18 +257,21 @@
       {% else %}<p class="small muted">Úlohy môžete prideľovať, keď má projekt riešiteľov.</p>{% endif %}
     </div>
 
-    <div class="card" id="dokumenty">
-      {% set cur_id = cur_folder.id if cur_folder else none %}
+    {% if project.docs_url or current_user.is_admin %}
+    <div class="card" id="onedrive">
+      <div class="card-head">
+        <h2 class="od-title"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="#0364b8" d="M14.5 15.5h-8a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 16.4 7a4.25 4.25 0 0 1 3.35 7.55"/><path fill="#1490df" d="M9.5 19.5h10a3.5 3.5 0 0 0 .5-6.96 5 5 0 0 0-9.6-1.3 3.75 3.75 0 0 0-.9 8.26z"/></svg>OneDrive – zložka projektu</h2>
+        {% if project.docs_url %}<a class="btn btn-primary btn-sm" href="{{ project.docs_url }}" target="_blank" rel="noopener">Otvoriť zložku ↗</a>{% endif %}
+      </div>
       {% if project.docs_url %}
-      <a class="docs-link" href="{{ project.docs_url }}" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="#0364b8" d="M14.5 15.5h-8a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 16.4 7a4.25 4.25 0 0 1 3.35 7.55"/><path fill="#1490df" d="M9.5 19.5h10a3.5 3.5 0 0 0 .5-6.96 5 5 0 0 0-9.6-1.3 3.75 3.75 0 0 0-.9 8.26z"/></svg>
-        <span><b>Zložka projektu na OneDrive</b><span class="small muted">hlavná dokumentácia projektu – otvorí sa v novom okne</span></span>
-        <span class="docs-link-go">Otvoriť ↗</span>
-      </a>
+      <p class="small muted" style="margin:0">Hlavná dokumentácia projektu – otvorí sa v novom okne.
+        <a href="{{ project.docs_url }}" target="_blank" rel="noopener" class="od-url">{{ project.docs_url }}</a></p>
+      {% else %}
+      <p class="small muted" style="margin:0">Zatiaľ nie je zadaný odkaz na zložku projektu.</p>
       {% endif %}
       {% if current_user.is_admin %}
-      <details class="docs-link-edit"{{ ' open' if not project.docs_url and not doc_total }}>
-        <summary class="btn-link small">{{ '✎ Zmeniť odkaz na zložku OneDrive' if project.docs_url else '+ Pridať odkaz na zložku projektu (OneDrive)' }}</summary>
+      <details class="docs-link-edit"{{ ' open' if not project.docs_url }}>
+        <summary class="btn-link small">{{ '✎ Zmeniť odkaz' if project.docs_url else '+ Pridať odkaz na zložku' }}</summary>
         <form method="post" action="{{ url_for('main.project_docs_url', project_id=project.id) }}" class="inline-row">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="url" name="docs_url" value="{{ project.docs_url or '' }}" maxlength="1000" placeholder="https://… (OneDrive → Zdieľať → Kopírovať odkaz)">
@@ -277,8 +280,13 @@
         {% if project.docs_url %}<div class="small muted">Prázdnym poľom a Uložiť odkaz odstránite.</div>{% endif %}
       </details>
       {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card" id="dokumenty">
+      {% set cur_id = cur_folder.id if cur_folder else none %}
       <div class="card-head">
-        <h2>Dokumenty ({{ doc_total }})</h2>
+        <h2>Dokumenty priamo na serveri aplikácie ({{ doc_total }})</h2>
         <button type="button" class="btn btn-sm" onclick="var f=document.getElementById('new-folder');f.hidden=!f.hidden;if(!f.hidden)f.querySelector('input[name=name]').focus()">📁 Nový priečinok</button>
       </div>
       {% if breadcrumb %}
