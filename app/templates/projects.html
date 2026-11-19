@@ -65,7 +65,7 @@
         <td class="mono">{{ p.order_no }}</td>
         <td>{% if p.customer %}<a href="{{ url_for('main.projects', zakaznik=p.customer, stav=f.stav) }}" style="color:inherit" title="Zobraziť projekty zákazníka">{{ p.customer }}</a>{% endif %}</td>
         <td>{{ p.deadline|d }}</td>
-        <td class="num">{{ p.stats.items_ok }} / {{ p.stats.n_items }}</td>
+        <td class="num">{{ p.stats.items_ok + p.stats.items_integrated }} / {{ p.stats.n_items }}</td>
         <td><div style="display:flex;align-items:center;gap:0.667rem"><div style="flex:1">{{ progress(p.stats, name=p.name) }}</div><b class="num" style="width:2.933rem">{{ p.stats.pct }} %</b></div></td>
         <td class="num">{% if p.stats.missing %}<span class="badge missing">{{ p.stats.missing }}</span>{% else %}<span class="badge ok">0</span>{% endif %}</td>
       </tr>

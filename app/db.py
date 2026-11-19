@@ -262,6 +262,7 @@ def init_db(retries: int = 30):
     if _add_column(db, "parts", "rack_id", "INTEGER"):
         _migrate_locations(db)
     _add_column(db, "parts", "ean", "VARCHAR(50)")
+    _add_column(db, "project_parts", "integrated", "INTEGER NOT NULL DEFAULT 0")   # diel je už na stroji
     _add_column(db, "projects", "external_ref", "VARCHAR(60)")   # napr. "pm:12" = projekt z Projekt manažéra
     _add_column(db, "projects", "external_url", "VARCHAR(300)")
     db.execute("CREATE INDEX IF NOT EXISTS ix_parts_ean ON parts (ean)")

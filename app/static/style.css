@@ -387,3 +387,18 @@ input.stock-input { width: 5.067rem; text-align: right; padding: 0.333rem 0.467r
 .disk-bar span { display: block; height: 100%; background: var(--good, #0ca30c); border-radius: 99px; }
 .disk-bar.warn span { background: #e0a100; }
 .disk-bar.crit span { background: #d33b3b; }
+
+/* diely zaintegrované na stroji */
+.badge.integrated { background: #e3ecfb; color: #2f5fb3; }
+tr.row-integrated td { background: #eef3fc !important; }
+tr.row-integrated td:first-child { box-shadow: inset 4px 0 0 #4a7fd6; }
+th.chk, td.chk { width: 1.8rem; text-align: center; padding-left: 0.4rem; padding-right: 0.2rem; }
+td.chk input, th.chk input { width: 1.05rem; height: 1.05rem; margin: 0; }
+.int-toggle { display: block; margin-top: 0.2rem; }
+.int-toggle .btn-link { color: var(--ink-3); font-size: .82rem; }
+.int-toggle .btn-link:hover { color: var(--accent); }
+.bulk-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; padding: 0.6rem 0.8rem; margin-bottom: 0.8rem;
+  border: 1px solid #c9d9f5; background: #f1f6fe; border-radius: 8px; position: sticky; top: 0.5rem; z-index: 5; }
+#lines tr:not(.row-integrated) .int-toggle { opacity: 0; transition: opacity .12s; }
+#lines tr:hover .int-toggle, #lines .int-toggle:focus-within { opacity: 1; }
+@media (hover: none) { #lines tr:not(.row-integrated) .int-toggle { opacity: 1; } }

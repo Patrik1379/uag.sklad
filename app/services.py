@@ -9,7 +9,7 @@ from flask import current_app
 from .db import get_db
 
 LINES_SQL = """
-SELECT pp.id AS pp_id, pp.project_id, pp.qty_required, pp.note AS pp_note,
+SELECT pp.id AS pp_id, pp.project_id, pp.qty_required, pp.note AS pp_note, pp.integrated,
        pa.id AS part_id, pa.code, pa.order_code, pa.ean, pa.name, pa.image, pa.unit,
        pa.manufacturer, pa.supplier, pa.location, pa.location_id, pa.rack_id, pa.shelf,
        COALESCE(r.qty, 0) AS received
@@ -30,7 +30,11 @@ def enrich(line):
     line["covered"] = min(rec, req)
     line["missing"] = max(req - rec, 0)
     line["surplus"] = max(rec - req, 0)
-    if req and rec >= req:
+    if line.get("integrated"):
+        # diel je už na stroji – berie sa ako kompletný, nenaskladňuje sa a pri príjme sa neponúka
+        line["covered"], line["missing"], line["surplus"] = req, 0, rec
+        line["state"] = "integrated"
+    elif req and rec >= req:
         line["state"] = "ok"
     elif rec > 0:
         line["state"] = "partial"
@@ -50,6 +54,7 @@ def summarize(lines):
     return {
         "n_items": len(lines),
         "items_ok": sum(1 for l in lines if l["state"] == "ok"),
+        "items_integrated": sum(1 for l in lines if l["state"] == "integrated"),
         "items_partial": sum(1 for l in lines if l["state"] == "partial"),
         "items_missing": sum(1 for l in lines if l["state"] == "missing"),
         "required": req,
@@ -90,7 +95,7 @@ def demand_for_part(part_id):
     db = get_db()
     rows = db.query(
         LINES_SQL + """ JOIN projects pr ON pr.id = pp.project_id
-        WHERE pp.part_id = ? AND pr.status = 'aktivny'""", (part_id,))
+        WHERE pp.part_id = ? AND pr.status = 'aktivny' AND COALESCE(pp.integrated, 0) = 0""", (part_id,))
     projects = {p["id"]: p for p in db.query("SELECT * FROM projects")}
     out = []
     for r in rows:

@@ -41,6 +41,7 @@ def dashboard():
         "covered": sum(p["stats"]["covered"] for p in projects),
         "n_items": sum(p["stats"]["n_items"] for p in projects),
         "items_ok": sum(p["stats"]["items_ok"] for p in projects),
+        "items_integrated": sum(p["stats"]["items_integrated"] for p in projects),
         "items_partial": sum(p["stats"]["items_partial"] for p in projects),
         "items_missing": sum(p["stats"]["items_missing"] for p in projects),
     }
@@ -417,7 +418,7 @@ def project_detail(pid):
     free = free_stock_map()
     for l in lines:
         l["free"] = free.get(l["part_id"], 0)
-    order = {"missing": 0, "partial": 1, "ok": 2}
+    order = {"missing": 0, "partial": 1, "ok": 2, "integrated": 3}
     lines.sort(key=lambda l: (order[l["state"]], l["code"]))
     return render_template("project_detail.html", project=project, lines=lines, stats=summarize(lines),
                            filt=request.args.get("filter", "vsetky"))
@@ -482,6 +483,31 @@ def project_line_stock(pid, pp_id):
         flash(f"{line['code']}: naskladnené opravené na {new} ks"
               + (" – diel je znova medzi chýbajúcimi." if new < line["qty_required"] else "."), "ok")
     db.commit()
+    return redirect(url_for("main.project_detail", pid=pid))
+
+
+@bp.route("/projekty/<int:pid>/diely/na-stroji", methods=["POST"])
+@login_required
+def project_lines_integrated(pid):
+    """Označí vybrané položky kusovníka, že sú už zaintegrované na stroji (alebo označenie zruší)."""
+    db = get_db()
+    db.query("SELECT id FROM projects WHERE id = ?", (pid,), one=True) or abort(404)
+    ids = [to_int(x, None) for x in request.form.getlist("pp_id")]
+    ids = [i for i in ids if i]
+    on = 1 if request.form.get("action", "on") == "on" else 0
+    if not ids:
+        flash("Označte aspoň jeden diel.", "error")
+        return redirect(url_for("main.project_detail", pid=pid))
+    marks = ",".join("?" * len(ids))
+    db.execute(f"UPDATE project_parts SET integrated = ? WHERE project_id = ? AND id IN ({marks})", (on, pid, *ids))
+    db.commit()
+    n = len(ids)
+    if on:
+        what = ("položka bola označená" if n == 1 else "položky boli označené" if n < 5 else "položiek bolo označených")
+        flash(f"{n} {what} ako zaintegrované na stroji – pri príjme sa už neponúkajú.", "ok")
+    else:
+        what = ("položka znova čaká" if n == 1 else "položky znova čakajú" if n < 5 else "položiek znova čaká")
+        flash(f"{n} {what} na naskladnenie.", "ok")
     return redirect(url_for("main.project_detail", pid=pid))
 
 
@@ -674,8 +700,8 @@ def project_export(pid):
     ws.append(head)
     for c in ws[3]:
         c.font = Font(bold=True)
-    fills = {"ok": "D6F2D6", "partial": "FFF0C2", "missing": "F8D7D7"}
-    labels = {"ok": "Naskladnené", "partial": "Čiastočne", "missing": "Chýba"}
+    fills = {"ok": "D6F2D6", "partial": "FFF0C2", "missing": "F8D7D7", "integrated": "DCE8FA"}
+    labels = {"ok": "Naskladnené", "partial": "Čiastočne", "missing": "Chýba", "integrated": "Na stroji"}
     for l in lines:
         ws.append([l["code"], l["order_code"], l.get("ean"), l["name"], l["manufacturer"], location_label(l), l["qty_required"],
                    l["received"], l["missing"], labels[l["state"]]])

@@ -34,7 +34,7 @@
   <div class="card">
     <div class="label">Kompletnosť</div>
     <div class="value">{{ total.pct }} %</div>
-    <div class="sub">{{ total.items_ok }} z {{ total.n_items }} položiek kompletných</div>
+    <div class="sub">{{ total.items_ok + total.items_integrated }} z {{ total.n_items }} položiek kompletných</div>
   </div>
   <div class="card">
     <div class="label">Naskladnené</div>
@@ -56,6 +56,7 @@
       {% set C = 2 * 3.14159265 * 70 %}
       {% set segs = [
           ('Kompletné', total.items_ok, '#0ca30c'),
+          ('Na stroji', total.items_integrated, '#4a7fd6'),
           ('Čiastočne', total.items_partial, '#fab219'),
           ('Chýba', total.items_missing, '#d03b3b')] %}
       <div class="donut-wrap">
@@ -73,7 +74,7 @@
               {% set ns.off = ns.off + len %}
             {% endfor %}
           </svg>
-          <div class="center"><b>{{ total.items_ok }}/{{ n }}</b><span>kompletných</span></div>
+          <div class="center"><b>{{ total.items_ok + total.items_integrated }}/{{ n }}</b><span>kompletných</span></div>
         </div>
         <div class="legend">
           {% for label, val, color in segs %}
