@@ -1,0 +1,7 @@
+{% if undo %}
+<form class="flash warn undo-bar" method="post" action="{{ url_for('main.order_undo') }}">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ request.full_path }}">
+  <span>Naposledy ste označili ako objednané <b>{{ undo.total }} ks</b>{% if undo.created %} ({{ undo.created|d(True) }}){% endif %}.</span>
+  <button class="btn sm" onclick="return confirm('Vrátiť späť posledné označenie ako objednané?')">↶ Vrátiť späť</button>
+</form>
+{% endif %}

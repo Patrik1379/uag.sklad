@@ -16,6 +16,7 @@
   <div class="card"><div class="label">Možno na voľnom sklade</div><div class="value {{ 'warn' if with_free }}">{{ with_free }}</div><div class="sub">druhov – najprv skontrolujte</div></div>
 </div>
 
+{% include '_undo.html' %}
 {% if suppliers|length > 1 %}
 <div class="filters" style="margin-bottom:1rem">
   <a href="{{ url_for('main.to_order_view') }}" class="{{ 'on' if sup is none }}">Všetci</a>
@@ -53,10 +54,13 @@
         <td class="small">
           {% for l in p.lines %}
             <div><a href="{{ url_for('main.project_detail', pid=l.project_id) }}">{{ l.project.order_no }}</a> {{ l.project.name }}
-              <span class="muted">– {% if l.to_order %}objednať {{ l.to_order }}{% endif %}{% if l.to_order and l.ordered %}, {% endif %}{% if l.ordered %}objednané {{ l.ordered }}{% endif %}{% if l.project.deadline %} · termín {{ l.project.deadline|d }}{% endif %}</span></div>
+              <span class="muted">– {% if l.to_order %}objednať {{ l.to_order }}, {% endif %}objednané
+                <input type="number" min="0" value="{{ l.qty_ordered }}" class="ord-edit" data-post="{{ url_for('main.project_line_ordered', pid=l.project_id, pp_id=l.pp_id) }}" data-field="ordered" title="Opraviť počet objednaných kusov pre tento projekt">
+                {%- if l.project.deadline %} · termín {{ l.project.deadline|d }}{% endif %}</span></div>
           {% endfor %}
           {% if p.min_stock or p.ordered_free %}
-            <div>📦 <b>Zásoba</b> <span class="muted">– voľných {{ p.free }}{% if p.min_stock %} / min. {{ p.min_stock }}{% endif %}{% if p.restock %}, <b style="color:var(--bad-ink)">doplniť {{ p.restock }}</b>{% endif %}{% if p.ordered_free %}, objednané do zásoby {{ p.ordered_free }}{% endif %}</span></div>
+            <div>📦 <b>Zásoba</b> <span class="muted">– voľných {{ p.free }}{% if p.min_stock %} / min. {{ p.min_stock }}{% endif %}{% if p.restock %}, <b style="color:var(--bad-ink)">doplniť {{ p.restock }}</b>{% endif %}{% if p.ordered_free or p.min_stock %}, objednané do zásoby
+              <input type="number" min="0" value="{{ p.ordered_free }}" class="ord-edit" data-post="{{ url_for('main.part_ordered_free', part_id=p.part_id) }}" data-field="ordered" title="Opraviť počet objednaných kusov do zásoby">{% endif %}</span></div>
           {% endif %}
         </td>
       </tr>
@@ -69,6 +73,14 @@
 <div class="card empty">Nič netreba objednať – všetky chýbajúce diely sú objednané.</div>
 {% endfor %}
 <script>
+// oprava počtu objednaných priamo v zozname
+document.querySelectorAll('.ord-edit').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); i.blur(); } }));
+document.querySelectorAll('.ord-edit').forEach(i => i.addEventListener('change', async () => {
+  const fd = new FormData(); fd.append(i.dataset.field, i.value || '0');
+  fd.append('_csrf', document.querySelector('meta[name="csrf"]').content);
+  i.disabled = true;
+  try { await fetch(i.dataset.post, { method: 'POST', body: fd, credentials: 'same-origin' }); } finally { location.reload(); }
+}));
 // zadaný počet „navyše“ automaticky označí riadok
 document.querySelectorAll('.extra-input').forEach(i => i.addEventListener('input', () => {
   const c = i.closest('tr').querySelector('.row-chk'); if (c && parseInt(i.value, 10) > 0) c.checked = true;

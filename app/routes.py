@@ -425,7 +425,7 @@ def project_detail(pid):
         l["free"] = free.get(l["part_id"], 0)
     order = {"missing": 0, "partial": 1, "ok": 2, "integrated": 3}
     lines.sort(key=lambda l: (order[l["state"]], l["code"]))
-    return render_template("project_detail.html", project=project, lines=lines, stats=summarize(lines),
+    return render_template("project_detail.html", project=project, lines=lines, stats=summarize(lines), undo=last_undo(),
                            filt=request.args.get("filter", "vsetky"))
 
 
@@ -514,18 +514,90 @@ def _back(default):
     return redirect(back if back.startswith("/") and not back.startswith("//") else default)
 
 
-def _mark_ordered(lines):
-    """Chýbajúce neobjednané kusy označí ako objednané. Vracia počet kusov."""
+def _mark_ordered(lines, undo=None):
+    """Chýbajúce neobjednané kusy označí ako objednané. Vracia počet kusov.
+
+    undo = zoznam, do ktorého sa zapíše pôvodný stav (pre „Vrátiť späť“)."""
     db = get_db()
     today = datetime.now().strftime("%Y-%m-%d")
     total = 0
     for l in lines:
         if l["to_order"] > 0:
-            db.execute("UPDATE project_parts SET qty_ordered = ?, ordered_at = ? WHERE id = ?",
-                       (l["qty_ordered"] + l["to_order"], today, l["pp_id"]))
+            new = l["qty_ordered"] + l["to_order"]
+            db.execute("UPDATE project_parts SET qty_ordered = ?, ordered_at = ? WHERE id = ?", (new, today, l["pp_id"]))
+            if undo is not None:
+                undo.append({"t": "pp", "id": l["pp_id"], "old": l["qty_ordered"], "old_at": l.get("ordered_at"), "new": new})
             total += l["to_order"]
     db.commit()
     return total
+
+
+def _save_undo(changes, total):
+    """Uloží posledné hromadné označenie (pre tlačidlo „Vrátiť späť“). Pamätá sa len posledné na používateľa."""
+    import json
+
+    if not changes:
+        return
+    db = get_db()
+    uid = current_user()["id"]
+    db.execute("DELETE FROM order_undo WHERE user_id = ?", (uid,))
+    db.execute("INSERT INTO order_undo (user_id, total, data) VALUES (?, ?, ?)", (uid, total, json.dumps(changes)))
+    db.commit()
+
+
+def last_undo():
+    """Posledné označenie aktuálneho používateľa (max. 24 h staré) alebo None."""
+    u = current_user()
+    if not u:
+        return None
+    row = get_db().query("SELECT * FROM order_undo WHERE user_id = ? ORDER BY id DESC", (u["id"],), one=True)
+    if not row:
+        return None
+    created = row["created_at"]
+    if isinstance(created, str):
+        try:
+            created = datetime.fromisoformat(created[:19])
+        except ValueError:
+            created = None
+    if created and (datetime.now() - created).total_seconds() > 86400:
+        return None
+    row["created"] = created
+    return row
+
+
+@bp.route("/objednavky/spat", methods=["POST"])
+@login_required
+def order_undo():
+    """Vráti posledné hromadné „Označiť ako objednané“ do pôvodného stavu."""
+    import json
+
+    row = last_undo()
+    if not row:
+        flash("Nie je čo vrátiť späť.", "warn")
+        return _back(url_for("main.to_order_view"))
+    db = get_db()
+    done = skipped = 0
+    for c in json.loads(row["data"]):
+        if c["t"] == "pp":
+            cur = db.query("SELECT qty_ordered FROM project_parts WHERE id = ?", (c["id"],), one=True)
+            table, col, col_at = "project_parts", "qty_ordered", "ordered_at"
+        else:
+            cur = db.query("SELECT qty_ordered_free AS qty_ordered FROM parts WHERE id = ?", (c["id"],), one=True)
+            table, col, col_at = "parts", "qty_ordered_free", "ordered_free_at"
+        if not cur:
+            continue
+        if int(cur["qty_ordered"] or 0) != c["new"]:
+            skipped += 1          # medzitým sa zmenilo (príjem, ručná úprava) – necháme tak
+            continue
+        db.execute(f"UPDATE {table} SET {col} = ?, {col_at} = ? WHERE id = ?", (c["old"], c.get("old_at"), c["id"]))
+        done += 1
+    db.execute("DELETE FROM order_undo WHERE id = ?", (row["id"],))
+    db.commit()
+    msg = f"Vrátené späť – objednávka {row['total']} ks bola zrušená."
+    if skipped:
+        msg += f" {skipped} položiek sa medzitým zmenilo (príjem alebo úprava), tie zostali – opravte ich ručne."
+    flash(msg, "ok" if not skipped else "warn")
+    return _back(url_for("main.to_order_view"))
 
 
 @bp.route("/projekty/<int:pid>/diely/objednat", methods=["POST"])
@@ -537,7 +609,9 @@ def project_lines_order(pid):
     if not lines:
         flash("Označte aspoň jeden diel.", "error")
     else:
-        n = _mark_ordered(lines)
+        undo = []
+        n = _mark_ordered(lines, undo)
+        _save_undo(undo, n)
         flash(f"Označené ako objednané: {n} ks." if n else "Označené diely nemajú čo objednať.", "ok" if n else "warn")
     return redirect(url_for("main.project_detail", pid=pid))
 
@@ -557,7 +631,7 @@ def to_order_view():
         groups.setdefault((p["supplier"] or "").strip(), []).append(p)
     # dodávatelia s niečím na objednanie hore, čisto „čaká na dodanie“ dole
     groups = dict(sorted(groups.items(), key=lambda g: not any(p["to_order"] for p in g[1])))
-    return render_template("to_order.html", groups=groups, suppliers=suppliers, sup=sup,
+    return render_template("to_order.html", groups=groups, undo=last_undo(), suppliers=suppliers, sup=sup,
                            n_items=sum(1 for p in items if p["to_order"]),
                            to_order=sum(p["to_order"] for p in items),
                            ordered=sum(p["ordered"] + p["ordered_free"] for p in items),
@@ -574,17 +648,22 @@ def to_order_mark():
     if not items:
         flash("Označte aspoň jeden diel.", "error")
         return _back(url_for("main.to_order_view"))
-    total = _mark_ordered([l for p in items for l in p["lines"]])
+    undo = []
+    total = _mark_ordered([l for p in items for l in p["lines"]], undo)
     db = get_db()
     today = datetime.now().strftime("%Y-%m-%d")
     for p in items:
         extra = max(to_int(request.form.get(f"extra_{p['part_id']}"), 0), 0)
         stock = p["restock"] + extra
         if stock:
-            db.execute("UPDATE parts SET qty_ordered_free = qty_ordered_free + ?, ordered_free_at = ? WHERE id = ?",
-                       (stock, today, p["part_id"]))
+            old = db.query("SELECT qty_ordered_free, ordered_free_at FROM parts WHERE id = ?", (p["part_id"],), one=True)
+            new = int(old["qty_ordered_free"] or 0) + stock
+            db.execute("UPDATE parts SET qty_ordered_free = ?, ordered_free_at = ? WHERE id = ?", (new, today, p["part_id"]))
+            undo.append({"t": "part", "id": p["part_id"], "old": int(old["qty_ordered_free"] or 0),
+                         "old_at": old["ordered_free_at"], "new": new})
             total += stock
     db.commit()
+    _save_undo(undo, total)
     flash(f"Označené ako objednané: {total} ks." if total else "Označené diely nemajú čo objednať – zadajte počet „navyše“.",
           "ok" if total else "warn")
     return _back(url_for("main.to_order_view"))

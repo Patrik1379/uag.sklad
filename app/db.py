@@ -180,6 +180,13 @@ CREATE TABLE IF NOT EXISTS receipts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_receipts_part ON receipts (part_id, project_id);
+CREATE TABLE IF NOT EXISTS order_undo (
+    id {PK},
+    user_id INTEGER,
+    total INTEGER NOT NULL DEFAULT 0,
+    data TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 

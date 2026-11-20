@@ -31,6 +31,7 @@
     {% if stats.missing %}<div class="sub">objednané <b>{{ stats.ordered }}</b> · treba objednať <b class="{{ 'bad' if stats.to_order }}">{{ stats.to_order }}</b> ks</div>{% endif %}</div>
 </div>
 
+{% include '_undo.html' %}
 <div class="card">
   <div class="page-head" style="margin-bottom:0.8rem">
     <h2 style="margin:0">Diely projektu</h2>
