@@ -92,11 +92,27 @@ def to_order_list():
         p = parts.setdefault(l["part_id"], {k: l[k] for k in (
             "part_id", "code", "order_code", "ean", "name", "image", "unit", "manufacturer", "supplier")})
         p.setdefault("lines", []).append(dict(l, project=projects[l["project_id"]]))
+    # minimálna zásoba: voľný sklad + už objednané do zásoby pod minimom → doplniť
+    stock_rows = {r["id"]: r for r in db.query(
+        "SELECT * FROM parts WHERE COALESCE(min_stock, 0) > 0 OR COALESCE(qty_ordered_free, 0) > 0")}
+    for r in stock_rows.values():
+        if r["id"] not in parts:
+            parts[r["id"]] = {"part_id": r["id"], "code": r["code"], "order_code": r["order_code"], "ean": r["ean"],
+                              "name": r["name"], "image": r["image"], "unit": r["unit"],
+                              "manufacturer": r["manufacturer"], "supplier": r["supplier"], "lines": []}
     out = []
     for p in parts.values():
-        p["to_order"] = sum(l["to_order"] for l in p["lines"])
-        p["ordered"] = sum(l["ordered"] for l in p["lines"])
+        st = stock_rows.get(p["part_id"]) or {}
+        p.setdefault("lines", [])
         p["free"] = free.get(p["part_id"], 0)
+        p["min_stock"] = int(st.get("min_stock") or 0)
+        p["ordered_free"] = int(st.get("qty_ordered_free") or 0)
+        p["restock"] = max(p["min_stock"] - p["free"] - p["ordered_free"], 0) if p["min_stock"] else 0
+        p["to_order_projects"] = sum(l["to_order"] for l in p["lines"])
+        p["to_order"] = p["to_order_projects"] + p["restock"]
+        p["ordered"] = sum(l["ordered"] for l in p["lines"])
+        if not (p["to_order"] or p["ordered"] or p["ordered_free"]):
+            continue
         p["lines"].sort(key=lambda l: (l["project"]["deadline"] is None, str(l["project"]["deadline"] or "")))
         out.append(p)
     out.sort(key=lambda p: ((p["supplier"] or "").strip().lower() or "\uffff", p["code"]))

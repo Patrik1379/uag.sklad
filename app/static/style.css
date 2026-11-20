@@ -80,6 +80,7 @@ h3 { font-size: .95rem; margin: 0 0 0.533rem; font-weight: 650; }
 .kpi .value.good { color: var(--good-ink); }
 .kpi .value.bad { color: var(--bad-ink); }
 .kpi .value.warn { color: var(--warn-ink); }
+input.extra-input { width: 5.5rem !important; text-align: right; padding: 0.333rem 0.467rem; }
 
 /* ---------- buttons / forms ---------- */
 .btn {

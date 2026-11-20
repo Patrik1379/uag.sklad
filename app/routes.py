@@ -16,7 +16,7 @@ from .services import (location_label, location_parts, locations_map, racks_map,
 bp = Blueprint("main", __name__)
 
 PART_FIELDS = ["code", "order_code", "ean", "name", "manufacturer", "supplier", "category",
-               "unit", "location", "shelf", "params", "note"]
+               "unit", "location", "shelf", "params", "note", "min_stock"]
 PROJECT_FIELDS = ["name", "order_no", "customer", "start_date", "deadline", "note", "status"]
 
 
@@ -243,7 +243,11 @@ def receive_save(part_id):
         db.execute(
             "INSERT INTO receipts (part_id, project_id, qty, user_id, delivery_note, note) VALUES (?, ?, ?, ?, ?, ?)",
             (part_id, pid, qty, uid, dl, note))
-        consume_ordered(db, pid, part_id, qty)
+        if pid:
+            consume_ordered(db, pid, part_id, qty)
+        else:
+            db.execute("""UPDATE parts SET qty_ordered_free = CASE WHEN qty_ordered_free > ? THEN qty_ordered_free - ? ELSE 0 END
+                          WHERE id = ?""", (qty, qty, part_id))
     db.commit()
     total = sum(q for _, q in allocations)
     flash(f"Naskladnené: {part['code']} – {total} {part['unit']}.", "ok")
@@ -555,20 +559,52 @@ def to_order_view():
     groups = dict(sorted(groups.items(), key=lambda g: not any(p["to_order"] for p in g[1])))
     return render_template("to_order.html", groups=groups, suppliers=suppliers, sup=sup,
                            n_items=sum(1 for p in items if p["to_order"]),
-                           to_order=sum(p["to_order"] for p in items), ordered=sum(p["ordered"] for p in items),
-                           with_free=sum(1 for p in items if p["to_order"] and p["free"]))
+                           to_order=sum(p["to_order"] for p in items),
+                           ordered=sum(p["ordered"] + p["ordered_free"] for p in items),
+                           n_restock=sum(1 for p in items if p["restock"]),
+                           with_free=sum(1 for p in items if p["to_order_projects"] and p["free"]))
 
 
 @bp.route("/na-objednanie", methods=["POST"])
 @login_required
 def to_order_mark():
+    """Označené diely: chýbajúce kusy projektov + doplnenie zásoby + zadané „navyše“ sú objednané."""
     ids = {to_int(x, None) for x in request.form.getlist("part_id")}
-    lines = [l for p in to_order_list() if p["part_id"] in ids for l in p["lines"]]
-    if not lines:
+    items = [p for p in to_order_list() if p["part_id"] in ids]
+    if not items:
         flash("Označte aspoň jeden diel.", "error")
-    else:
-        flash(f"Označené ako objednané: {_mark_ordered(lines)} ks.", "ok")
+        return _back(url_for("main.to_order_view"))
+    total = _mark_ordered([l for p in items for l in p["lines"]])
+    db = get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    for p in items:
+        extra = max(to_int(request.form.get(f"extra_{p['part_id']}"), 0), 0)
+        stock = p["restock"] + extra
+        if stock:
+            db.execute("UPDATE parts SET qty_ordered_free = qty_ordered_free + ?, ordered_free_at = ? WHERE id = ?",
+                       (stock, today, p["part_id"]))
+            total += stock
+    db.commit()
+    flash(f"Označené ako objednané: {total} ks." if total else "Označené diely nemajú čo objednať – zadajte počet „navyše“.",
+          "ok" if total else "warn")
     return _back(url_for("main.to_order_view"))
+
+
+@bp.route("/diely/<int:part_id>/objednane-do-zasoby", methods=["POST"])
+@login_required
+def part_ordered_free(part_id):
+    """Ručne: koľko kusov je objednaných do voľného skladu (zásoby)."""
+    db = get_db()
+    part = db.query("SELECT * FROM parts WHERE id = ?", (part_id,), one=True) or abort(404)
+    if request.form.get("add"):
+        new = (part.get("qty_ordered_free") or 0) + max(to_int(request.form.get("add"), 0), 0)
+    else:
+        new = max(to_int(request.form.get("ordered"), 0), 0)
+    db.execute("UPDATE parts SET qty_ordered_free = ?, ordered_free_at = ? WHERE id = ?",
+               (new, datetime.now().strftime("%Y-%m-%d") if new else None, part_id))
+    db.commit()
+    flash(f"{part['code']}: objednané do zásoby {new} {part['unit']}." if new else f"{part['code']}: objednávka do zásoby zrušená.", "ok")
+    return _back(url_for("main.part_detail", part_id=part_id))
 
 
 def _to_order_export(items, sup):
@@ -579,15 +615,16 @@ def _to_order_export(items, sup):
     ws = wb.active
     ws.title = "Na objednanie"
     ws.append(["Dodávateľ", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Označenie", "Objednať", "Jednotka",
-               "Už objednané", "Voľný sklad", "Projekty"])
+               "Už objednané", "Voľný sklad", "Projekty / zásoba"])
     for c in ws[1]:
         c.font = Font(bold=True)
     for p in items:
         if not p["to_order"]:
             continue
         ws.append([p["supplier"] or "", p["order_code"] or "", p["ean"] or "", p["name"], p["manufacturer"] or "",
-                   p["code"], p["to_order"], p["unit"], p["ordered"] or None, p["free"] or None,
-                   ", ".join(f"{l['project']['order_no']} ({l['to_order']})" for l in p["lines"] if l["to_order"])])
+                   p["code"], p["to_order"], p["unit"], (p["ordered"] + p["ordered_free"]) or None, p["free"] or None,
+                   ", ".join([f"{l['project']['order_no']} ({l['to_order']})" for l in p["lines"] if l["to_order"]]
+                             + ([f"zásoba ({p['restock']}, min. {p['min_stock']})"] if p["restock"] else []))])
     for col, w in zip("ABCDEFGHIJK", (20, 26, 16, 40, 18, 12, 10, 9, 12, 11, 40)):
         ws.column_dimensions[col].width = w
     buf = io.BytesIO()
@@ -1053,6 +1090,7 @@ def parts_api():
 def _part_form_data():
     data = {f: (request.form.get(f, "").strip() or None) for f in PART_FIELDS}
     data["unit"] = data["unit"] or "ks"
+    data["min_stock"] = max(to_int(data["min_stock"], 0), 0) or None
     data["ean"] = normalize_ean(data["ean"]) or data["ean"]
     from .norms import order_code_with_norms
     # spojovací materiál: objednávacie číslo s úplným označením „DIN 912 M6x20 / ISO 4762 M6x20“

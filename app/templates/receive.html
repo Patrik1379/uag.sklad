@@ -99,12 +99,16 @@
     <div class="flash warn" style="margin-bottom:0.933rem">Diel nemá zaznamenanú objednávku v žiadnom projekte – skontrolujte, pre ktorý projekt tovar prišiel.</div>
     {% endif %}
   {% else %}
+    {% if part.qty_ordered_free %}
+    <div class="flash ok" style="margin-bottom:0.933rem">Diel je objednaný do zásoby ({{ part.qty_ordered_free }} {{ part.unit }}) – kusy pôjdu do voľného skladu.</div>
+    {% else %}
     <div class="flash error" style="margin-bottom:0.933rem">Diel momentálne nechýba v žiadnom aktívnom projekte – kusy môžete zaradiť do voľného skladu.</div>
+    {% endif %}
   {% endif %}
 
   <div class="qty-total">
     <label for="qty-total" style="margin:0;font-size:1rem;color:var(--ink)">Počet prijatých kusov:</label>
-    <input type="number" id="qty-total" min="0" value="{{ (ordered_lines|sum(attribute='ordered') if ordered_lines else open_lines|sum(attribute='missing')) or '' }}">
+    <input type="number" id="qty-total" min="0" value="{{ ((ordered_lines|sum(attribute='ordered') if ordered_lines else open_lines|sum(attribute='missing')) + (part.qty_ordered_free or 0)) or '' }}">
     <span class="small muted">Kusy sa automaticky rozdelia podľa {{ 'objednávok a ' if ordered_lines }}termínu projektov – rozdelenie môžete upraviť ručne.</span>
   </div>
 
@@ -127,7 +131,8 @@
       </tr>
     {% endfor %}
       <tr>
-        <td colspan="7"><b>Voľný sklad</b> <span class="small muted">– nadbytočné kusy, neskôr ich možno priradiť do projektu</span></td>
+        <td colspan="7"><b>Voľný sklad</b> <span class="small muted">– nadbytočné kusy, neskôr ich možno priradiť do projektu</span>
+          {% if part.qty_ordered_free %}<div class="small"><b>objednané do zásoby {{ part.qty_ordered_free }} {{ part.unit }}</b>{% if part.min_stock %} · min. zásoba {{ part.min_stock }}{% endif %}</div>{% endif %}</td>
         <td class="num"><input class="alloc-input" type="number" min="0" name="alloc_free" data-free></td>
       </tr>
     </tbody>

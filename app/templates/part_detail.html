@@ -39,7 +39,16 @@
   </div>
   <div class="grid" style="grid-template-columns:1fr 1fr;gap:1.2rem;align-content:start">
     <div class="card kpi"><div class="label">Spolu na sklade</div><div class="value">{{ part.stock }}</div><div class="sub">{{ part.unit }}</div></div>
-    <div class="card kpi"><div class="label">Voľný sklad</div><div class="value">{{ part.free }}</div><div class="sub">nepriradené</div></div>
+    <div class="card kpi"><div class="label">Voľný sklad</div><div class="value {{ 'bad' if part.min_stock and part.free < part.min_stock }}">{{ part.free }}</div>
+      <div class="sub">nepriradené{% if part.min_stock %} · min. zásoba {{ part.min_stock }}{% endif %}</div></div>
+    <form class="card kpi" method="post" action="{{ url_for('main.part_ordered_free', part_id=part.id) }}" style="grid-column:1 / -1">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="label">Objednané do zásoby (voľný sklad)</div>
+      <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;margin-top:0.3rem">
+        <input type="number" name="ordered" min="0" value="{{ part.qty_ordered_free or 0 }}" class="stock-input" onchange="this.form.submit()" title="Objednané a ešte nedodané kusy do voľného skladu – príjem do voľného skladu ich odpočíta">
+        <span class="small muted">{{ part.unit }}{% if part.ordered_free_at and part.qty_ordered_free %} · objednané {{ part.ordered_free_at|d }}{% endif %}</span>
+      </div>
+    </form>
   </div>
 </div>
 

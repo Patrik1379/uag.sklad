@@ -266,6 +266,9 @@ def init_db(retries: int = 30):
     _add_column(db, "feedback", "source", "VARCHAR(20)")       # z ktorej aplikácie (None = sklad, "projekty")
     _add_column(db, "feedback", "author", "VARCHAR(150)")      # meno autora z inej aplikácie
     _add_column(db, "feedback", "ext_user", "VARCHAR(100)")    # id autora v inej aplikácii (napr. "pm:3")
+    _add_column(db, "parts", "min_stock", "INTEGER")                   # minimálna zásoba vo voľnom sklade
+    _add_column(db, "parts", "qty_ordered_free", "INTEGER NOT NULL DEFAULT 0")  # objednané do zásoby, nedodané
+    _add_column(db, "parts", "ordered_free_at", "VARCHAR(20)")
     _add_column(db, "project_parts", "qty_ordered", "INTEGER NOT NULL DEFAULT 0")  # objednané, ešte nedodané ks
     _add_column(db, "project_parts", "ordered_at", "VARCHAR(20)")                  # dátum poslednej objednávky
     _add_column(db, "projects", "external_ref", "VARCHAR(60)")   # napr. "pm:12" = projekt z Projekt manažéra

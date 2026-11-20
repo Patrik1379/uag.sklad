@@ -16,6 +16,9 @@
     <div class="full"><label>Názov *</label><input type="text" name="name" value="{{ part.name or '' }}" required {{ 'autofocus' if not part.id }}><div class="hint" id="norm-hint" hidden></div></div>
     <div><label>Výrobca</label><input type="text" name="manufacturer" value="{{ part.manufacturer or '' }}"></div>
     <div><label>Dodávateľ</label><input type="text" name="supplier" value="{{ part.supplier or '' }}"></div>
+    <div><label>Minimálna zásoba (nepovinné)</label><input type="number" name="min_stock" min="0" value="{{ part.min_stock or '' }}" style="max-width:10rem"
+      title="Keď voľný sklad klesne pod túto hodnotu, diel sa zobrazí v „Na objednanie“ s množstvom na doplnenie">
+      <div class="hint">Pre bežný materiál (skrutky, svorky…) – pod minimom sa ponúkne na objednanie.</div></div>
     <div class="full"><label>Kategória</label><input type="text" name="category" value="{{ part.category or '' }}" placeholder="napr. Elektro, Pneumatika, Mechanika"></div>
     <div class="full">
       <label>Umiestnenie v sklade</label>
