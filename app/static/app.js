@@ -225,3 +225,10 @@
     });
   }
 })();
+
+// --- Tmavý režim (pamätá si ho prehliadač) ------------------------------------
+document.querySelectorAll("[data-theme-toggle]").forEach((b) => b.addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme !== "dark";
+  if (dark) document.documentElement.dataset.theme = "dark"; else delete document.documentElement.dataset.theme;
+  try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch (e) {}
+}));

@@ -770,3 +770,74 @@ table.docs .folder-row td { background: #fafbfc; }
 .nav .brand { white-space: nowrap; }
 .text-size button { white-space: nowrap; }
 @media (max-width: 1500px) { .nav-links { gap: 0; } .nav-links a { padding: 6px 9px; } }
+
+/* ============================================================================
+   Tmavý režim – prepína sa tlačidlom ☾/☀ vedľa A− / A+
+   ========================================================================== */
+.text-size .ts-theme { font-size: 15px; min-width: 34px; }
+.ts-theme .t-light, [data-theme="dark"] .ts-theme .t-dark { display: none; }
+[data-theme="dark"] .ts-theme .t-light { display: inline; }
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #13161c; --surface: #1c2029; --text: #e5e8ee; --muted: #9aa3b4; --line: #2d3340;
+  --primary: #6b93f0; --primary-weak: #1f2b47;
+  --ok: #35b97a; --risk: #e6a23a; --overdue: #ec6363; --paused: #8f98aa; --done: #6b93f0;
+  --st-ok: #6b93f0; --st-ok-bg: #1f2b47; --st-ok-bar: #2c3f6b; --st-done: #35b97a; --st-done-bg: #173226; --st-done-bar: #1f4a37;
+  --install: #9a7bff; --install-weak: #2a2346;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 2px 8px rgba(0,0,0,.25);
+}
+[data-theme="dark"] .btn:hover { border-color: #465061; }
+[data-theme="dark"] .btn-primary:hover { background: #557fe0; }
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea,
+[data-theme="dark"] .member-box, [data-theme="dark"] .tick { background: #151920; color: var(--text); border-color: #3a4252; }
+[data-theme="dark"] .btn { background: var(--surface); color: var(--text); }
+[data-theme="dark"] .btn-primary { background: var(--primary); color: #fff; }
+[data-theme="dark"] .tick.on { background: var(--ok); }
+[data-theme="dark"] .flash.success, [data-theme="dark"] .toast.ok { background: #173226; border-color: #2a5a43; color: #8fdcb5; }
+[data-theme="dark"] .flash.error, [data-theme="dark"] .toast.error { background: #3a1d20; border-color: #6b3438; color: #f3a3a3; }
+[data-theme="dark"] .flash.warn { background: #33290f; border-color: #5c4a1c; color: #f0cd7a; }
+[data-theme="dark"] .badge.risk, [data-theme="dark"] .badge.fb-st-riesi_sa, [data-theme="dark"] .weight.w3 { background: #3a2d12; color: #f0c069; }
+[data-theme="dark"] .badge.overdue, [data-theme="dark"] .badge.fb-k-chyba, [data-theme="dark"] .weight.w5 { background: #3d1f23; color: #f19a9a; }
+[data-theme="dark"] .badge.paused, [data-theme="dark"] .badge.status, [data-theme="dark"] .badge.inst-presunuta,
+[data-theme="dark"] .badge.fb-k-otazka, [data-theme="dark"] .badge.fb-st-zamietnute,
+[data-theme="dark"] .weight.w1, [data-theme="dark"] .weight.w2, [data-theme="dark"] select.weight { background: #2a303c; color: #c3c9d5; }
+[data-theme="dark"] .badge.fb-k-navrh, [data-theme="dark"] .badge.fb-st-nova { background: #1f2b47; color: #a9c1f7; }
+[data-theme="dark"] .progress, [data-theme="dark"] .sub-progress .bar, [data-theme="dark"] .disk-bar { background: #2a303c; }
+[data-theme="dark"] .progress.material { background: #232a38; }
+[data-theme="dark"] .tl-row { border-bottom-color: #262c38; }
+[data-theme="dark"] .tl-row:hover, [data-theme="dark"] .install-row:hover { background: #20252f; }
+[data-theme="dark"] .tl-grid .line { border-left-color: #242a35; }
+[data-theme="dark"] .tl-bar { background: #2c3f6b; }
+[data-theme="dark"] .tl-bar .txt { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+[data-theme="dark"] .tl-bar.risk { background: #4d3a17; } [data-theme="dark"] .tl-bar.overdue { background: #532228; }
+[data-theme="dark"] .tl-bar.paused { background: #2c3344; }
+[data-theme="dark"] .stat.overdue:not(.zero), [data-theme="dark"] .dl-card.overdue, [data-theme="dark"] .cal-ev.task.overdue,
+[data-theme="dark"] tbody tr.row-overdue, [data-theme="dark"] .bd-inst.overdue { background: #2a1a1d; border-color: #5a2a30; }
+[data-theme="dark"] .stat.risk:not(.zero), [data-theme="dark"] .dl-card.soon, [data-theme="dark"] .bd-inst.risk,
+[data-theme="dark"] .rem-item.due { background: #2a2414; border-color: #54451f; }
+[data-theme="dark"] .dl-card, [data-theme="dark"] .cal-ev.task, [data-theme="dark"] .pthumb, [data-theme="dark"] .lightbox img { background: var(--surface); }
+[data-theme="dark"] .comment, [data-theme="dark"] .empty-inline, [data-theme="dark"] .cal-day.weekend,
+[data-theme="dark"] table.docs .folder-row td, [data-theme="dark"] .subtask-add input:focus { background: #181c24; }
+[data-theme="dark"] .cal-day.other { background: #111419; }
+[data-theme="dark"] .cal-day.other .cal-num { color: #5a6273; }
+[data-theme="dark"] .install-card.risk .install-date, [data-theme="dark"] .install-row.risk .install-date { background: #3a2d12; color: #f0c069; }
+[data-theme="dark"] .install-card.overdue .install-date, [data-theme="dark"] .install-row.overdue .install-date { background: #3d1f23; }
+[data-theme="dark"] .install-card.paused .install-date, [data-theme="dark"] .install-row.paused .install-date { background: #2a303c; }
+[data-theme="dark"] .bd-inst { background: #221f3a; border-color: #36305e; }
+[data-theme="dark"] .bd-inst.paused { background: #1d2230; }
+[data-theme="dark"] .bd-ins, [data-theme="dark"] .bd-inst-when, [data-theme="dark"] .bd-inst-date span { color: #b39dff; }
+[data-theme="dark"] .countdown.risk, [data-theme="dark"] .dl-card.soon .num, [data-theme="dark"] .bd-dl.risk { color: #f0c069; }
+[data-theme="dark"] .switch span { background: #3a4252; }
+[data-theme="dark"] .docs-link { background: #18263b; border-color: #2a4466; }
+[data-theme="dark"] .docs-link:hover { background: #1d2f49; border-color: #3a5c88; }
+[data-theme="dark"] .docs-link-go { color: #7fb6ff; }
+[data-theme="dark"] .fb-filters a.on { background: #e5e8ee; border-color: #e5e8ee; color: #13161c; }
+[data-theme="dark"] .fb-reply { background: #1a2436; }
+[data-theme="dark"] .rem-popup { background: var(--surface); border-color: #54451f; }
+[data-theme="dark"] .rem-popup-head { background: #33290f; color: #f0cd7a; }
+[data-theme="dark"] .legend i.lg-dot, [data-theme="dark"] .tl-today-dot { background: var(--surface); }
+[data-theme="dark"] .set-hint { color: #d8b54a; }
+[data-theme="dark"] .tl-deadline .dl-label { background: rgba(28,32,41,.92); }
+[data-theme="dark"] .tl-task { background: var(--surface); box-shadow: 0 0 0 2px var(--surface); }
+[data-theme="dark"] .imgdrop-btn, [data-theme="dark"] .install-dot { border-color: var(--surface); }
+[data-theme="dark"] .cal-head div { background: #181c24; }

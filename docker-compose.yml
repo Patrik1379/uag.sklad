@@ -32,6 +32,7 @@ services:
       BEHIND_PROXY: ${BEHIND_PROXY:-0}
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
       PORTAL_URL: ${PORTAL_URL:-}
+      DOMAIN: ${DOMAIN:-}
     volumes:
       - uploads:/data/uploads
     ports:

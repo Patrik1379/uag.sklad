@@ -29,6 +29,13 @@ def get_settings():
     rows = get_db().query("SELECT key, value FROM settings")
     data = dict(DEFAULTS)
     data.update({r["key"]: r["value"] or "" for r in rows})
+    if not data.get("app_url"):
+        # verejná adresa skladu z .env (DOMAIN) – inak by odkazy pri volaní cez API (http://web:8000)
+        # smerovali na vnútornú adresu servera, ktorá zvonku neexistuje
+        import os
+        dom = (os.environ.get("DOMAIN") or "").strip()
+        if dom and dom != "localhost":
+            data["app_url"] = dom if dom.startswith("http") else "https://" + dom
     return data
 
 

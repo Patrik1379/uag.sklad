@@ -4,5 +4,7 @@
   <button name="step" value="-1" class="ts-minus" title="Zmenšiť" aria-label="Zmenšiť text" {{ 'disabled' if font_scale <= 70 }}>A&minus;</button>
   <button name="step" value="0" class="ts-val" title="Veľkosť textu – kliknutím vrátite 100 %">{{ font_scale }} %</button>
   <button name="step" value="1" class="ts-plus" title="Zväčšiť" aria-label="Zväčšiť text" {{ 'disabled' if font_scale >= 150 }}>A+</button>
+  <button type="button" class="ts-theme" title="Prepnúť tmavý / svetlý režim" aria-label="Prepnúť tmavý režim"
+          onclick="var d=document.documentElement,on=d.dataset.theme!=='dark';if(on)d.dataset.theme='dark';else delete d.dataset.theme;try{localStorage.setItem('theme',on?'dark':'light')}catch(e){}"><span class="t-dark">☾</span><span class="t-light">☀</span></button>
 </form>
 {% endmacro %}

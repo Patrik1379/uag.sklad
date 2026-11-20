@@ -6,7 +6,8 @@
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="refresh" content="{{ 60 if tv else 300 }}">
   <title>{{ app_name }} – prehľad</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% if not tv %}<script>try{if(localStorage.getItem("theme")==="dark")document.documentElement.dataset.theme="dark";}catch(e){}</script>{% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=17">
 </head>
 <body>
 {% from "_text_size.html" import text_size_switch with context %}
