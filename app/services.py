@@ -400,7 +400,10 @@ def import_bom_items(project_id, items):
         if it["code"]:
             part = db.query("SELECT * FROM parts WHERE LOWER(code) = LOWER(?)", (it["code"],), one=True)
         if not part and it["order_code"]:
-            part = db.query("SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?)", (it["order_code"],), one=True)
+            from .norms import order_code_with_norms
+            # hľadá sa podľa čísla z kusovníka aj podľa zjednoteného tvaru („DIN … / ISO …“, „… / SCHNORR“)
+            for oc in dict.fromkeys([it["order_code"], order_code_with_norms(it["order_code"], it["name"])]):
+                part = part or db.query("SELECT * FROM parts WHERE LOWER(order_code) = LOWER(?)", (oc,), one=True)
         if not part and it.get("ean"):
             part = db.query("SELECT * FROM parts WHERE ean = ?", (it["ean"],), one=True)
         image = None

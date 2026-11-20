@@ -293,7 +293,22 @@ def designations(text):
     return f"DIN {din_num} - {size}{tail}", f"ISO {iso_num} - {size}{tail}"
 
 
+# doplnok k objednávaciemu číslu pre konkrétne normy (napr. DIN 6798 sa objednáva od firmy Schnorr)
+SUFFIXES = [(re.compile(r"\bDIN\s*6798\b", re.I), "SCHNORR")]
+
+
+def _with_suffix(code):
+    for rx, suffix in SUFFIXES:
+        if code and rx.search(code) and suffix.lower() not in code.lower():
+            code = f"{code} / {suffix}"
+    return code
+
+
 def order_code_with_norms(order_code, name=""):
+    return _with_suffix(_order_code_with_norms(order_code, name))[:150] if order_code or name else order_code
+
+
+def _order_code_with_norms(order_code, name=""):
     """Objednávacie číslo s úplným označením podľa DIN aj ISO oddeleným „ / “:
     „DIN 912 M6x20 8.8 / ISO 4762 M6x20 8.8“.
     - prázdne objednávacie číslo → zostaví sa z názvu (ak je v ňom norma),
