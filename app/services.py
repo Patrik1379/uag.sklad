@@ -356,9 +356,9 @@ def import_bom_items(project_id, items):
             except Exception:
                 image = None
         if not part:
-            from .norms import name_with_equivalents
+            from .norms import order_code_with_norms
             code = it["code"] or next_part_code()
-            it["name"] = name_with_equivalents(it["name"])
+            it["order_code"] = order_code_with_norms(it["order_code"], it["name"])
             part_id = db.execute(
                 """INSERT INTO parts (code, order_code, ean, name, manufacturer, supplier, category, params, image)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
@@ -442,12 +442,13 @@ def search_parts(q, limit=50):
             if (q_compact and q_compact in compact[f]) or any(t in folded[f] for t in tokens):
                 matched.append(label)
         score = 0
-        if q_compact and (q_compact in (compact["order_code"], compact["code"])
+        segs = [_compact(x) for x in str(p.get("order_code") or "").split(" / ")]
+        if q_compact and (q_compact in (compact["order_code"], compact["code"]) or q_compact in segs
                           or (q_ean and q_ean == p.get("ean"))):
             score += 1000
         elif q_compact and (q_compact in compact["order_code"] or q_compact in compact["code"]):
             score += 500
-        if q_compact and (q_compact == compact["order_code"] or (q_ean and q_ean == p.get("ean"))):
+        if q_compact and (q_compact == compact["order_code"] or q_compact in segs or (q_ean and q_ean == p.get("ean"))):
             score += 300                       # objednávacie číslo / EAN má prednosť pred označením
         if q_compact and q_compact in compact["name"]:
             score += 200

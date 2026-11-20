@@ -157,3 +157,55 @@ def name_with_equivalents(name):
         i += 1
     out.append(name[pos:])
     return re.sub(r"\s{2,}", " ", "".join(out)).strip()[:255]
+
+
+
+def designations(text):
+    """Úplné označenie podľa DIN aj ISO z textu, napr. „Skrutka DIN 912 M6x20 8.8“ →
+    („DIN 912 M6x20 8.8“, „ISO 4762 M6x20 8.8“). Rozmer a ďalšie údaje (všetko, čo obsahuje číslicu – M6x20,
+    8.8, A2-70, 6,4 …) sa prenesú do oboch označení; slová bez čísel (Skrutka, imbus…) sa vynechajú.
+    Vracia None, ak text neobsahuje normu so známym ekvivalentom."""
+    text = text or ""
+    tokens = list(_NAME_RE.finditer(text))
+    pair = None
+    for m in tokens:
+        kind, num = m.group(1).upper(), m.group(2).lstrip("0") or "0"
+        variant = (m.group(3) or "").upper() if kind == "DIN" and num == "125" else ""
+        pair = _pair(kind, num, variant)
+        if pair:
+            break
+    if not pair:
+        return None
+    rest, pos = [], 0
+    for m in tokens:                       # všetky normy z textu vyberieme, zostane rozmer a pod.
+        end = m.end() if (m.group(1).upper() == "DIN" and (m.group(2).lstrip("0") == "125")) or not m.group(3) else m.end(2)
+        rest.append(text[pos:m.start()])
+        pos = end
+    rest.append(text[pos:])
+    spec = []
+    for w in re.split(r"[\s/=;]+", " ".join(rest)):
+        w = w.strip(",;-_.")
+        if w and any(ch.isdigit() for ch in w) and w not in spec:
+            spec.append(w)
+    din_txt, iso_txt, _members = pair
+    spec_txt = " ".join(spec)
+    return f"{din_txt} {spec_txt}".strip(), f"{iso_txt} {spec_txt}".strip()
+
+
+def order_code_with_norms(order_code, name=""):
+    """Objednávacie číslo s úplným označením podľa DIN aj ISO oddeleným „ / “:
+    „DIN 912 M6x20 8.8 / ISO 4762 M6x20 8.8“.
+    - prázdne objednávacie číslo → zostaví sa z názvu (ak je v ňom norma),
+    - objednávacie číslo s normou → zjednotí sa na „DIN … / ISO …“,
+    - iné objednávacie číslo (napr. kód dodávateľa) sa nemení."""
+    order_code = (order_code or "").strip()
+    if order_code:
+        if not found_norms(order_code):
+            return order_code
+        source = order_code
+    else:
+        source = name or ""
+    d = designations(source)
+    if not d:
+        return order_code
+    return f"{d[0]} / {d[1]}"[:150]

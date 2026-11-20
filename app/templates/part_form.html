@@ -146,7 +146,7 @@
       });
     });
     hint.hidden = !out.length;
-    hint.innerHTML = out.length ? 'Zodpovedá norme <b>' + out.join(', ') + '</b> – karta sa nájde aj podľa nej.' : '';
+    hint.innerHTML = out.length ? 'Zodpovedá norme <b>' + out.join(', ') + '</b> – pri uložení sa do objednávacieho čísla zapíše označenie podľa DIN aj ISO a kartu nájdete podľa oboch.' : '';
   }
   fields.forEach(f => f.addEventListener('input', update));
   update();

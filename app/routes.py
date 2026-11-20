@@ -942,9 +942,9 @@ def _part_form_data():
     data = {f: (request.form.get(f, "").strip() or None) for f in PART_FIELDS}
     data["unit"] = data["unit"] or "ks"
     data["ean"] = normalize_ean(data["ean"]) or data["ean"]
-    if data.get("name"):
-        from .norms import name_with_equivalents
-        data["name"] = name_with_equivalents(data["name"])   # „DIN 912“ → „DIN 912 / ISO 4762“
+    from .norms import order_code_with_norms
+    # spojovací materiál: objednávacie číslo s úplným označením „DIN 912 M6x20 / ISO 4762 M6x20“
+    data["order_code"] = order_code_with_norms(data["order_code"], data.get("name")) or None
     if data["ean"] and not ean_valid(data["ean"]):
         flash(f"EAN {data['ean']} nemá platnú kontrolnú číslicu – skontrolujte ho (karta sa uložila).", "warn")
     # lokácia
@@ -1283,26 +1283,27 @@ def _server_info():
 
 
 def _norm_candidates():
-    from .norms import name_with_equivalents
+    """Karty, ktorým sa dá doplniť / zjednotiť objednávacie číslo na „DIN … / ISO …“."""
+    from .norms import order_code_with_norms
     out = []
-    for p in get_db().query("SELECT id, name FROM parts"):
-        new = name_with_equivalents(p["name"])
-        if new != p["name"]:
-            out.append((p["id"], p["name"], new))
+    for p in get_db().query("SELECT id, name, order_code FROM parts"):
+        new = order_code_with_norms(p["order_code"], p["name"])
+        if new and new != (p["order_code"] or ""):
+            out.append((p["id"], p["order_code"] or p["name"], new))
     return out
 
 
 @bp.route("/nastavenia/normy", methods=["POST"])
 @admin_required
 def settings_norms():
-    """Doplní ekvivalentnú normu DIN/ISO do názvov existujúcich skladových kariet."""
+    """Doplní úplné označenie DIN / ISO do objednávacích čísel existujúcich skladových kariet."""
     db = get_db()
     items = _norm_candidates()
     for pid, _old, new in items:
-        db.execute("UPDATE parts SET name = ? WHERE id = ?", (new, pid))
+        db.execute("UPDATE parts SET order_code = ? WHERE id = ?", (new, pid))
     db.commit()
-    flash(f"Normy v názvoch skladových kariet boli zjednotené (upravených kariet: {len(items)})." if items
-          else "Všetky názvy už majú normy zapísané jednotne.", "ok")
+    flash(f"Objednávacie čísla doplnené o označenie DIN / ISO (upravených kariet: {len(items)})." if items
+          else "Všetky karty so spojovacím materiálom už majú v objednávacom čísle DIN aj ISO.", "ok")
     return redirect(url_for("main.settings") + "#normy")
 
 
