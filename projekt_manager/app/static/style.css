@@ -841,3 +841,9 @@ table.docs .folder-row td { background: #fafbfc; }
 [data-theme="dark"] .tl-task { background: var(--surface); box-shadow: 0 0 0 2px var(--surface); }
 [data-theme="dark"] .imgdrop-btn, [data-theme="dark"] .install-dot { border-color: var(--surface); }
 [data-theme="dark"] .cal-head div { background: #181c24; }
+/* tlačidlá A− / A+ / ☾ sa nesmú stláčať – keď sa menu nezmestí, časť s používateľom sa zalomí pod neho */
+.nav-inner { flex-wrap: wrap; height: auto; min-height: 58px; row-gap: 6px; padding-top: 6px; padding-bottom: 6px; }
+.nav-user { flex-shrink: 0; margin-left: auto; }
+.nav-user .text-size { flex-shrink: 0; }
+@media (min-width: 701px) { .nav-links { flex: 0 1 auto; } }
+.nav-inner { max-width: 1600px; }
