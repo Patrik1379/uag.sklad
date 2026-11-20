@@ -10,6 +10,7 @@ from .db import get_db
 
 LINES_SQL = """
 SELECT pp.id AS pp_id, pp.project_id, pp.qty_required, pp.note AS pp_note, pp.integrated,
+       pp.qty_ordered, pp.ordered_at,
        pa.id AS part_id, pa.code, pa.order_code, pa.ean, pa.name, pa.image, pa.unit,
        pa.manufacturer, pa.supplier, pa.location, pa.location_id, pa.rack_id, pa.shelf,
        COALESCE(r.qty, 0) AS received
@@ -40,7 +41,19 @@ def enrich(line):
         line["state"] = "partial"
     else:
         line["state"] = "missing"
+    # objednávky: qty_ordered = objednané a ešte nedodané kusy (príjem do projektu ich odpočíta)
+    ordered = int(line.get("qty_ordered") or 0)
+    line["qty_ordered"] = ordered
+    line["ordered"] = min(ordered, line["missing"])
+    line["to_order"] = max(line["missing"] - ordered, 0)
     return line
+
+
+def consume_ordered(db, project_id, part_id, qty):
+    """Dodané kusy znížia počet objednaných (nedodaných) kusov v projekte."""
+    if project_id and qty > 0:
+        db.execute("""UPDATE project_parts SET qty_ordered = CASE WHEN qty_ordered > ? THEN qty_ordered - ? ELSE 0 END
+                      WHERE project_id = ? AND part_id = ? AND qty_ordered > 0""", (qty, qty, project_id, part_id))
 
 
 def project_lines(project_id):
@@ -61,7 +74,33 @@ def summarize(lines):
         "covered": cov,
         "missing": req - cov,
         "pct": round(100 * cov / req) if req else 0,
+        "ordered": sum(l.get("ordered", 0) for l in lines),
+        "to_order": sum(l.get("to_order", 0) for l in lines),
+        "items_to_order": sum(1 for l in lines if l.get("to_order")),
     }
+
+
+def to_order_list():
+    """Diely, ktoré treba objednať v aktívnych projektoch – zlúčené podľa dielu."""
+    db = get_db()
+    projects = {p["id"]: p for p in db.query("SELECT * FROM projects WHERE status = 'aktivny'")}
+    free = free_stock_map()
+    parts = {}
+    for l in (enrich(r) for r in db.query(LINES_SQL)):
+        if l["project_id"] not in projects or not (l["to_order"] or l["ordered"]):
+            continue
+        p = parts.setdefault(l["part_id"], {k: l[k] for k in (
+            "part_id", "code", "order_code", "ean", "name", "image", "unit", "manufacturer", "supplier")})
+        p.setdefault("lines", []).append(dict(l, project=projects[l["project_id"]]))
+    out = []
+    for p in parts.values():
+        p["to_order"] = sum(l["to_order"] for l in p["lines"])
+        p["ordered"] = sum(l["ordered"] for l in p["lines"])
+        p["free"] = free.get(p["part_id"], 0)
+        p["lines"].sort(key=lambda l: (l["project"]["deadline"] is None, str(l["project"]["deadline"] or "")))
+        out.append(p)
+    out.sort(key=lambda p: ((p["supplier"] or "").strip().lower() or "\uffff", p["code"]))
+    return out
 
 
 def projects_with_stats(status=None):

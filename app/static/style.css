@@ -79,6 +79,7 @@ h3 { font-size: .95rem; margin: 0 0 0.533rem; font-weight: 650; }
 .kpi .sub { color: var(--ink-3); font-size: .9rem; }
 .kpi .value.good { color: var(--good-ink); }
 .kpi .value.bad { color: var(--bad-ink); }
+.kpi .value.warn { color: var(--warn-ink); }
 
 /* ---------- buttons / forms ---------- */
 .btn {
@@ -389,6 +390,7 @@ input.stock-input { width: 5.067rem; text-align: right; padding: 0.333rem 0.467r
 .disk-bar.crit span { background: #d33b3b; }
 
 /* diely zaintegrované na stroji */
+.badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
 .badge.integrated { background: #e3ecfb; color: #2f5fb3; }
 tr.row-integrated td { background: #eef3fc !important; }
 tr.row-integrated td:first-child { box-shadow: inset 4px 0 0 #4a7fd6; }

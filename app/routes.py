@@ -11,7 +11,7 @@ from .db import get_db
 from .services import (location_label, location_parts, locations_map, racks_map, delete_image, demand_for_part, enrich, free_stock,
                        free_stock_map, next_part_code, project_lines,
                        projects_with_stats, read_bom, scan_variants, normalize_ean, looks_like_ean, ean_valid, decode_barcodes, import_bom_items, parse_eplan_xml, eplan_items, save_image, search_parts, summarize,
-                       LINES_SQL)
+                       LINES_SQL, consume_ordered, to_order_list)
 
 bp = Blueprint("main", __name__)
 
@@ -243,6 +243,7 @@ def receive_save(part_id):
         db.execute(
             "INSERT INTO receipts (part_id, project_id, qty, user_id, delivery_note, note) VALUES (?, ?, ?, ?, ?, ?)",
             (part_id, pid, qty, uid, dl, note))
+        consume_ordered(db, pid, part_id, qty)
     db.commit()
     total = sum(q for _, q in allocations)
     flash(f"Naskladnené: {part['code']} – {total} {part['unit']}.", "ok")
@@ -470,6 +471,7 @@ def project_line_stock(pid, pp_id):
     if diff > 0:
         db.execute("INSERT INTO receipts (part_id, project_id, qty, user_id, note) VALUES (?, ?, ?, ?, ?)",
                    (pp["part_id"], pid, diff, uid, "Úprava stavu v projekte"))
+        consume_ordered(db, pid, pp["part_id"], diff)
         flash(f"{line['code']}: naskladnené navýšené na {new} ks.", "ok")
     elif request.form.get("mode") == "volny":
         db.execute("INSERT INTO receipts (part_id, project_id, qty, user_id, note) VALUES (?, ?, ?, ?, ?)",
@@ -484,6 +486,116 @@ def project_line_stock(pid, pp_id):
               + (" – diel je znova medzi chýbajúcimi." if new < line["qty_required"] else "."), "ok")
     db.commit()
     return redirect(url_for("main.project_detail", pid=pid))
+
+
+@bp.route("/projekty/<int:pid>/diely/<int:pp_id>/objednane", methods=["POST"])
+@login_required
+def project_line_ordered(pid, pp_id):
+    """Ručné zadanie počtu objednaných (ešte nedodaných) kusov."""
+    db = get_db()
+    line = next((l for l in project_lines(pid) if l["pp_id"] == pp_id), None) or abort(404)
+    new = to_int(request.form.get("ordered"), -1)
+    if new < 0:
+        flash("Počet objednaných kusov nemôže byť záporný.", "error")
+    elif new != line["qty_ordered"]:
+        db.execute("UPDATE project_parts SET qty_ordered = ?, ordered_at = ? WHERE id = ?",
+                   (new, datetime.now().strftime("%Y-%m-%d") if new else None, pp_id))
+        db.commit()
+        flash(f"{line['code']}: objednané {new} ks." if new else f"{line['code']}: objednávka zrušená.", "ok")
+    return _back(url_for("main.project_detail", pid=pid))
+
+
+def _back(default):
+    back = request.form.get("back", "")
+    return redirect(back if back.startswith("/") and not back.startswith("//") else default)
+
+
+def _mark_ordered(lines):
+    """Chýbajúce neobjednané kusy označí ako objednané. Vracia počet kusov."""
+    db = get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    total = 0
+    for l in lines:
+        if l["to_order"] > 0:
+            db.execute("UPDATE project_parts SET qty_ordered = ?, ordered_at = ? WHERE id = ?",
+                       (l["qty_ordered"] + l["to_order"], today, l["pp_id"]))
+            total += l["to_order"]
+    db.commit()
+    return total
+
+
+@bp.route("/projekty/<int:pid>/diely/objednat", methods=["POST"])
+@login_required
+def project_lines_order(pid):
+    """Hromadne: označené riadky projektu – všetko chýbajúce je objednané."""
+    ids = {to_int(x, None) for x in request.form.getlist("pp_id")}
+    lines = [l for l in project_lines(pid) if l["pp_id"] in ids]
+    if not lines:
+        flash("Označte aspoň jeden diel.", "error")
+    else:
+        n = _mark_ordered(lines)
+        flash(f"Označené ako objednané: {n} ks." if n else "Označené diely nemajú čo objednať.", "ok" if n else "warn")
+    return redirect(url_for("main.project_detail", pid=pid))
+
+
+@bp.route("/na-objednanie")
+@login_required
+def to_order_view():
+    items = to_order_list()
+    sup = request.args.get("dodavatel")
+    suppliers = sorted({(p["supplier"] or "").strip() for p in items}, key=lambda s: (not s, s.lower()))
+    if sup is not None:
+        items = [p for p in items if (p["supplier"] or "").strip() == sup]
+    if request.args.get("export") == "1":
+        return _to_order_export(items, sup)
+    groups = {}
+    for p in items:
+        groups.setdefault((p["supplier"] or "").strip(), []).append(p)
+    # dodávatelia s niečím na objednanie hore, čisto „čaká na dodanie“ dole
+    groups = dict(sorted(groups.items(), key=lambda g: not any(p["to_order"] for p in g[1])))
+    return render_template("to_order.html", groups=groups, suppliers=suppliers, sup=sup,
+                           n_items=sum(1 for p in items if p["to_order"]),
+                           to_order=sum(p["to_order"] for p in items), ordered=sum(p["ordered"] for p in items),
+                           with_free=sum(1 for p in items if p["to_order"] and p["free"]))
+
+
+@bp.route("/na-objednanie", methods=["POST"])
+@login_required
+def to_order_mark():
+    ids = {to_int(x, None) for x in request.form.getlist("part_id")}
+    lines = [l for p in to_order_list() if p["part_id"] in ids for l in p["lines"]]
+    if not lines:
+        flash("Označte aspoň jeden diel.", "error")
+    else:
+        flash(f"Označené ako objednané: {_mark_ordered(lines)} ks.", "ok")
+    return _back(url_for("main.to_order_view"))
+
+
+def _to_order_export(items, sup):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Na objednanie"
+    ws.append(["Dodávateľ", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Označenie", "Objednať", "Jednotka",
+               "Už objednané", "Voľný sklad", "Projekty"])
+    for c in ws[1]:
+        c.font = Font(bold=True)
+    for p in items:
+        if not p["to_order"]:
+            continue
+        ws.append([p["supplier"] or "", p["order_code"] or "", p["ean"] or "", p["name"], p["manufacturer"] or "",
+                   p["code"], p["to_order"], p["unit"], p["ordered"] or None, p["free"] or None,
+                   ", ".join(f"{l['project']['order_no']} ({l['to_order']})" for l in p["lines"] if l["to_order"])])
+    for col, w in zip("ABCDEFGHIJK", (20, 26, 16, 40, 18, 12, 10, 9, 12, 11, 40)):
+        ws.column_dimensions[col].width = w
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    name = "na_objednanie" + (f"_{sup}" if sup else "") + f"_{datetime.now():%Y%m%d}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=name.replace("/", "-").replace(" ", "_"),
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @bp.route("/projekty/<int:pid>/diely/na-stroji", methods=["POST"])
@@ -696,7 +808,7 @@ def project_export(pid):
     ws.append([f"{project['name']} – zákazka {project['order_no']}"])
     ws["A1"].font = Font(bold=True, size=14)
     ws.append([])
-    head = ["Označenie", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Umiestnenie", "Potrebné", "Naskladnené", "Chýba", "Stav"]
+    head = ["Označenie", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Umiestnenie", "Potrebné", "Naskladnené", "Chýba", "Objednané", "Objednať", "Stav"]
     ws.append(head)
     for c in ws[3]:
         c.font = Font(bold=True)
@@ -704,10 +816,10 @@ def project_export(pid):
     labels = {"ok": "Naskladnené", "partial": "Čiastočne", "missing": "Chýba", "integrated": "Na stroji"}
     for l in lines:
         ws.append([l["code"], l["order_code"], l.get("ean"), l["name"], l["manufacturer"], location_label(l), l["qty_required"],
-                   l["received"], l["missing"], labels[l["state"]]])
+                   l["received"], l["missing"], l["ordered"] or None, l["to_order"] or None, labels[l["state"]]])
         for c in ws[ws.max_row]:
             c.fill = PatternFill("solid", fgColor=fills[l["state"]])
-    for col, w in zip("ABCDEFGHIJ", (14, 22, 16, 40, 18, 30, 10, 12, 10, 14)):
+    for col, w in zip("ABCDEFGHIJKL", (14, 22, 16, 40, 18, 30, 10, 12, 10, 11, 10, 14)):
         ws.column_dimensions[col].width = w
     buf = io.BytesIO()
     wb.save(buf)

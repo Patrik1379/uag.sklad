@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import thumb %}
+{% block title %}Na objednanie{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Na objednanie</h1><div class="muted">Chýbajúce diely aktívnych projektov, zoskupené podľa dodávateľa</div></div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.to_order_view', export=1, **({'dodavatel': sup} if sup is not none else {})) }}">Export do Excelu</a>
+  </div>
+</div>
+
+<div class="grid kpi">
+  <div class="card"><div class="label">Treba objednať</div><div class="value {{ 'bad' if to_order else 'good' }}">{{ to_order }}</div><div class="sub">ks · {{ n_items }} druhov dielov</div></div>
+  <div class="card"><div class="label">Objednané, čaká na dodanie</div><div class="value">{{ ordered }}</div><div class="sub">ks · príjem ich odpočíta</div></div>
+  <div class="card"><div class="label">Dodávateľov</div><div class="value">{{ groups|length }}</div></div>
+  <div class="card"><div class="label">Možno na voľnom sklade</div><div class="value {{ 'warn' if with_free }}">{{ with_free }}</div><div class="sub">druhov – najprv skontrolujte</div></div>
+</div>
+
+{% if suppliers|length > 1 %}
+<div class="filters" style="margin-bottom:1rem">
+  <a href="{{ url_for('main.to_order_view') }}" class="{{ 'on' if sup is none }}">Všetci</a>
+  {% for s in suppliers %}<a href="{{ url_for('main.to_order_view', dodavatel=s) }}" class="{{ 'on' if sup == s }}">{{ s or 'Bez dodávateľa' }}</a>{% endfor %}
+</div>
+{% endif %}
+
+{% for supplier, items in groups.items() %}
+<form class="card" method="post" action="{{ url_for('main.to_order_mark') }}" style="margin-bottom:1.2rem">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="back" value="{{ request.full_path }}">
+  <div class="page-head" style="margin-bottom:0.8rem">
+    {% set n_open = items|selectattr('to_order')|list|length %}
+    <h2 style="margin:0">{{ supplier or 'Bez dodávateľa' }} <span class="small muted">· {{ n_open ~ ' na objednanie' if n_open else 'všetko objednané, čaká na dodanie' }}</span></h2>
+    <div class="actions"{% if not n_open %} hidden{% endif %}>
+      <a class="btn sm" href="{{ url_for('main.to_order_view', dodavatel=supplier, export=1) }}">Excel</a>
+      <button class="btn sm primary" title="Označené diely sa vo všetkých projektoch zapíšu ako objednané">🛒 Označiť ako objednané</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+  <table class="data">
+    <thead><tr><th class="chk"><input type="checkbox" class="chk-group" title="Označiť všetky"></th><th></th><th>Objednávacie číslo</th><th>EAN</th><th>Názov</th><th class="num">Objednať</th><th class="num">Objednané</th><th>Projekty</th></tr></thead>
+    <tbody>
+    {% for p in items %}
+      <tr>
+        <td class="chk">{% if p.to_order %}<input type="checkbox" name="part_id" value="{{ p.part_id }}">{% endif %}</td>
+        <td style="width:3.6rem">{{ thumb(p.image, p.name, upload=url_for('main.part_image', part_id=p.part_id)) }}</td>
+        <td class="mono"><b>{{ p.order_code or '' }}</b><div class="small"><a href="{{ url_for('main.part_detail', part_id=p.part_id) }}">{{ p.code }}</a></div></td>
+        <td class="mono small">{{ p.ean or '' }}</td>
+        <td>{{ p.name }}{% if p.manufacturer %}<div class="small muted">{{ p.manufacturer }}</div>{% endif %}
+          {% if p.to_order and p.free %}<div class="small" style="color:var(--warn-ink)">⚠ na voľnom sklade je {{ p.free }} {{ p.unit }} – <a href="{{ url_for('main.free_stock_view') }}">skontrolovať a priradiť</a></div>{% endif %}</td>
+        <td class="num">{% if p.to_order %}<b style="color:var(--bad-ink)">{{ p.to_order }}</b> {{ p.unit }}{% else %}<span class="small muted">–</span>{% endif %}</td>
+        <td class="num">{{ p.ordered or '' }}</td>
+        <td class="small">
+          {% for l in p.lines %}
+            <div><a href="{{ url_for('main.project_detail', pid=l.project_id) }}">{{ l.project.order_no }}</a> {{ l.project.name }}
+              <span class="muted">– {% if l.to_order %}objednať {{ l.to_order }}{% endif %}{% if l.to_order and l.ordered %}, {% endif %}{% if l.ordered %}objednané {{ l.ordered }}{% endif %}{% if l.project.deadline %} · termín {{ l.project.deadline|d }}{% endif %}</span></div>
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</form>
+{% else %}
+<div class="card empty">Nič netreba objednať – všetky chýbajúce diely sú objednané.</div>
+{% endfor %}
+<script>
+document.querySelectorAll('.chk-group').forEach(c => c.addEventListener('change', () => {
+  c.closest('table').querySelectorAll('input[name=part_id]').forEach(b => b.checked = c.checked);
+}));
+</script>
+{% endblock %}

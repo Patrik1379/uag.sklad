@@ -263,6 +263,8 @@ def init_db(retries: int = 30):
         _migrate_locations(db)
     _add_column(db, "parts", "ean", "VARCHAR(50)")
     _add_column(db, "project_parts", "integrated", "INTEGER NOT NULL DEFAULT 0")   # diel je už na stroji
+    _add_column(db, "project_parts", "qty_ordered", "INTEGER NOT NULL DEFAULT 0")  # objednané, ešte nedodané ks
+    _add_column(db, "project_parts", "ordered_at", "VARCHAR(20)")                  # dátum poslednej objednávky
     _add_column(db, "projects", "external_ref", "VARCHAR(60)")   # napr. "pm:12" = projekt z Projekt manažéra
     _add_column(db, "projects", "external_url", "VARCHAR(300)")
     db.execute("CREATE INDEX IF NOT EXISTS ix_parts_ean ON parts (ean)")

@@ -196,6 +196,12 @@
   }
   allocs.forEach((i) => i.addEventListener("input", updateSum));
   updateSum();
+  // kusy do projektu bez objednávky – vyžiada potvrdenie
+  const allocForm = allocs.length ? allocs[0].form : null;
+  if (allocForm) allocForm.addEventListener("submit", (e) => {
+    const bad = allocs.filter((i) => i.dataset.unordered && (parseInt(i.value, 10) || 0) > 0).map((i) => i.dataset.unordered);
+    if (bad.length && !window.confirm("Pre projekt " + bad.join(", ") + " diel ešte nebol objednaný.\nNaozaj tam chcete zaradiť kusy?")) e.preventDefault();
+  });
 
   // --- Našepkávač dielov (pridanie do projektu) -----------------------------
   const ac = document.getElementById("part-ac");

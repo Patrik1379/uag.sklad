@@ -82,6 +82,7 @@
 </div>
 
 {% set open_lines = demand|selectattr('missing')|list %}
+{% set ordered_lines = open_lines|selectattr('ordered')|list %}
 <form class="card" method="post" action="{{ url_for('main.receive_save', part_id=part.id) }}">
   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
   <h2>Kam zaradiť prijaté kusy</h2>
@@ -90,14 +91,21 @@
       Diel je naplánovaný do:
       {% for d in open_lines %}<b>{{ d.project.name }}</b> {{ d.missing }} {{ part.unit }}{{ ', ' if not loop.last }}{% endfor %}
     </div>
+    {% if ordered_lines %}
+    {% if ordered_lines|length < open_lines|length %}
+    <div class="flash warn" style="margin-bottom:0.933rem">Kusy sa rozdelia len do projektov, pre ktoré je diel <b>objednaný</b>. Projekty bez objednávky sú označené „neobjednané“ – zvyšok ide do voľného skladu.</div>
+    {% endif %}
+    {% else %}
+    <div class="flash warn" style="margin-bottom:0.933rem">Diel nemá zaznamenanú objednávku v žiadnom projekte – skontrolujte, pre ktorý projekt tovar prišiel.</div>
+    {% endif %}
   {% else %}
     <div class="flash error" style="margin-bottom:0.933rem">Diel momentálne nechýba v žiadnom aktívnom projekte – kusy môžete zaradiť do voľného skladu.</div>
   {% endif %}
 
   <div class="qty-total">
     <label for="qty-total" style="margin:0;font-size:1rem;color:var(--ink)">Počet prijatých kusov:</label>
-    <input type="number" id="qty-total" min="0" value="{{ open_lines|sum(attribute='missing') or '' }}">
-    <span class="small muted">Kusy sa automaticky rozdelia podľa termínu projektov – rozdelenie môžete upraviť ručne.</span>
+    <input type="number" id="qty-total" min="0" value="{{ (ordered_lines|sum(attribute='ordered') if ordered_lines else open_lines|sum(attribute='missing')) or '' }}">
+    <span class="small muted">Kusy sa automaticky rozdelia podľa {{ 'objednávok a ' if ordered_lines }}termínu projektov – rozdelenie môžete upraviť ručne.</span>
   </div>
 
   <div class="table-wrap">
@@ -111,9 +119,11 @@
         <td>{{ d.project.deadline|d }}</td>
         <td class="num">{{ d.qty_required }}</td>
         <td class="num">{{ d.received }}</td>
-        <td class="num"><b>{{ d.missing }}</b></td>
-        <td>{{ state_badge(d.state) }}</td>
-        <td class="num"><input class="alloc-input" type="number" min="0" name="alloc_{{ d.project_id }}" data-missing="{{ d.missing }}"></td>
+        <td class="num"><b>{{ d.missing }}</b>{% if d.ordered %}<div class="small muted">objednané {{ d.ordered }}</div>{% endif %}</td>
+        <td>{{ state_badge(d.state) }}{% if ordered_lines and d.missing and not d.ordered %} <span class="badge warn" title="Pre tento projekt diel ešte nebol objednaný">neobjednané</span>{% endif %}</td>
+        <td class="num"><input class="alloc-input" type="number" min="0" name="alloc_{{ d.project_id }}"
+             data-missing="{{ (d.ordered if ordered_lines else d.missing) }}"
+             {% if ordered_lines and d.missing and not d.ordered %}data-unordered="{{ d.project.name }}"{% endif %}></td>
       </tr>
     {% endfor %}
       <tr>
