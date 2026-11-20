@@ -81,6 +81,10 @@ def create_app():
 
     from .services import location_label, location_parts, locations_map, racks_map, shelf_text
     app.jinja_env.filters["loc"] = location_label
+    from .norms import part_equivalents
+    app.jinja_env.filters["norm_eq"] = part_equivalents
+    from .norms import DIN_TO_ISO
+    app.jinja_env.globals["norm_map"] = DIN_TO_ISO
     app.jinja_env.filters["shelf"] = shelf_text
     app.jinja_env.globals["loc_parts"] = location_parts
     app.jinja_env.globals["racks_map"] = racks_map

@@ -942,6 +942,9 @@ def _part_form_data():
     data = {f: (request.form.get(f, "").strip() or None) for f in PART_FIELDS}
     data["unit"] = data["unit"] or "ks"
     data["ean"] = normalize_ean(data["ean"]) or data["ean"]
+    if data.get("name"):
+        from .norms import name_with_equivalents
+        data["name"] = name_with_equivalents(data["name"])   # „DIN 912“ → „DIN 912 / ISO 4762“
     if data["ean"] and not ean_valid(data["ean"]):
         flash(f"EAN {data['ean']} nemá platnú kontrolnú číslicu – skontrolujte ho (karta sa uložila).", "warn")
     # lokácia
@@ -1258,7 +1261,8 @@ def settings():
     users = get_db().query("SELECT username, full_name, email FROM users WHERE active = 1 ORDER BY username")
     linked = get_db().scalar("SELECT COUNT(*) FROM projects WHERE external_ref IS NOT NULL") or 0
     return render_template("settings.html", cfg=cfg, recipients=project_recipients(cfg), users=users,
-                           default_url=request.url_root.rstrip("/"), linked=linked, server=_server_info())
+                           default_url=request.url_root.rstrip("/"), linked=linked, server=_server_info(),
+                           norm_todo=_norm_candidates())
 
 
 def _server_info():
@@ -1276,6 +1280,30 @@ def _server_info():
     except Exception:
         pass
     return {"disk": disk, "uploads": folder_size(current_app.config["UPLOAD_FOLDER"]), "db": db_size}
+
+
+def _norm_candidates():
+    from .norms import name_with_equivalents
+    out = []
+    for p in get_db().query("SELECT id, name FROM parts"):
+        new = name_with_equivalents(p["name"])
+        if new != p["name"]:
+            out.append((p["id"], p["name"], new))
+    return out
+
+
+@bp.route("/nastavenia/normy", methods=["POST"])
+@admin_required
+def settings_norms():
+    """Doplní ekvivalentnú normu DIN/ISO do názvov existujúcich skladových kariet."""
+    db = get_db()
+    items = _norm_candidates()
+    for pid, _old, new in items:
+        db.execute("UPDATE parts SET name = ? WHERE id = ?", (new, pid))
+    db.commit()
+    flash(f"Normy v názvoch skladových kariet boli zjednotené (upravených kariet: {len(items)})." if items
+          else "Všetky názvy už majú normy zapísané jednotne.", "ok")
+    return redirect(url_for("main.settings") + "#normy")
 
 
 @bp.route("/nastavenia/api-kluc", methods=["POST"])

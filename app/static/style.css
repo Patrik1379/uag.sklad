@@ -402,3 +402,6 @@ td.chk input, th.chk input { width: 1.05rem; height: 1.05rem; margin: 0; }
 #lines tr:not(.row-integrated) .int-toggle { opacity: 0; transition: opacity .12s; }
 #lines tr:hover .int-toggle, #lines .int-toggle:focus-within { opacity: 1; }
 @media (hover: none) { #lines tr:not(.row-integrated) .int-toggle { opacity: 1; } }
+
+/* ekvivalentná norma DIN/ISO */
+.norm-eq { display: inline-block; font-size: .8rem; color: #2f5fb3; background: #eef3fc; border-radius: 4px; padding: 0 0.35rem; white-space: nowrap; }

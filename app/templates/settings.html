@@ -66,6 +66,23 @@
   </div>
 </form>
 
+<div class="card" id="normy" style="margin-top:1.2rem">
+  <h2>Normy DIN / ISO v názvoch kariet</h2>
+  <p class="small muted" style="margin-top:0">Pri ukladaní karty aj pri importe kusovníka sa norma v názve zapíše vždy rovnako – <b>najprv DIN, potom ISO</b>,
+    napr. „Skrutka DIN 912 M6x20“ aj „Skrutka ISO 4762 M6x20“ → „Skrutka DIN 912 / ISO 4762 M6x20“. Pre karty, ktoré už v sklade sú, to spravíte tu.</p>
+  {% if norm_todo %}
+  <p style="margin-bottom:0.4rem">Počet kariet na úpravu: <b>{{ norm_todo|length }}</b>, napríklad:</p>
+  <ul class="small" style="margin-top:0">
+    {% for _id, old, new in norm_todo[:5] %}<li>{{ old }} → <b>{{ new }}</b></li>{% endfor %}
+    {% if norm_todo|length > 5 %}<li class="muted">… a ďalšie</li>{% endif %}
+  </ul>
+  <form method="post" action="{{ url_for('main.settings_norms') }}" onsubmit="return confirm('Upraviť normy v názvoch kariet ({{ norm_todo|length }})?')">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn primary">Zjednotiť normy v názvoch</button>
+  </form>
+  {% else %}<p class="muted" style="margin:0">Všetky karty už majú normy v názve zapísané jednotne (DIN / ISO).</p>{% endif %}
+</div>
+
 <div class="card" id="server" style="margin-top:1.2rem">
   <h2>Server – voľné miesto</h2>
   {% set d = server.disk %}

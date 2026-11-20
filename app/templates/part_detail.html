@@ -26,6 +26,7 @@
         <dt>Označenie</dt><dd class="mono">{{ part.code }}</dd>
         <dt>Objednávacie číslo</dt><dd class="mono">{{ part.order_code or '—' }}</dd>
         <dt>EAN</dt><dd class="mono">{{ part.ean or '—' }}</dd>
+        {% set eq = part|norm_eq %}{% if eq %}<dt>Zodpovedá norme</dt><dd><span class="norm-eq">{{ eq|join(' · ') }}</span></dd>{% endif %}
         <dt>Výrobca</dt><dd>{{ part.manufacturer or '—' }}</dd>
         <dt>Dodávateľ</dt><dd>{{ part.supplier or '—' }}</dd>
         <dt>Kategória</dt><dd>{{ part.category or '—' }}</dd>

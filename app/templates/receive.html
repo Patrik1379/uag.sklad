@@ -46,7 +46,7 @@
         <td style="width:3.6rem">{{ thumb(c.image, c.name, upload=url_for('main.part_image', part_id=c.id)) }}</td>
         <td class="mono">{{ c.code }}</td>
         <td class="mono">{{ c.order_code or '' }}{% if c.ean %}<div class="small muted">EAN {{ c.ean }}</div>{% endif %}</td>
-        <td>{{ c.name }}{% if c.matched %}<div class="small muted">nájdené v: {{ c.matched|join(', ') }}</div>{% endif %}</td>
+        <td>{{ c.name }}{% set eq = c|norm_eq %}{% if eq %} <span class="norm-eq">= {{ eq|join(', ') }}</span>{% endif %}{% if c.matched %}<div class="small muted">nájdené v: {{ c.matched|join(', ') }}</div>{% endif %}</td>
         <td>{{ c.manufacturer or '' }}</td>
         <td>{{ c.supplier or '' }}</td>
         <td class="num"><a class="btn sm primary" href="{{ url_for('main.receive', diel=c.id) }}">Vybrať</a></td>

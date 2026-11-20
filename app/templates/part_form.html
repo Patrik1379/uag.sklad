@@ -13,7 +13,7 @@
     <div><label>EAN kód</label><input type="text" name="ean" value="{{ part.ean or '' }}" class="mono" inputmode="numeric"
       placeholder="napr. 4011209312345" title="Čiarový kód z obalu (EAN-13, EAN-8). Dá sa naň skenovať aj pri príjme."></div>
     <div><label>Jednotka</label><input type="text" name="unit" value="{{ part.unit or 'ks' }}" style="max-width:8rem"></div>
-    <div class="full"><label>Názov *</label><input type="text" name="name" value="{{ part.name or '' }}" required {{ 'autofocus' if not part.id }}></div>
+    <div class="full"><label>Názov *</label><input type="text" name="name" value="{{ part.name or '' }}" required {{ 'autofocus' if not part.id }}><div class="hint" id="norm-hint" hidden></div></div>
     <div><label>Výrobca</label><input type="text" name="manufacturer" value="{{ part.manufacturer or '' }}"></div>
     <div><label>Dodávateľ</label><input type="text" name="supplier" value="{{ part.supplier or '' }}"></div>
     <div class="full"><label>Kategória</label><input type="text" name="category" value="{{ part.category or '' }}" placeholder="napr. Elektro, Pneumatika, Mechanika"></div>
@@ -125,6 +125,31 @@
     updShelves();
   });
   filterRacks(); updShelves();
+})();
+</script>
+<script>
+// ekvivalent normy DIN ↔ ISO pri písaní (hľadanie potom funguje podľa oboch)
+(function () {
+  const D2I = {{ norm_map|tojson }}, I2D = {};
+  Object.keys(D2I).forEach(d => D2I[d].forEach(i => (I2D[i] = I2D[i] || []).push(d)));
+  const hint = document.getElementById('norm-hint');
+  const fields = ['name', 'code', 'order_code', 'params'].map(n => document.querySelector('[name="' + n + '"]')).filter(Boolean);
+  function update() {
+    const txt = fields.map(f => f.value).join(' '), have = new Set(), out = [];
+    const re = /(^|[^A-Za-z])(DIN|ISO)[\s\-_]*(\d{1,5})(?!\d)/gi; let m;
+    while ((m = re.exec(txt))) have.add(m[2].toUpperCase() + ' ' + (m[3].replace(/^0+/, '') || '0'));
+    have.forEach(n => {
+      const [k, num] = n.split(' ');
+      ((k === 'DIN' ? D2I[num] : I2D[num]) || []).forEach(o => {
+        const e = (k === 'DIN' ? 'ISO ' : 'DIN ') + o;
+        if (!have.has(e) && !out.includes(e)) out.push(e);
+      });
+    });
+    hint.hidden = !out.length;
+    hint.innerHTML = out.length ? 'Zodpovedá norme <b>' + out.join(', ') + '</b> – karta sa nájde aj podľa nej.' : '';
+  }
+  fields.forEach(f => f.addEventListener('input', update));
+  update();
 })();
 </script>
 {% endblock %}

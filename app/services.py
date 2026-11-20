@@ -356,7 +356,9 @@ def import_bom_items(project_id, items):
             except Exception:
                 image = None
         if not part:
+            from .norms import name_with_equivalents
             code = it["code"] or next_part_code()
+            it["name"] = name_with_equivalents(it["name"])
             part_id = db.execute(
                 """INSERT INTO parts (code, order_code, ean, name, manufacturer, supplier, category, params, image)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""",
@@ -391,6 +393,7 @@ SEARCH_FIELDS = [
     ("order_code", "Objednávacie číslo"), ("code", "Označenie"), ("ean", "EAN"), ("name", "Názov"),
     ("manufacturer", "Výrobca"), ("supplier", "Dodávateľ"), ("category", "Kategória"),
     ("location_full", "Umiestnenie"), ("params", "Parametre"), ("note", "Poznámka"),
+    ("norms", "Norma DIN/ISO"),
 ]
 
 
@@ -422,8 +425,11 @@ def search_parts(q, limit=50):
     q_ean = normalize_ean(q)
     rows = get_db().query("SELECT * FROM parts")
     results = []
+    from .norms import search_text as norm_search_text
+
     for p in rows:
         p["location_full"] = location_label(p)
+        p["norms"] = norm_search_text(p)
         folded = {f: _fold(p.get(f)) for f, _ in SEARCH_FIELDS}
         compact = {f: _compact(p.get(f)) for f, _ in SEARCH_FIELDS}
         haystack = " ".join(folded.values())
