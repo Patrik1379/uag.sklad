@@ -49,6 +49,8 @@ def _loop(app):
                 with app.app_context():
                     send_daily_reports()
             _check_disk(app)
+            from .reminders import send_due_emails
+            send_due_emails(app)
             if _is_due(app, datetime.now()) and claim_today(app.config["DATABASE"], "last_install_reminder"):
                 from .mailer import send_install_reminders
                 with app.app_context():

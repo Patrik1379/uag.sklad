@@ -23,9 +23,10 @@ def create_app(config_class=Config):
     from . import settings
     settings.init(app)  # nastavenia uložené v aplikácii majú prednosť pred .env
 
-    from . import auth, views, cli
+    from . import auth, views, cli, reminders
     app.register_blueprint(auth.bp)
     app.register_blueprint(views.bp)
+    app.register_blueprint(reminders.bp)
     cli.register(app)
 
     app.before_request(lambda: settings.refresh(app))
@@ -52,6 +53,21 @@ def create_app(config_class=Config):
     def sk_month(value):
         from .models import MONTHS_SK
         return MONTHS_SK[value.month - 1] if value else ""
+
+    @app.template_filter("rem_dt")
+    def rem_dt(value):
+        """'2026-11-20 14:30' → 'dnes 14:30' / 'zajtra 8:00' / '21.11.2026 14:30'."""
+        from datetime import date, datetime, timedelta
+        try:
+            dt = datetime.strptime(str(value)[:16], "%Y-%m-%d %H:%M")
+        except ValueError:
+            return value or ""
+        t = f"{dt.hour}:{dt.minute:02d}"
+        if dt.date() == date.today():
+            return "dnes " + t
+        if dt.date() == date.today() + timedelta(days=1):
+            return "zajtra " + t
+        return dt.strftime("%d.%m.%Y ") + t
 
     from .disk import human as _human
     app.jinja_env.filters["bytes"] = _human
@@ -81,7 +97,15 @@ def create_app(config_class=Config):
             from .disk import usage
             d = usage(app.config["DATA_DIR"])
             disk_alert = d if d and d["level"] != "ok" else None
+        due_reminders, my_reminders = [], 0
+        if user and has_request_context() and request.endpoint not in (None, "static"):
+            from .reminders import due_for_user, count_open_for_me
+            try:
+                due_reminders, my_reminders = due_for_user(user["id"]), count_open_for_me()
+            except Exception:  # noqa: BLE001 – pripomienky nesmú zhodiť stránku
+                app.logger.exception("Pripomienky sa nepodarilo načítať")
         return {"app_name": app.config["APP_NAME"], "current_user": user, "disk_alert": disk_alert,
+                "due_reminders": due_reminders, "my_reminders": my_reminders,
                 "font_scale": scale if scale in FONT_SCALES else 100, "font_scales": FONT_SCALES,
                 "statuses": STATUSES, "today_str": date.today().strftime("%d.%m.%Y")}
 

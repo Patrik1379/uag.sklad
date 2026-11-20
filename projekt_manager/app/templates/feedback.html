@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Vylepšenia{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Vylepšenia</h1>
+    <div class="muted">Návrhy na vylepšenie, nahlásenie chyby alebo otázka. Zoznam je spoločný s aplikáciou Sklad dielov – návrhy vidia všetci, administrátor na ne odpovedá.</div></div>
+</div>
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+<div class="fb-grid">
+  <form class="card" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="page" value="{{ page }}">
+    <h2>Nový návrh</h2>
+    <label>Typ</label>
+    <div class="fb-kinds">
+      {% for k, v in kinds.items() %}
+      <label class="fb-kind"><input type="radio" name="kind" value="{{ k }}" {{ 'checked' if loop.first }}> {{ v }}</label>
+      {% endfor %}
+    </div>
+    <label>Čo by ste chceli zlepšiť / čo nefunguje? *</label>
+    <textarea name="text" required rows="6" placeholder="Napr.: Pri úlohe by sa mohol zobraziť aj termín inštalácie."></textarea>
+    {% if page %}<div class="small muted">Stránka: {{ page }}</div>{% endif %}
+    <label style="margin-top:10px">Obrázok / výrez obrazovky (nepovinné)</label>
+    <input type="file" name="image" accept="image/*" id="fb-image">
+    <div class="small muted">Výrez obrazovky môžete aj vložiť cez Ctrl+V.</div>
+    <div style="margin-top:14px"><button class="btn btn-primary" {{ 'disabled' if error }}>Odoslať</button></div>
+  </form>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Zoznam návrhov</h2>
+      <div class="fb-filters">
+        <a href="?stav=otvorene" class="{{ 'on' if status == 'otvorene' }}">Otvorené ({{ counts.nova + counts.riesi_sa }})</a>
+        <a href="?stav=hotovo" class="{{ 'on' if status == 'hotovo' }}">Hotové ({{ counts.hotovo }})</a>
+        <a href="?stav=zamietnute" class="{{ 'on' if status == 'zamietnute' }}">Zamietnuté ({{ counts.zamietnute }})</a>
+        <a href="?stav=vsetky" class="{{ 'on' if status == 'vsetky' }}">Všetky</a>
+      </div>
+    </div>
+    {% for f in items %}
+      <div class="fb-item">
+        <div class="fb-head">
+          <span class="badge fb-k-{{ f.kind }}">{{ kinds.get(f.kind, f.kind) }}</span>
+          <span class="badge fb-st-{{ f.status }}">{{ statuses.get(f.status, f.status) }}</span>
+          <span class="badge status">{{ 'Projekty' if f.source == 'projekty' else 'Sklad' }}</span>
+          <span class="small muted">{{ f.author or 'neznámy' }} · {{ f.created_label }}</span>
+        </div>
+        <div class="fb-body">
+          {% if f.has_image %}<a href="{{ url_for('main.feedback_image', fid=f.id) }}" target="_blank" rel="noopener"><img class="fb-img" src="{{ url_for('main.feedback_image', fid=f.id, nahlad=1) }}" alt="Obrázok" loading="lazy"></a>{% endif %}
+          <div style="white-space:pre-line;min-width:0">{{ f.text }}
+            {%- if f.page %}<div class="small muted">Stránka: <a href="{{ f.page }}">{{ f.page }}</a></div>{% endif %}</div>
+        </div>
+        {% if f.reply %}<div class="fb-reply"><b>Odpoveď:</b> <span style="white-space:pre-line">{{ f.reply }}</span></div>{% endif %}
+        {% if current_user.is_admin %}
+          <details style="margin-top:8px">
+            <summary class="small" style="cursor:pointer;color:var(--primary)">Odpovedať / zmeniť stav</summary>
+            <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" style="margin-top:8px">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="back" value="{{ request.full_path }}">
+              <div class="fb-answer">
+                <select name="status">{% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if k == f.status }}>{{ v }}</option>{% endfor %}</select>
+                <textarea name="reply" rows="2" placeholder="odpoveď pre používateľa (nepovinné)">{{ f.reply or '' }}</textarea>
+              </div>
+              <div style="margin-top:8px;display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm">Uložiť</button>
+                <button class="btn btn-danger btn-sm" name="action" value="delete" formnovalidate onclick="return confirm('Zmazať návrh?')">Zmazať</button>
+              </div>
+            </form>
+          </details>
+        {% elif f.mine and f.status == 'nova' %}
+          <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" onsubmit="return confirm('Zmazať váš návrh?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn-link small" name="action" value="delete" style="color:var(--overdue);margin-top:6px">Zmazať</button>
+          </form>
+        {% endif %}
+      </div>
+    {% else %}
+      {% if not error %}<div class="empty">Žiadne návrhy v tomto zozname.</div>{% endif %}
+    {% endfor %}
+  </div>
+</div>
+<script>
+// vloženie výrezu obrazovky cez Ctrl+V
+document.addEventListener('paste', (e) => {
+  const input = document.getElementById('fb-image'); if (!input || !e.clipboardData) return;
+  const file = Array.from(e.clipboardData.files || []).find(f => f.type.startsWith('image/'));
+  if (!file) return;
+  const dt = new DataTransfer(); dt.items.add(new File([file], 'vyrez.png', {type: file.type})); input.files = dt.files;
+});
+</script>
+{% endblock %}

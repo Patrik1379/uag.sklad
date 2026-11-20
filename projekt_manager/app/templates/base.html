@@ -6,7 +6,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%230f8a5f'/><g fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'><rect x='5.5' y='6.5' width='13' height='12' rx='1.6'/><path d='M5.5 10h13M9 5v3M15 5v3'/></g></svg>">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=14">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=16">
 </head>
 <body>
 {% from "_text_size.html" import text_size_switch with context %}
@@ -20,6 +20,8 @@
     <div class="nav-links">
       <a href="{{ url_for('main.dashboard') }}" class="{{ 'active' if request.endpoint == 'main.dashboard' }}">Dashboard</a>
       <a href="{{ url_for('main.calendar_view') }}" class="{{ 'active' if request.endpoint == 'main.calendar_view' }}">Kalendár</a>
+      <a href="{{ url_for('rem.index') }}" class="{{ 'active' if request.endpoint == 'rem.index' }}">Pripomienky{% if my_reminders %} <span class="nav-count">{{ my_reminders }}</span>{% endif %}</a>
+      <a href="{{ url_for('main.feedback') if request.endpoint == 'main.feedback' else url_for('main.feedback', z=request.path) }}" class="{{ 'active' if request.endpoint == 'main.feedback' }}">Vylepšenia</a>
       {% if current_user.is_admin %}
         <a href="{{ url_for('main.project_new') }}" class="{{ 'active' if request.endpoint == 'main.project_new' }}">+ Nový projekt</a>
         <a href="{{ url_for('main.users') }}" class="{{ 'active' if request.endpoint in ('main.users', 'main.user_edit') }}">Používatelia</a>
@@ -48,7 +50,9 @@
   {% endwith %}
   {% block content %}{% endblock %}
 </main>
-{% if current_user %}<script src="{{ url_for('static', filename='img.js') }}?v=1"></script>{% endif %}
+{% if due_reminders %}{% include '_reminder_popup.html' %}{% endif %}
+{% if current_user %}<script src="{{ url_for('static', filename='img.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='rem.js') }}?v=1"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

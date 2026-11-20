@@ -12,6 +12,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from . import mailer
 from . import sklad
 from . import images
+from . import reminders as reminders_mod
 from . import settings as app_settings
 from .auth import admin_required, login_required
 from .db import execute, query
@@ -232,7 +233,9 @@ def project_detail(project_id):
                            subtasks=list_subtasks(project_id=project_id),
                            edit_install=request.args.get("instalacia") == "upravit",
                            sklad_on=sklad.enabled(), sklad_info=_sklad_info_with_image_sync(project),
-                           sklad_url=current_app.config.get("SKLAD_URL"))
+                           sklad_url=current_app.config.get("SKLAD_URL"),
+                           reminders=reminders_mod.list_visible(project_id=project_id),
+                           rem_visibility=reminders_mod.VISIBILITY, rem_users=active_users())
 
 
 def _sklad_info_with_image_sync(project):
@@ -1405,3 +1408,93 @@ def send_report_now():
         sent = mailer.send_daily_reports()
         flash(f"Denný report odoslaný ({sent} e-mailov).", "success")
     return redirect(request.referrer or url_for("main.dashboard"))
+
+
+# --- Vylepšenia (zlepšováky) – spoločný zoznam so skladom ----------------------
+
+FEEDBACK_KINDS = {"navrh": "Návrh na vylepšenie", "chyba": "Chyba", "otazka": "Otázka"}
+FEEDBACK_STATUS = {"nova": "Nová", "riesi_sa": "Rieši sa", "hotovo": "Hotovo", "zamietnute": "Zamietnuté"}
+
+
+def _fb_time(value):
+    try:
+        return datetime.fromisoformat(str(value)[:19]).strftime("%d.%m.%Y %H:%M")
+    except ValueError:
+        return value or ""
+
+
+@bp.route("/vylepsenia", methods=["GET", "POST"])
+@login_required
+def feedback():
+    if request.method == "POST":
+        text = request.form.get("text", "").strip()
+        if not text:
+            flash("Napíšte, čo by ste chceli zlepšiť alebo čo nefunguje.", "error")
+            return redirect(url_for("main.feedback"))
+        image = None
+        f = request.files.get("image")
+        if f and f.filename:
+            data = f.read()
+            if len(data) > 15 * 1024 * 1024:
+                flash("Obrázok je príliš veľký (max. 15 MB).", "error")
+                return redirect(url_for("main.feedback"))
+            image = (f.filename, data, f.mimetype)
+        page = request.form.get("page", "").strip()
+        if page.startswith("/") and not page.startswith("//"):
+            page = current_app.config["APP_URL"].rstrip("/") + page
+        else:
+            page = ""
+        ok, err = sklad.feedback_create({
+            "kind": request.form.get("kind") if request.form.get("kind") in FEEDBACK_KINDS else "navrh",
+            "text": text, "page": page[:255], "source": "projekty",
+            "author": g.user["name"], "ext_user": f"pm:{g.user['id']}"}, image)
+        flash("Ďakujeme, návrh bol odoslaný." if ok else f"Návrh sa nepodarilo odoslať: {err}",
+              "success" if ok else "error")
+        return redirect(url_for("main.feedback"))
+    ok, items = sklad.feedback_list()
+    error = None if ok else items
+    items = items if ok else []
+    for it in items:
+        it["created_label"] = _fb_time(it.get("created_at"))
+        it["mine"] = it.get("ext_user") == f"pm:{g.user['id']}"
+    counts = {k: sum(1 for r in items if r["status"] == k) for k in FEEDBACK_STATUS}
+    status = request.args.get("stav", "otvorene")
+    if status == "otvorene":
+        items = [r for r in items if r["status"] in ("nova", "riesi_sa")]
+    elif status in FEEDBACK_STATUS:
+        items = [r for r in items if r["status"] == status]
+    ref = request.args.get("z", "")
+    return render_template("feedback.html", items=items, kinds=FEEDBACK_KINDS, statuses=FEEDBACK_STATUS,
+                           status=status, counts=counts, error=error,
+                           page=ref if ref.startswith("/") and not ref.startswith("//") else "")
+
+
+@bp.route("/vylepsenia/<int:fid>", methods=["POST"])
+@login_required
+def feedback_update(fid):
+    if request.form.get("action") == "delete":
+        if not g.user["is_admin"]:
+            ok, items = sklad.feedback_list()
+            item = next((i for i in (items if ok else []) if i["id"] == fid), None)
+            if not item or item.get("ext_user") != f"pm:{g.user['id']}" or item["status"] != "nova":
+                abort(403)
+        ok, err = sklad.feedback_delete(fid)
+        flash("Návrh bol zmazaný." if ok else f"Nepodarilo sa zmazať: {err}", "success" if ok else "error")
+        return redirect(url_for("main.feedback"))
+    if not g.user["is_admin"]:
+        abort(403)
+    status = request.form.get("status")
+    ok, err = sklad.feedback_update(fid, status if status in FEEDBACK_STATUS else None,
+                                    request.form.get("reply", "").strip())
+    flash("Uložené." if ok else f"Nepodarilo sa uložiť: {err}", "success" if ok else "error")
+    back = request.form.get("back", "")
+    return redirect(back if back.startswith("/") and not back.startswith("//") else url_for("main.feedback"))
+
+
+@bp.route("/vylepsenia/<int:fid>/obrazok")
+@login_required
+def feedback_image(fid):
+    data, ctype = sklad.feedback_image(fid, thumb=bool(request.args.get("nahlad")))
+    if data is None:
+        abort(404)
+    return current_app.response_class(data, mimetype=ctype, headers={"Cache-Control": "private, max-age=3600"})

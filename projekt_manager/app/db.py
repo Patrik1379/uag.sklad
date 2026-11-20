@@ -123,6 +123,30 @@ CREATE TABLE IF NOT EXISTS project_log (
     created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
+-- pripomienky / poznámky (aj k projektu) s pripomenutím v aplikácii a e-mailom
+CREATE TABLE IF NOT EXISTS reminders (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id  INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+    author_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    text        TEXT NOT NULL,
+    image       TEXT,
+    visibility  TEXT NOT NULL DEFAULT 'ja',        -- ja | projekt | vsetci
+    remind_at   TEXT,                              -- 'YYYY-MM-DD HH:MM' (NULL = bez pripomenutia)
+    email       INTEGER NOT NULL DEFAULT 0,
+    done_at     TEXT,
+    done_by_id  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+-- komu sa má pripomenúť (autor + vybraní kolegovia)
+CREATE TABLE IF NOT EXISTS reminder_users (
+    reminder_id  INTEGER NOT NULL REFERENCES reminders(id) ON DELETE CASCADE,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    snooze_until TEXT,
+    dismissed_at TEXT,
+    emailed_at   TEXT,
+    PRIMARY KEY (reminder_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -135,6 +159,8 @@ CREATE INDEX IF NOT EXISTS ix_subtasks_task ON subtasks(task_id);
 CREATE INDEX IF NOT EXISTS ix_comments_task ON task_comments(task_id);
 CREATE INDEX IF NOT EXISTS ix_documents_project ON documents(project_id);
 CREATE INDEX IF NOT EXISTS ix_log_project ON project_log(project_id);
+CREATE INDEX IF NOT EXISTS ix_reminders_project ON reminders(project_id);
+CREATE INDEX IF NOT EXISTS ix_reminder_users_user ON reminder_users(user_id);
 """
 
 

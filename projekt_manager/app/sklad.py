@@ -177,3 +177,65 @@ def remove(project_id):
         return ("V sklade má projekt kusovník alebo príjmy, preto sa tam len ukončil – "
                 "ak už nie je potrebný, zmažte ho v sklade (naskladnené kusy sa presunú do voľného skladu).")
     return None
+
+
+# --- Pripomienky (spoločný zoznam so skladom) ----------------------------------
+
+def feedback_list():
+    """Zoznam pripomienok zo skladu. Vracia (ok, zoznam alebo text chyby)."""
+    if not enabled():
+        return False, "Prepojenie so skladom nie je nastavené – pripomienky sa ukladajú v sklade."
+    ok, data = _call("GET", "/pripomienky", timeout=6)
+    return (True, data.get("items", [])) if ok else (False, data)
+
+
+def feedback_create(fields, image=None, timeout=20):
+    """Nová pripomienka (multipart, aby mohol ísť aj obrázok)."""
+    import uuid as _uuid
+
+    cfg = current_app.config
+    boundary = "----pm" + _uuid.uuid4().hex
+    parts = []
+    for k, v in fields.items():
+        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n".encode()
+                     + str(v or "").encode("utf-8") + b"\r\n")
+    if image:
+        name, data, ctype = image
+        safe = "".join(ch for ch in (name or "obrazok.jpg") if ch.isalnum() or ch in "._-") or "obrazok.jpg"
+        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"{safe}\"\r\n"
+                     f"Content-Type: {ctype or 'application/octet-stream'}\r\n\r\n".encode() + data + b"\r\n")
+    body = b"".join(parts) + f"--{boundary}--\r\n".encode()
+    req = urllib.request.Request(cfg["SKLAD_URL"].rstrip("/") + "/api/v1/pripomienky", data=body, method="POST",
+                                 headers={"Authorization": "Bearer " + cfg["SKLAD_API_KEY"],
+                                          "Content-Type": "multipart/form-data; boundary=" + boundary})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp.read()
+            return True, None
+    except urllib.error.HTTPError as exc:
+        try:
+            msg = json.loads(exc.read().decode("utf-8")).get("error")
+        except Exception:
+            msg = None
+        return False, msg or f"Sklad odpovedal chybou {exc.code}."
+    except Exception as exc:
+        return False, f"Sklad nie je dostupný ({exc})."
+
+
+def feedback_update(fid, status, reply):
+    return _call("POST", f"/pripomienky/{int(fid)}", {"status": status, "reply": reply})
+
+
+def feedback_delete(fid):
+    return _call("DELETE", f"/pripomienky/{int(fid)}")
+
+
+def feedback_image(fid, thumb=False, timeout=15):
+    cfg = current_app.config
+    url = cfg["SKLAD_URL"].rstrip("/") + f"/api/v1/pripomienky/{int(fid)}/obrazok" + ("?nahlad=1" if thumb else "")
+    req = urllib.request.Request(url, headers={"Authorization": "Bearer " + cfg["SKLAD_API_KEY"]})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read(), resp.headers.get("Content-Type") or "image/jpeg"
+    except Exception:
+        return None, None

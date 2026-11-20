@@ -39,7 +39,7 @@
       <a href="{{ url_for('main.racks') }}" class="{{ 'active' if ep in ('main.racks', 'main.rack_update', 'main.location_update') }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3v18M20 3v18M4 8h16M4 14h16M4 20h16"/></svg><span>Lokácie a regály</span></a>
       <a href="{{ url_for('main.feedback') if ep.startswith('main.feedback') else url_for('main.feedback', z=request.path) }}" class="{{ 'active' if ep in ('main.feedback', 'main.feedback_update') }}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg><span>Pripomienky</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg><span>Vylepšenia</span>
         {%- if new_feedback %}<span class="nav-count">{{ new_feedback }}</span>{% endif %}</a>
       {% if current_user and current_user.role == 'admin' %}
       <a href="{{ url_for('auth.users') }}" class="{{ 'active' if ep == 'auth.users' }}">

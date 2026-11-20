@@ -1,18 +1,18 @@
 {% extends 'base.html' %}
 {% from '_macros.html' import thumb, image_field %}
-{% block title %}Pripomienky{% endblock %}
+{% block title %}Vylepšenia{% endblock %}
 {% block content %}
 {% set is_admin = current_user.role == 'admin' %}
 <div class="page-head">
-  <div><h1>Pripomienky</h1>
-    <div class="muted">Návrhy na vylepšenie aplikácie, nahlásenie chyby alebo otázka. Pripomienky vidia všetci používatelia, administrátor na ne odpovedá.</div></div>
+  <div><h1>Vylepšenia</h1>
+    <div class="muted">Návrhy na vylepšenie aplikácie, nahlásenie chyby alebo otázka. Návrhy vidia všetci používatelia, administrátor na ne odpovedá. Rovnaký zoznam je aj v aplikácii Projekty.</div></div>
 </div>
 
 <div class="grid fb-grid">
   <form class="card" method="post" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <input type="hidden" name="page" value="{{ page }}">
-    <h2>Nová pripomienka</h2>
+    <h2>Nový návrh</h2>
     <label>Typ</label>
     <div class="fb-kinds">
       {% for k, v in kinds.items() %}
@@ -27,12 +27,12 @@
     <div style="height:0.7rem"></div>
     <label>Obrázok / výrez obrazovky (nepovinné)</label>
     {{ image_field(None, '') }}
-    <div class="form-actions"><button class="btn primary">Odoslať pripomienku</button></div>
+    <div class="form-actions"><button class="btn primary">Odoslať</button></div>
   </form>
 
   <div class="card">
     <div class="page-head" style="margin-bottom:0.8rem">
-      <h2 style="margin:0">Zoznam pripomienok</h2>
+      <h2 style="margin:0">Zoznam návrhov</h2>
       <div class="filters">
         <a href="?stav=otvorene" class="{{ 'on' if status == 'otvorene' }}">Otvorené ({{ counts.nova + counts.riesi_sa }})</a>
         <a href="?stav=hotovo" class="{{ 'on' if status == 'hotovo' }}">Hotové ({{ counts.hotovo }})</a>
@@ -45,7 +45,8 @@
         <div class="fb-head">
           <span class="badge {{ 'missing' if f.kind == 'chyba' else 'admin' if f.kind == 'navrh' else 'neutral' }}">{{ kinds[f.kind] }}</span>
           <span class="badge fb-st-{{ f.status }}">{{ statuses[f.status] }}</span>
-          <span class="small muted">{{ f.full_name or f.username or 'neznámy' }} · {{ f.created_at|d(True) }}</span>
+          {% if f.source == 'projekty' %}<span class="badge integrated" title="Návrh bol zadaný v aplikácii Projekty">Projekty</span>{% endif %}
+          <span class="small muted">{{ f.full_name or f.username or f.author or 'neznámy' }} · {{ f.created_at|d(True) }}</span>
         </div>
         <div class="fb-body">
           {% if f.image %}<div>{{ thumb(f.image, 'Obrázok k pripomienke', 'md') }}</div>{% endif %}
@@ -67,19 +68,19 @@
               </div>
               <div class="form-actions" style="margin-top:0.6rem">
                 <button class="btn sm primary">Uložiť</button>
-                <button class="btn sm danger" name="action" value="delete" formnovalidate onclick="return confirm('Zmazať pripomienku?')">Zmazať</button>
+                <button class="btn sm danger" name="action" value="delete" formnovalidate onclick="return confirm('Zmazať návrh?')">Zmazať</button>
               </div>
             </form>
           </details>
         {% elif f.user_id == current_user.id and f.status == 'nova' %}
-          <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" class="inline-form" data-confirm="Zmazať vašu pripomienku?">
+          <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" class="inline-form" data-confirm="Zmazať váš návrh?">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
             <button class="btn-link small" name="action" value="delete" style="color:var(--bad-ink);margin-top:0.4rem">Zmazať</button>
           </form>
         {% endif %}
       </div>
     {% else %}
-      <div class="empty">Žiadne pripomienky v tomto zozname.</div>
+      <div class="empty">Žiadne návrhy v tomto zozname.</div>
     {% endfor %}
   </div>
 </div>

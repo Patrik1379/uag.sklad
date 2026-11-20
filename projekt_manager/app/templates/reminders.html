@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% from '_reminders.html' import new_form, item with context %}
+{% block title %}Pripomienky – {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Pripomienky</h1>
+    <div class="muted">Poznámky pre seba alebo pre kolegov – aj k projektu, s fotkou. V nastavený čas sa pripomenú oknom v aplikácii a ak chcete, aj e-mailom.</div></div>
+</div>
+<div class="fb-grid">
+  <div class="card">
+    <h2>Nová pripomienka</h2>
+    {{ new_form(visibility, users, projects=projects, preset=preset_project, back=request.full_path) }}
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h2>Zoznam</h2>
+      <div class="fb-filters">
+        <a href="?zobrazit=moje" class="{{ 'on' if scope == 'moje' }}" title="Ktoré ste zadali alebo sú pre vás">Moje a pre mňa</a>
+        <a href="?zobrazit=zdielane" class="{{ 'on' if scope == 'zdielane' }}" title="Zdieľané pripomienky ostatných">Zdieľané</a>
+        <a href="?zobrazit=vsetky" class="{{ 'on' if scope == 'vsetky' }}">Všetky aktívne</a>
+        <a href="?zobrazit=splnene" class="{{ 'on' if scope == 'splnene' }}">Splnené</a>
+      </div>
+    </div>
+    {% for r in items %}{{ item(r, visibility, users, back=request.full_path) }}
+    {% else %}<div class="empty">{{ 'Žiadne splnené pripomienky.' if scope == 'splnene' else 'Žiadne aktívne pripomienky.' }}</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}

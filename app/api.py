@@ -10,6 +10,11 @@ POST /api/v1/projekty/<ref>/obrazok   nahratie nového obrázka projektu (pole "
 DELETE /api/v1/projekty/<ref>         projekt bol zmazaný v Projektoch → zmaže sa aj tu (ak nemá diely),
                                       inak sa len ukončí a odpojí, aby sa kusovník a príjmy nestratili
 GET  /api/v1/ping              overenie spojenia a kľúča
+GET  /api/v1/pripomienky       spoločný zoznam pripomienok (zlepšovákov) pre všetky aplikácie
+POST /api/v1/pripomienky       nová pripomienka (multipart: kind, text, page, source, author, ext_user, image)
+POST /api/v1/pripomienky/<id>  zmena stavu / odpoveď (JSON: status, reply)
+DELETE /api/v1/pripomienky/<id>
+GET  /api/v1/pripomienky/<id>/obrazok
 """
 import secrets
 from datetime import date
@@ -200,3 +205,99 @@ def project_remove(ref):
                (note, p["id"]))
     db.commit()
     return jsonify(ok=True, result="closed", items=items, receipts=received)
+
+
+# --- Pripomienky (spoločné pre Sklad aj Projekty) ------------------------------
+
+def _feedback_json(f):
+    page = f.get("page") or ""
+    if page.startswith("/"):
+        page = _base() + page                         # stránka v sklade – úplná adresa
+    return {
+        "id": f["id"], "kind": f["kind"], "status": f["status"], "text": f["text"], "reply": f.get("reply"),
+        "page": page or None, "has_image": bool(f.get("image")),
+        "source": f.get("source") or "sklad",
+        "author": f.get("author") or f.get("full_name") or f.get("username") or "",
+        "ext_user": f.get("ext_user"),
+        "created_at": str(f.get("created_at") or "")[:19],
+    }
+
+
+@bp.route("/pripomienky", methods=["GET"])
+def feedback_list():
+    _check_key()
+    rows = get_db().query("""SELECT f.*, u.username, u.full_name FROM feedback f
+                             LEFT JOIN users u ON u.id = f.user_id ORDER BY f.created_at DESC, f.id DESC""")
+    return jsonify(ok=True, items=[_feedback_json(r) for r in rows])
+
+
+@bp.route("/pripomienky", methods=["POST"])
+def feedback_create():
+    from .routes import FEEDBACK_KINDS
+    from .services import save_image
+
+    _check_key()
+    f = request.form
+    text = (f.get("text") or "").strip()
+    if not text:
+        abort(_error(400, "Chýba text pripomienky."))
+    kind = f.get("kind") if f.get("kind") in FEEDBACK_KINDS else "navrh"
+    image = None
+    img = request.files.get("image")
+    if img and img.filename:
+        try:
+            image = save_image(img)
+        except Exception as exc:
+            abort(_error(400, f"Obrázok sa nepodarilo uložiť: {exc}"))
+    db = get_db()
+    db.execute("""INSERT INTO feedback (user_id, kind, text, page, image, source, author, ext_user)
+                  VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)""",
+               (kind, text, (f.get("page") or "")[:255] or None, image, (f.get("source") or "projekty")[:20],
+                (f.get("author") or "")[:150] or None, (f.get("ext_user") or "")[:100] or None))
+    db.commit()
+    return jsonify(ok=True)
+
+
+def _feedback_or_404(fid):
+    f = get_db().query("SELECT * FROM feedback WHERE id = ?", (fid,), one=True)
+    if not f:
+        abort(_error(404, "Pripomienka neexistuje."))
+    return f
+
+
+@bp.route("/pripomienky/<int:fid>", methods=["POST"])
+def feedback_set(fid):
+    from .routes import FEEDBACK_STATUS
+
+    _check_key()
+    f = _feedback_or_404(fid)
+    data = request.get_json(silent=True) or {}
+    status = data.get("status") if data.get("status") in FEEDBACK_STATUS else f["status"]
+    db = get_db()
+    db.execute("UPDATE feedback SET status = ?, reply = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+               (status, (data.get("reply") or "").strip() or None, fid))
+    db.commit()
+    return jsonify(ok=True)
+
+
+@bp.route("/pripomienky/<int:fid>", methods=["DELETE"])
+def feedback_delete(fid):
+    from .services import delete_image
+
+    _check_key()
+    f = _feedback_or_404(fid)
+    db = get_db()
+    db.execute("DELETE FROM feedback WHERE id = ?", (fid,))
+    db.commit()
+    delete_image(f.get("image"))
+    return jsonify(ok=True)
+
+
+@bp.route("/pripomienky/<int:fid>/obrazok")
+def feedback_image(fid):
+    _check_key()
+    f = _feedback_or_404(fid)
+    if not f.get("image"):
+        abort(404)
+    name = ("t_" if request.args.get("nahlad") else "") + f["image"]
+    return send_from_directory(current_app.config["UPLOAD_FOLDER"], name, max_age=3600)

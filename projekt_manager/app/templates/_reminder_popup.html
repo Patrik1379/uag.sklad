@@ -1,0 +1,18 @@
+<div class="rem-popup" id="rem-popup" role="dialog" aria-label="Pripomienky">
+  <div class="rem-popup-head"><b>⏰ Pripomienky ({{ due_reminders|length }})</b></div>
+  <div class="rem-popup-list">
+  {% for r in due_reminders %}
+    <div class="rem-popup-item">
+      {% if r.project_id %}<a class="small" href="{{ url_for('main.project_detail', project_id=r.project_id) }}#pripomienky">{{ r.project_name }}</a>{% endif %}
+      <div class="rem-popup-text">{% if r.image %}<img class="rem-popup-img" src="{{ url_for('rem.image', rid=r.id, nahlad=1) }}" alt="">{% endif %}{{ r.text }}</div>
+      <div class="small muted">{{ r.author_name }}{% if not r.mine %} vám pripomína{% endif %} · {{ r.remind_at|rem_dt }}</div>
+      <div class="rem-popup-actions">
+        {% set back = request.full_path %}
+        <form method="post" action="{{ url_for('rem.done', rid=r.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back }}"><button class="btn btn-primary btn-sm">✓ Hotovo</button></form>
+        <form method="post" action="{{ url_for('rem.snooze', rid=r.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back }}"><button class="btn btn-sm" name="na" value="hodina">o hodinu</button><button class="btn btn-sm" name="na" value="zajtra">zajtra</button></form>
+        <form method="post" action="{{ url_for('rem.dismiss', rid=r.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back }}"><button class="btn-link small" title="Pripomienka zostane v zozname, len sa už nebude zobrazovať v okne">zavrieť</button></form>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+</div>

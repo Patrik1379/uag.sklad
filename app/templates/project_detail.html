@@ -47,9 +47,9 @@
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
     <span><b id="bulk-count">0</b> označených</span>
     <button class="btn sm primary" name="action" value="on">⚙ Označiť ako zaintegrované na stroji</button>
-    <button class="btn sm" name="action" value="off">Zrušiť označenie</button>
+    <button class="btn sm" name="action" value="off" title="Označené diely už nebudú vedené ako zaintegrované na stroji – znova budú čakať na naskladnenie">Zrušiť „na stroji“</button>
     <button class="btn sm" formaction="{{ url_for('main.project_lines_order', pid=project.id) }}" title="Všetky chýbajúce a ešte neobjednané kusy označených dielov sa zapíšu ako objednané">🛒 Označiť ako objednané</button>
-    <span class="small muted">Diely na stroji sa nenaskladňujú a pri príjme sa neponúkajú.</span>
+    <button type="button" class="btn-link small" id="bulk-clear">zrušiť výber</button>
   </form>
   {% endif %}
   <div class="table-wrap">
@@ -190,6 +190,7 @@
   const boxes = () => Array.from(document.querySelectorAll('.line-chk'));
   const update = () => { const n = boxes().filter(b => b.checked).length; count.textContent = n; bar.hidden = n === 0; };
   boxes().forEach(b => b.addEventListener('change', update));
+  document.getElementById('bulk-clear').addEventListener('click', () => { boxes().forEach(b => b.checked = false); all.checked = false; update(); });
   all.addEventListener('change', () => {
     boxes().forEach(b => { if (b.closest('tr').style.display !== 'none') b.checked = all.checked; });
     update();

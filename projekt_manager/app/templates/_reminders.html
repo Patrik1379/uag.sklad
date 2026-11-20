@@ -1,0 +1,102 @@
+{# Pripomienky – formulár a položka zoznamu (stránka Pripomienky aj detail projektu) #}
+
+{% macro when_fields(prefix, r=None) %}
+  <label>Pripomenúť</label>
+  <div class="rem-when" data-when>
+    {% if r and r.remind_at %}<label class="fb-kind"><input type="radio" name="when" value="ponechat" checked> ponechať ({{ r.remind_at|rem_dt }})</label>{% endif %}
+    <label class="fb-kind"><input type="radio" name="when" value="nie" {{ 'checked' if not r or not r.remind_at }}> nepripomínať</label>
+    <label class="fb-kind"><input type="radio" name="when" value="hned"> pri otvorení aplikácie</label>
+    <label class="fb-kind"><input type="radio" name="when" value="cas"> v čase</label>
+    <input type="datetime-local" name="remind_at" class="rem-time" value="{{ r.remind_at.replace(' ', 'T') if r and r.remind_at else '' }}" hidden>
+  </div>
+  <label class="rem-check" data-email hidden><input type="checkbox" name="email" value="1" {{ 'checked' if not r or r.email }}> poslať aj e-mail</label>
+{% endmacro %}
+
+{% macro users_field(users, selected=(), exclude=None) %}
+  <details class="rem-users">
+    <summary class="small">Pripomenúť aj kolegom{% if selected|length > 1 %} ({{ selected|length - 1 }}){% endif %}</summary>
+    <div class="rem-user-list">
+      {% for u in users if u.id != exclude %}
+        <label><input type="checkbox" name="users" value="{{ u.id }}" {{ 'checked' if u.id in selected }}> {{ u.name }}</label>
+      {% endfor %}
+    </div>
+  </details>
+{% endmacro %}
+
+{% macro visibility_field(visibility, current='ja', has_project=True) %}
+  <label title="Adresáti pripomienky ju vidia vždy">Kto to uvidí</label>
+  <select name="visibility">
+    {% for k, v in visibility.items() if k != 'projekt' or has_project %}<option value="{{ k }}" {{ 'selected' if k == current }}>{{ v }}</option>{% endfor %}
+  </select>
+{% endmacro %}
+
+{% macro new_form(visibility, users, projects=None, project=None, preset=None, back='') %}
+<form method="post" action="{{ url_for('rem.create') }}" enctype="multipart/form-data" class="rem-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="back" value="{{ back }}">
+  {% if project %}<input type="hidden" name="project_id" value="{{ project.id }}">
+  {% elif projects is not none %}
+    <label>Projekt (nepovinné)</label>
+    <select name="project_id" data-project>
+      <option value="">— bez projektu —</option>
+      {% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if p.id == preset }}>{{ p.name }}{% if p.order_no %} ({{ p.order_no }}){% endif %}</option>{% endfor %}
+    </select>
+  {% endif %}
+  <label>Čo si treba pripomenúť? *</label>
+  <textarea name="text" rows="3" required placeholder="Napr.: Skontrolovať káblové žľaby pred inštaláciou, objednať chýbajúce svorky…"></textarea>
+  <label>Fotka (nepovinné)</label>
+  <input type="file" name="image" accept="image/*" capture="environment" data-paste-target>
+  <div class="rem-row">
+    <div>{{ visibility_field(visibility, 'ja', has_project=project is not none or projects is not none) }}</div>
+    <div>{{ when_fields('n') }}</div>
+  </div>
+  {{ users_field(users, (current_user.id,), exclude=current_user.id) }}
+  <div style="margin-top:12px"><button class="btn btn-primary">Uložiť pripomienku</button></div>
+</form>
+{% endmacro %}
+
+{% macro item(r, visibility, users, back='', show_project=True) %}
+<div class="rem-item{{ ' due' if r.due }}{{ ' done' if r.done_at }}" id="pripomienka-{{ r.id }}">
+  <div class="rem-head">
+    {% if r.due %}<span class="badge overdue">⏰ teraz</span>
+    {% elif r.remind_at and not r.done_at %}<span class="badge risk">⏰ {{ r.remind_at|rem_dt }}</span>{% endif %}
+    {% if r.done_at %}<span class="badge done">✓ splnené {{ r.done_at|rem_dt }}{% if r.done_by_name %} · {{ r.done_by_name }}{% endif %}</span>{% endif %}
+    <span class="badge status" title="Kto pripomienku vidí">{{ {'ja': '🔒 súkromná', 'projekt': '👥 projekt', 'vsetci': '🌐 všetci'}[r.visibility] }}</span>
+    {% if show_project and r.project_id %}<a class="small" href="{{ url_for('main.project_detail', project_id=r.project_id) }}#pripomienky">{{ r.project_name }}</a>{% endif %}
+    <span class="small muted">{{ r.author_name or 'neznámy' }}{% if r.others %} → {{ r.others }}{% endif %}{% if r.email and r.remind_at %} · ✉{% endif %}</span>
+  </div>
+  <div class="rem-body">
+    {% if r.image %}<a href="{{ url_for('rem.image', rid=r.id) }}" target="_blank" rel="noopener"><img class="fb-img" src="{{ url_for('rem.image', rid=r.id, nahlad=1) }}" alt="Fotka" loading="lazy"></a>{% endif %}
+    <div class="rem-text">{{ r.text }}</div>
+  </div>
+  <div class="rem-actions">
+    {% if r.can_edit or r.for_me %}
+    <form method="post" action="{{ url_for('rem.done', rid=r.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back }}">
+      <button class="btn btn-sm">{{ 'Vrátiť medzi aktívne' if r.done_at else '✓ Hotovo' }}</button>
+    </form>
+    {% endif %}
+    {% if r.can_edit %}
+    <details class="rem-edit">
+      <summary class="btn btn-sm">Upraviť</summary>
+      <form method="post" action="{{ url_for('rem.edit', rid=r.id) }}" enctype="multipart/form-data" class="rem-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ back }}">
+        <textarea name="text" rows="3" required>{{ r.text }}</textarea>
+        <label>Fotka</label>
+        <input type="file" name="image" accept="image/*">
+        {% if r.image %}<label class="rem-check"><input type="checkbox" name="remove_image" value="1"> odstrániť fotku</label>{% endif %}
+        <div class="rem-row">
+          <div>{{ visibility_field(visibility, r.visibility, has_project=r.project_id) }}</div>
+          <div>{{ when_fields('e', r) }}</div>
+        </div>
+        {{ users_field(users, r.recipients, exclude=r.author_id) }}
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm">Uložiť</button>
+          <button class="btn btn-danger btn-sm" formaction="{{ url_for('rem.delete', rid=r.id) }}" formnovalidate onclick="return confirm('Zmazať pripomienku?')">Zmazať</button>
+        </div>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}

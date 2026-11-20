@@ -263,6 +263,9 @@ def init_db(retries: int = 30):
         _migrate_locations(db)
     _add_column(db, "parts", "ean", "VARCHAR(50)")
     _add_column(db, "project_parts", "integrated", "INTEGER NOT NULL DEFAULT 0")   # diel je už na stroji
+    _add_column(db, "feedback", "source", "VARCHAR(20)")       # z ktorej aplikácie (None = sklad, "projekty")
+    _add_column(db, "feedback", "author", "VARCHAR(150)")      # meno autora z inej aplikácie
+    _add_column(db, "feedback", "ext_user", "VARCHAR(100)")    # id autora v inej aplikácii (napr. "pm:3")
     _add_column(db, "project_parts", "qty_ordered", "INTEGER NOT NULL DEFAULT 0")  # objednané, ešte nedodané ks
     _add_column(db, "project_parts", "ordered_at", "VARCHAR(20)")                  # dátum poslednej objednávky
     _add_column(db, "projects", "external_ref", "VARCHAR(60)")   # napr. "pm:12" = projekt z Projekt manažéra

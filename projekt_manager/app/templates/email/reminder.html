@@ -1,0 +1,8 @@
+{% extends "email/_layout.html" %}
+{% block body %}
+<p>Dobrý deň, {{ r.user_name }},</p>
+<p>{% if r.author_name and r.author_name != r.user_name %}{{ r.author_name }} vám nastavil(a) pripomienku{% else %}pripomínam, čo ste si poznačili{% endif %}{% if r.project_name %} k projektu <strong>{{ r.project_name }}</strong>{% endif %}:</p>
+<div style="background:#f5f6f8;padding:14px;border-radius:8px;margin:12px 0;white-space:pre-wrap;font-size:15px">{{ r.text }}</div>
+{% if r.image %}<p style="font-size:13px;color:#677085">K pripomienke je priložená fotka – nájdete ju v aplikácii.</p>{% endif %}
+<p><a href="{{ app_url }}{{ '/projekty/' ~ r.project_id ~ '#pripomienky' if r.project_id else '/pripomienky' }}" style="background:#2f5bd3;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;display:inline-block">Otvoriť pripomienku</a></p>
+{% endblock %}

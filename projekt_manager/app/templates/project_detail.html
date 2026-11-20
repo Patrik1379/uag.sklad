@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_img.html" import project_thumb %}
 {% block title %}{{ project.name }} – {{ app_name }}{% endblock %}
+{% from '_reminders.html' import new_form as rem_new_form, item as rem_item with context %}
 {% block content %}
 {% set h = project.health %}
 <div class="page-head">
@@ -388,6 +389,19 @@
   </div>
 
   <div>
+    <div class="card" id="pripomienky">
+      <div class="card-head">
+        <h2>⏰ Pripomienky</h2>
+        <a class="small" href="{{ url_for('rem.index', zobrazit='vsetky') }}">všetky</a>
+      </div>
+      {% for r in reminders %}{{ rem_item(r, rem_visibility, rem_users, back=request.path ~ '#pripomienky', show_project=False) }}
+      {% else %}<div class="small muted" style="margin-bottom:8px">Zatiaľ žiadne pripomienky k projektu.</div>{% endfor %}
+      <details class="rem-new" {{ 'open' if not reminders }}>
+        <summary class="btn btn-sm">+ Nová pripomienka / poznámka</summary>
+        {{ rem_new_form(rem_visibility, rem_users, project=project, back=request.path ~ '#pripomienky') }}
+      </details>
+    </div>
+
     <div class="card">
       <h2>Aktualizovať stav</h2>
       <form method="post" action="{{ url_for('main.project_status', project_id=project.id) }}">

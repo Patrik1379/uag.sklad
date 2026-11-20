@@ -1260,7 +1260,7 @@ def part_image(part_id):
 
 
 # =============================================================================
-# Pripomienky (návrhy na vylepšenie, chyby, otázky)
+# Vylepšenia (návrhy na vylepšenie, chyby, otázky)
 # =============================================================================
 
 FEEDBACK_KINDS = {"navrh": "Návrh na vylepšenie", "chyba": "Chyba", "otazka": "Otázka"}
@@ -1288,7 +1288,7 @@ def feedback():
         db.execute("INSERT INTO feedback (user_id, kind, text, page, image) VALUES (?, ?, ?, ?, ?)",
                    (current_user()["id"], kind, text, page, image))
         db.commit()
-        flash("Ďakujeme, pripomienka bola odoslaná.", "ok")
+        flash("Ďakujeme, návrh bol odoslaný.", "ok")
         return redirect(url_for("main.feedback"))
     status = request.args.get("stav", "otvorene")
     rows = db.query("""SELECT f.*, u.username, u.full_name FROM feedback f
@@ -1315,7 +1315,7 @@ def feedback_update(fid):
         db.execute("DELETE FROM feedback WHERE id = ?", (fid,))
         db.commit()
         delete_image(item["image"])
-        flash("Pripomienka bola zmazaná.", "ok")
+        flash("Návrh bol zmazaný.", "ok")
         return redirect(url_for("main.feedback"))
     if me["role"] != "admin":
         abort(403)
@@ -1324,7 +1324,7 @@ def feedback_update(fid):
     db.execute("UPDATE feedback SET status = ?, reply = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                (status, request.form.get("reply", "").strip() or None, fid))
     db.commit()
-    flash("Pripomienka bola uložená.", "ok")
+    flash("Uložené.", "ok")
     return redirect(request.form.get("back") or url_for("main.feedback"))
 
 
