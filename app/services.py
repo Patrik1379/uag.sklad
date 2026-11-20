@@ -354,7 +354,7 @@ def read_bom(file_storage):
         desc, name = val("description"), val("name")
         pn = order_code or code
         if not name:
-            name = f"{desc} {pn}".strip() if desc and desc.lower() not in pn.lower() else (desc or pn)
+            name = desc or pn          # názov = Description z kusovníka (Part Number je v objednávacom čísle)
         params = []
         material = val("material")
         if material and material.lower() != "generic":
