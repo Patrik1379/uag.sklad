@@ -3,20 +3,82 @@
 {% block title %}Na objednanie{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Na objednanie</h1><div class="muted">Chýbajúce diely aktívnych projektov, zoskupené podľa dodávateľa</div></div>
+  <div><h1>Na objednanie</h1><div class="muted">Chýbajúce diely aktívnych projektov, zoskupené podľa {{ 'projektov' if by_project else 'dodávateľa' }}</div></div>
   <div class="actions">
-    <a class="btn" href="{{ url_for('main.to_order_view', export=1, **({'dodavatel': sup} if sup is not none else {})) }}">Export do Excelu</a>
+    <div class="filters seg" role="group" aria-label="Zoskupiť">
+      <a href="{{ url_for('main.to_order_view') }}" class="{{ 'on' if not by_project }}">Podľa dodávateľa</a>
+      <a href="{{ url_for('main.to_order_view', podla='projekt') }}" class="{{ 'on' if by_project }}">Podľa projektov</a>
+    </div>
+    {% set exp = {'export': 1} %}{% if sup is not none %}{% set _ = exp.update({'dodavatel': sup}) %}{% endif %}{% if by_project and proj %}{% set _ = exp.update({'projekt': proj}) %}{% endif %}
+    <a class="btn" href="{{ url_for('main.to_order_view', **exp) }}">Export do Excelu</a>
   </div>
 </div>
 
 <div class="grid kpi">
   <div class="card"><div class="label">Treba objednať</div><div class="value {{ 'bad' if to_order else 'good' }}">{{ to_order }}</div><div class="sub">ks · {{ n_items }} druhov dielov{% if n_restock %} · {{ n_restock }} pod min. zásobou{% endif %}</div></div>
   <div class="card"><div class="label">Objednané, čaká na dodanie</div><div class="value">{{ ordered }}</div><div class="sub">ks · príjem ich odpočíta</div></div>
-  <div class="card"><div class="label">Dodávateľov</div><div class="value">{{ groups|length }}</div></div>
+  {% if by_project %}<div class="card"><div class="label">Projektov</div><div class="value">{{ projects_list|rejectattr(0, 'equalto', 'zasoba')|list|length }}</div><div class="sub">s chýbajúcimi dielmi</div></div>
+  {% else %}<div class="card"><div class="label">Dodávateľov</div><div class="value">{{ groups|length }}</div></div>{% endif %}
   <div class="card"><div class="label">Možno na voľnom sklade</div><div class="value {{ 'warn' if with_free }}">{{ with_free }}</div><div class="sub">druhov – najprv skontrolujte</div></div>
 </div>
 
 {% include '_undo.html' %}
+{% if by_project %}
+{% if projects_list|length > 1 %}
+<div class="filters" style="margin-bottom:1rem">
+  <a href="{{ url_for('main.to_order_view', podla='projekt') }}" class="{{ 'on' if not proj }}">Všetky projekty</a>
+  {% for k, title in projects_list %}<a href="{{ url_for('main.to_order_view', podla='projekt', projekt=k) }}" class="{{ 'on' if proj == k|string }}">{{ title }}</a>{% endfor %}
+</div>
+{% endif %}
+{% for key, g in pgroups.items() %}
+<form class="card" method="post" action="{{ url_for('main.to_order_mark') }}" style="margin-bottom:1.2rem">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="back" value="{{ request.full_path }}">
+  <input type="hidden" name="projekt" value="{{ key }}">
+  {% set n_open = g.rows|selectattr('row_to_order')|list|length %}
+  <div class="page-head" style="margin-bottom:0.8rem">
+    <h2 style="margin:0">{% if g.project %}<a href="{{ url_for('main.project_detail', pid=key) }}">{{ g.project.order_no }}</a> {{ g.project.name }}{% else %}{{ g.title }}{% endif %}
+      <span class="small muted">{% if g.project and g.project.deadline %}· termín {{ g.project.deadline|d }} {% endif %}· {{ n_open ~ ' na objednanie' if n_open else 'všetko objednané, čaká na dodanie' }}</span></h2>
+    <div class="actions">
+      {% if n_open %}<a class="btn sm" href="{{ url_for('main.to_order_view', export=1, projekt=key) }}">Excel</a>{% endif %}
+      <button class="btn sm" formaction="{{ url_for('main.to_order_inquiry') }}" title="Pri označených dieloch sa zapíše, že dopyt (cenová ponuka) bol odoslaný dodávateľovi">✉ Označiť ako vydopytované</button>
+      <button class="btn sm primary" title="Označené diely sa zapíšu ako objednané len pre {{ 'zásobu' if key == 'zasoba' else 'tento projekt' }} (+ kusy navyše do voľného skladu)">🛒 Označiť ako objednané</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+  <table class="data">
+    <thead><tr><th class="chk"><input type="checkbox" class="chk-group" title="Označiť všetky"></th><th></th><th>Objednávacie číslo</th><th>EAN</th><th>Názov</th><th>Dodávateľ</th>
+      <th class="num">Treba objednať</th><th class="num" title="Kusy navyše – po dodaní pôjdu do voľného skladu">+ Navyše</th><th title="Dopyt / cenová ponuka odoslaná dodávateľovi">Vydopytované</th>
+      <th class="num" title="Objednané, ešte nedodané kusy {{ 'do zásoby' if key == 'zasoba' else 'pre tento projekt' }} – zmenou opravíte">Objednané</th></tr></thead>
+    <tbody>
+    {% for p in g.rows %}
+      <tr>
+        <td class="chk"><input type="checkbox" name="part_id" value="{{ p.part_id }}" class="row-chk"></td>
+        <td style="width:3.6rem">{{ thumb(p.image, p.name, upload=url_for('main.part_image', part_id=p.part_id)) }}</td>
+        <td class="mono"><b>{{ p.order_code or '' }}</b><div class="small"><a href="{{ url_for('main.part_detail', part_id=p.part_id) }}">{{ p.code }}</a></div></td>
+        <td class="mono small">{{ p.ean or '' }}</td>
+        <td>{{ p.name }}{% if p.manufacturer %}<div class="small muted">{{ p.manufacturer }}</div>{% endif %}
+          {% if p.line and p.row_to_order and p.free %}<div class="small" style="color:var(--warn-ink)">⚠ na voľnom sklade je {{ p.free }} {{ p.unit }} – <a href="{{ url_for('main.free_stock_view') }}">skontrolovať a priradiť</a></div>{% endif %}
+          {% if not p.line %}<div class="small muted">voľných {{ p.free }}{% if p.min_stock %} / min. {{ p.min_stock }}{% endif %}</div>{% endif %}</td>
+        <td class="small">{{ p.supplier or '–' }}</td>
+        <td class="num">{% if p.row_to_order %}<b style="color:var(--bad-ink)">{{ p.row_to_order }}</b> {{ p.unit }}{% else %}<span class="small muted">–</span>{% endif %}</td>
+        <td class="num"><input type="number" name="extra_{{ p.part_id }}" min="0" class="extra-input" placeholder="0" aria-label="Kusy navyše"></td>
+        <td class="inq-cell">{% if p.inquiry_at %}<span class="badge admin" title="Dopyt odoslaný {{ p.inquiry_at|d }}">✉ {{ p.inquiry_qty or '' }}{{ ' ks · ' if p.inquiry_qty }}{{ p.inquiry_at|d }}</span>
+          <button type="button" class="btn-link small inq-cancel" data-post="{{ url_for('main.part_inquiry', part_id=p.part_id) }}" title="Zrušiť označenie dopytu">zrušiť</button>
+          {% else %}<span class="muted small">–</span>{% endif %}</td>
+        <td class="num">
+          {% if p.line %}<input type="number" min="0" value="{{ p.row_ordered }}" class="ord-edit" data-post="{{ url_for('main.project_line_ordered', pid=p.line.project_id, pp_id=p.line.pp_id) }}" data-field="ordered">
+          {% else %}<input type="number" min="0" value="{{ p.row_ordered }}" class="ord-edit" data-post="{{ url_for('main.part_ordered_free', part_id=p.part_id) }}" data-field="ordered">{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</form>
+{% else %}
+<div class="card empty">Nič netreba objednať – všetky chýbajúce diely sú objednané.</div>
+{% endfor %}
+{% else %}
 {% if suppliers|length > 1 %}
 <div class="filters" style="margin-bottom:1rem">
   <a href="{{ url_for('main.to_order_view') }}" class="{{ 'on' if sup is none }}">Všetci</a>
@@ -86,6 +148,7 @@
 {% else %}
 <div class="card empty">Nič netreba objednať – všetky chýbajúce diely sú objednané.</div>
 {% endfor %}
+{% endif %}
 <script>
 // oprava počtu objednaných priamo v zozname
 document.querySelectorAll('.ord-edit').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); i.blur(); } }));

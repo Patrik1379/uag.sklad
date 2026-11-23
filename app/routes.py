@@ -629,8 +629,22 @@ def to_order_view():
     suppliers = sorted({(p["supplier"] or "").strip() for p in items}, key=lambda s: (not s, s.lower()))
     if sup is not None:
         items = [p for p in items if (p["supplier"] or "").strip() == sup]
+    by_project = request.args.get("podla") == "projekt"
+    proj = request.args.get("projekt")
     if request.args.get("export") == "1":
-        return _to_order_export(items, sup)
+        return _to_order_export(_items_for_project(items, proj) if proj else items, sup, proj)
+    if by_project:
+        pgroups = _project_groups(items)
+        projects_list = [(k, g["title"]) for k, g in pgroups.items()]
+        if proj:
+            pgroups = {k: g for k, g in pgroups.items() if str(k) == proj}
+        return render_template("to_order.html", by_project=True, pgroups=pgroups, projects_list=projects_list,
+                               proj=proj, groups={}, undo=last_undo(), suppliers=suppliers, sup=sup,
+                               n_items=sum(1 for p in items if p["to_order"]),
+                               to_order=sum(p["to_order"] for p in items),
+                               ordered=sum(p["ordered"] + p["ordered_free"] for p in items),
+                               n_restock=sum(1 for p in items if p["restock"]),
+                               with_free=sum(1 for p in items if p["to_order_projects"] and p["free"]))
     groups = {}
     for p in items:
         groups.setdefault((p["supplier"] or "").strip(), []).append(p)
@@ -644,12 +658,50 @@ def to_order_view():
                            with_free=sum(1 for p in items if p["to_order_projects"] and p["free"]))
 
 
+def _project_groups(items):
+    """Zoznam „Na objednanie“ podľa projektov: {project_id | "zasoba": {"title", "project", "rows"}}."""
+    groups = {}
+    for p in items:
+        for l in p["lines"]:
+            g = groups.setdefault(l["project_id"], {"title": f"{l['project']['order_no']} {l['project']['name']}",
+                                                    "project": l["project"], "rows": []})
+            g["rows"].append(dict(p, line=l, row_to_order=l["to_order"], row_ordered=l["qty_ordered"]))
+        if p["min_stock"] or p["ordered_free"]:
+            g = groups.setdefault("zasoba", {"title": "📦 Zásoba (voľný sklad)", "project": None, "rows": []})
+            g["rows"].append(dict(p, line=None, row_to_order=p["restock"], row_ordered=p["ordered_free"]))
+    for g in groups.values():
+        g["rows"].sort(key=lambda r: (not r["row_to_order"], (r["supplier"] or "").lower(), r["code"]))
+    # projekty podľa termínu, zásoba na koniec; čo už netreba objednávať, nižšie
+    return dict(sorted(groups.items(), key=lambda kv: (
+        kv[0] == "zasoba", not any(r["row_to_order"] for r in kv[1]["rows"]),
+        kv[1]["project"]["deadline"] is None if kv[1]["project"] else True,
+        str(kv[1]["project"]["deadline"] or "") if kv[1]["project"] else "")))
+
+
+def _items_for_project(items, proj):
+    """Položky len pre jeden projekt (alebo „zasoba“) – množstvá prepočítané len pre neho."""
+    out = []
+    for p in items:
+        if proj == "zasoba":
+            if p["restock"] or p["ordered_free"]:
+                out.append(dict(p, lines=[], to_order=p["restock"], ordered=0))
+            continue
+        lines = [l for l in p["lines"] if str(l["project_id"]) == str(proj)]
+        if lines:
+            out.append(dict(p, lines=lines, to_order=sum(l["to_order"] for l in lines),
+                            ordered=sum(l["ordered"] for l in lines), restock=0, ordered_free=0))
+    return out
+
+
 @bp.route("/na-objednanie", methods=["POST"])
 @login_required
 def to_order_mark():
     """Označené diely: chýbajúce kusy projektov + doplnenie zásoby + zadané „navyše“ sú objednané."""
     ids = {to_int(x, None) for x in request.form.getlist("part_id")}
     items = [p for p in to_order_list() if p["part_id"] in ids]
+    proj = request.form.get("projekt")
+    if proj:          # označuje sa len v rámci jedného projektu (alebo len zásoba)
+        items = _items_for_project(items, proj)
     if not items:
         flash("Označte aspoň jeden diel.", "error")
         return _back(url_for("main.to_order_view"))
@@ -730,7 +782,7 @@ def part_ordered_free(part_id):
     return _back(url_for("main.part_detail", part_id=part_id))
 
 
-def _to_order_export(items, sup):
+def _to_order_export(items, sup, proj=None):
     from openpyxl import Workbook
     from openpyxl.styles import Font
 
@@ -754,7 +806,13 @@ def _to_order_export(items, sup):
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    name = "na_objednanie" + (f"_{sup}" if sup else "") + f"_{datetime.now():%Y%m%d}.xlsx"
+    pname = ""
+    if proj == "zasoba":
+        pname = "_zasoba"
+    elif proj:
+        row = get_db().query("SELECT order_no FROM projects WHERE id = ?", (to_int(proj, 0),), one=True)
+        pname = f"_{row['order_no']}" if row else ""
+    name = "na_objednanie" + (f"_{sup}" if sup else "") + pname + f"_{datetime.now():%Y%m%d}.xlsx"
     return send_file(buf, as_attachment=True, download_name=name.replace("/", "-").replace(" ", "_"),
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
