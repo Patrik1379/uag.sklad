@@ -273,6 +273,8 @@ def init_db(retries: int = 30):
     _add_column(db, "feedback", "source", "VARCHAR(20)")       # z ktorej aplikácie (None = sklad, "projekty")
     _add_column(db, "feedback", "author", "VARCHAR(150)")      # meno autora z inej aplikácie
     _add_column(db, "feedback", "ext_user", "VARCHAR(100)")    # id autora v inej aplikácii (napr. "pm:3")
+    _add_column(db, "parts", "inquiry_at", "VARCHAR(20)")              # dopyt odoslaný dodávateľovi (dátum)
+    _add_column(db, "parts", "inquiry_qty", "INTEGER")                 # na koľko kusov
     _add_column(db, "parts", "min_stock", "INTEGER")                   # minimálna zásoba vo voľnom sklade
     _add_column(db, "parts", "qty_ordered_free", "INTEGER NOT NULL DEFAULT 0")  # objednané do zásoby, nedodané
     _add_column(db, "parts", "ordered_free_at", "VARCHAR(20)")

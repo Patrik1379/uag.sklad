@@ -578,6 +578,11 @@ def order_undo():
     db = get_db()
     done = skipped = 0
     for c in json.loads(row["data"]):
+        if c["t"] == "inq":
+            cur = db.query("SELECT inquiry_at FROM parts WHERE id = ?", (c["id"],), one=True)
+            if cur and not cur["inquiry_at"]:
+                db.execute("UPDATE parts SET inquiry_at = ?, inquiry_qty = ? WHERE id = ?", (c["old_at"], c["old"], c["id"]))
+            continue
         if c["t"] == "pp":
             cur = db.query("SELECT qty_ordered FROM project_parts WHERE id = ?", (c["id"],), one=True)
             table, col, col_at = "project_parts", "qty_ordered", "ordered_at"
@@ -662,10 +667,49 @@ def to_order_mark():
             undo.append({"t": "part", "id": p["part_id"], "old": int(old["qty_ordered_free"] or 0),
                          "old_at": old["ordered_free_at"], "new": new})
             total += stock
+    for p in items:   # dopyt sa zmenil na objednávku
+        if p.get("inquiry_at"):
+            db.execute("UPDATE parts SET inquiry_at = NULL, inquiry_qty = NULL WHERE id = ?", (p["part_id"],))
+            undo.append({"t": "inq", "id": p["part_id"], "old": p["inquiry_qty"], "old_at": p["inquiry_at"], "new": None})
     db.commit()
     _save_undo(undo, total)
     flash(f"Označené ako objednané: {total} ks." if total else "Označené diely nemajú čo objednať – zadajte počet „navyše“.",
           "ok" if total else "warn")
+    return _back(url_for("main.to_order_view"))
+
+
+@bp.route("/na-objednanie/dopyt", methods=["POST"])
+@login_required
+def to_order_inquiry():
+    """Označené diely: dopyt bol odoslaný dodávateľovi (na množstvo „treba objednať“ + navyše)."""
+    ids = {to_int(x, None) for x in request.form.getlist("part_id")}
+    items = [p for p in to_order_list() if p["part_id"] in ids]
+    if not items:
+        flash("Označte aspoň jeden diel.", "error")
+        return _back(url_for("main.to_order_view"))
+    db = get_db()
+    today = datetime.now().strftime("%Y-%m-%d")
+    for p in items:
+        qty = p["to_order"] + max(to_int(request.form.get(f"extra_{p['part_id']}"), 0), 0)
+        db.execute("UPDATE parts SET inquiry_at = ?, inquiry_qty = ? WHERE id = ?", (today, qty or None, p["part_id"]))
+    db.commit()
+    flash(f"Označené ako vydopytované: {len(items)} {'diel' if len(items) == 1 else 'diely' if len(items) < 5 else 'dielov'}.", "ok")
+    return _back(url_for("main.to_order_view"))
+
+
+@bp.route("/diely/<int:part_id>/dopyt", methods=["POST"])
+@login_required
+def part_inquiry(part_id):
+    """Zrušenie / úprava dopytu pri jednom diele (qty=0 → zrušiť)."""
+    db = get_db()
+    part = db.query("SELECT * FROM parts WHERE id = ?", (part_id,), one=True) or abort(404)
+    qty = max(to_int(request.form.get("qty"), 0), 0)
+    if qty:
+        db.execute("UPDATE parts SET inquiry_at = ?, inquiry_qty = ? WHERE id = ?",
+                   (part.get("inquiry_at") or datetime.now().strftime("%Y-%m-%d"), qty, part_id))
+    else:
+        db.execute("UPDATE parts SET inquiry_at = NULL, inquiry_qty = NULL WHERE id = ?", (part_id,))
+    db.commit()
     return _back(url_for("main.to_order_view"))
 
 
@@ -694,7 +738,7 @@ def _to_order_export(items, sup):
     ws = wb.active
     ws.title = "Na objednanie"
     ws.append(["Dodávateľ", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Označenie", "Objednať", "Jednotka",
-               "Už objednané", "Voľný sklad", "Projekty / zásoba"])
+               "Už objednané", "Voľný sklad", "Projekty / zásoba", "Vydopytované"])
     for c in ws[1]:
         c.font = Font(bold=True)
     for p in items:
@@ -703,8 +747,9 @@ def _to_order_export(items, sup):
         ws.append([p["supplier"] or "", p["order_code"] or "", p["ean"] or "", p["name"], p["manufacturer"] or "",
                    p["code"], p["to_order"], p["unit"], (p["ordered"] + p["ordered_free"]) or None, p["free"] or None,
                    ", ".join([f"{l['project']['order_no']} ({l['to_order']})" for l in p["lines"] if l["to_order"]]
-                             + ([f"zásoba ({p['restock']}, min. {p['min_stock']})"] if p["restock"] else []))])
-    for col, w in zip("ABCDEFGHIJK", (20, 26, 16, 40, 18, 12, 10, 9, 12, 11, 40)):
+                             + ([f"zásoba ({p['restock']}, min. {p['min_stock']})"] if p["restock"] else [])),
+                   (f"{p['inquiry_qty'] or ''} ks · {p['inquiry_at']}" if p.get("inquiry_at") else "")])
+    for col, w in zip("ABCDEFGHIJKL", (20, 26, 16, 40, 18, 12, 10, 9, 12, 11, 40, 18)):
         ws.column_dimensions[col].width = w
     buf = io.BytesIO()
     wb.save(buf)

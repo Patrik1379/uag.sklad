@@ -33,12 +33,13 @@
     <h2 style="margin:0">{{ supplier or 'Bez dodávateľa' }} <span class="small muted">· {{ n_open ~ ' na objednanie' if n_open else 'všetko objednané, čaká na dodanie' }}</span></h2>
     <div class="actions">
       {% if n_open %}<a class="btn sm" href="{{ url_for('main.to_order_view', dodavatel=supplier, export=1) }}">Excel</a>{% endif %}
+      <button class="btn sm" formaction="{{ url_for('main.to_order_inquiry') }}" title="Pri označených dieloch sa zapíše, že dopyt (cenová ponuka) bol odoslaný dodávateľovi">✉ Označiť ako vydopytované</button>
       <button class="btn sm primary" title="Označené diely sa zapíšu ako objednané – do projektov, doplnenie zásoby a kusy navyše do voľného skladu">🛒 Označiť ako objednané</button>
     </div>
   </div>
   <div class="table-wrap">
   <table class="data">
-    <thead><tr><th class="chk"><input type="checkbox" class="chk-group" title="Označiť všetky"></th><th></th><th>Objednávacie číslo</th><th>EAN</th><th>Názov</th><th class="num" title="Spolu za všetky projekty a doplnenie zásoby – ešte neobjednané kusy">Treba objednať</th><th class="num" title="Kusy navyše – po dodaní pôjdu do voľného skladu">+ Navyše</th><th>Rozpis – pre koho, koľko treba a koľko je už objednané</th></tr></thead>
+    <thead><tr><th class="chk"><input type="checkbox" class="chk-group" title="Označiť všetky"></th><th></th><th>Objednávacie číslo</th><th>EAN</th><th>Názov</th><th class="num" title="Spolu za všetky projekty a doplnenie zásoby – ešte neobjednané kusy">Treba objednať</th><th class="num" title="Kusy navyše – po dodaní pôjdu do voľného skladu">+ Navyše</th><th title="Dopyt / cenová ponuka odoslaná dodávateľovi">Vydopytované</th><th>Rozpis – pre koho, koľko treba a koľko je už objednané</th></tr></thead>
     <tbody>
     {% for p in items %}
       <tr>
@@ -50,6 +51,9 @@
           {% if p.to_order_projects and p.free %}<div class="small" style="color:var(--warn-ink)">⚠ na voľnom sklade je {{ p.free }} {{ p.unit }} – <a href="{{ url_for('main.free_stock_view') }}">skontrolovať a priradiť</a></div>{% endif %}</td>
         <td class="num">{% if p.to_order %}<b style="color:var(--bad-ink)">{{ p.to_order }}</b> {{ p.unit }}{% else %}<span class="small muted">–</span>{% endif %}</td>
         <td class="num"><input type="number" name="extra_{{ p.part_id }}" min="0" class="extra-input" placeholder="0" aria-label="Kusy navyše"></td>
+        <td class="inq-cell">{% if p.inquiry_at %}<span class="badge admin" title="Dopyt odoslaný {{ p.inquiry_at|d }}">✉ {{ p.inquiry_qty or '' }}{{ ' ks · ' if p.inquiry_qty }}{{ p.inquiry_at|d }}</span>
+          <button type="button" class="btn-link small inq-cancel" data-post="{{ url_for('main.part_inquiry', part_id=p.part_id) }}" title="Zrušiť označenie dopytu">zrušiť</button>
+          {% else %}<span class="muted small">–</span>{% endif %}</td>
         <td>
           <table class="split">
             <thead><tr><th>Projekt / zásoba</th><th>Termín</th><th class="num">Treba</th><th class="num">Objednané</th></tr></thead>
@@ -90,6 +94,13 @@ document.querySelectorAll('.ord-edit').forEach(i => i.addEventListener('change',
   fd.append('_csrf', document.querySelector('meta[name="csrf"]').content);
   i.disabled = true;
   try { await fetch(i.dataset.post, { method: 'POST', body: fd, credentials: 'same-origin' }); } finally { location.reload(); }
+}));
+// zrušenie dopytu
+document.querySelectorAll('.inq-cancel').forEach(b => b.addEventListener('click', async () => {
+  if (!confirm('Zrušiť označenie „vydopytované“?')) return;
+  const fd = new FormData(); fd.append('qty', '0'); fd.append('_csrf', document.querySelector('meta[name="csrf"]').content);
+  b.disabled = true;
+  try { await fetch(b.dataset.post, { method: 'POST', body: fd, credentials: 'same-origin' }); } finally { location.reload(); }
 }));
 // zadaný počet „navyše“ automaticky označí riadok
 document.querySelectorAll('.extra-input').forEach(i => i.addEventListener('input', () => {

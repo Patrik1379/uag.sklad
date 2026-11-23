@@ -100,6 +100,8 @@ def to_order_list():
             parts[r["id"]] = {"part_id": r["id"], "code": r["code"], "order_code": r["order_code"], "ean": r["ean"],
                               "name": r["name"], "image": r["image"], "unit": r["unit"],
                               "manufacturer": r["manufacturer"], "supplier": r["supplier"], "lines": []}
+    inquiries = {r["id"]: r for r in db.query(
+        "SELECT id, inquiry_at, inquiry_qty FROM parts WHERE inquiry_at IS NOT NULL")}
     out = []
     for p in parts.values():
         st = stock_rows.get(p["part_id"]) or {}
@@ -107,6 +109,8 @@ def to_order_list():
         p["free"] = free.get(p["part_id"], 0)
         p["min_stock"] = int(st.get("min_stock") or 0)
         p["ordered_free"] = int(st.get("qty_ordered_free") or 0)
+        inq = inquiries.get(p["part_id"])
+        p["inquiry_at"], p["inquiry_qty"] = (inq["inquiry_at"], inq["inquiry_qty"]) if inq else (None, None)
         p["restock"] = max(p["min_stock"] - p["free"] - p["ordered_free"], 0) if p["min_stock"] else 0
         p["to_order_projects"] = sum(l["to_order"] for l in p["lines"])
         p["to_order"] = p["to_order_projects"] + p["restock"]

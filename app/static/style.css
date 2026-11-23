@@ -87,6 +87,7 @@ table.split td { padding: 0.25rem 0.4rem; border: 0; background: transparent !im
 table.split td:first-child { white-space: normal; }
 table.split tbody tr + tr td { border-top: 1px dashed var(--line); }
 table.data tbody tr:hover table.split td { background: transparent !important; }
+.inq-cell { white-space: nowrap; }
 .undo-bar { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 input.ord-edit { width: 4rem !important; height: 1.6rem; padding: 0 0.3rem !important; text-align: right; display: inline-block; font-size: .88rem; vertical-align: baseline; }
 input.extra-input { width: 5.5rem !important; text-align: right; padding: 0.333rem 0.467rem; }
