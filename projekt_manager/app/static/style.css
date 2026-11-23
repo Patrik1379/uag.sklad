@@ -847,3 +847,37 @@ table.docs .folder-row td { background: #fafbfc; }
 .nav-user .text-size { flex-shrink: 0; }
 @media (min-width: 701px) { .nav-links { flex: 0 1 auto; } }
 .nav-inner { max-width: 1600px; }
+
+/* ============================================================================
+   Jednotný vzhľad so Skladom dielov – rovnaké farby, písmo a tmavá navigácia
+   (Sklad má menu vľavo, Projekty hore – farby a prvky sú spoločné)
+   ========================================================================== */
+:root {
+  --bg: #f4f5f2; --surface: #ffffff; --text: #1c1c1a; --muted: #5f5f58; --line: #e3e2dc;
+  --primary: #2563c9; --primary-weak: #e6eefb;
+  --radius: 10px; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+  --nav: #1f2a37; --nav-ink: #dde4ec; --nav-muted: #9fb0c2;
+}
+body { font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; }
+.btn-primary:hover { background: #1d52aa; }
+.nav { background: var(--nav); border-bottom: 0; color: var(--nav-ink); }
+.nav .brand, .nav .brand span { color: #fff; }
+.nav-links a { color: var(--nav-ink); font-weight: 500; }
+.nav-links a:hover { background: rgba(255,255,255,.07); color: #fff; }
+.nav-links a.active { background: var(--primary); color: #fff; }
+.nav .portal-link { color: var(--nav-muted); opacity: 1; }
+.nav .portal-link:hover { background: rgba(255,255,255,.07); color: #fff; }
+.nav-user { color: var(--nav-muted); }
+.nav-user > a { color: var(--nav-ink); }
+.nav-user > a:hover { color: #fff; }
+.nav-user .btn { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.15); color: #fff; }
+.nav-user .btn:hover { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.25); }
+.nav .text-size { border-color: rgba(255,255,255,.15); }
+.nav .text-size button { background: rgba(255,255,255,.08); color: #fff; }
+.nav .text-size button + button { border-left-color: rgba(255,255,255,.15); }
+.nav .text-size button:hover { background: rgba(255,255,255,.18); color: #fff; }
+[data-theme="dark"] {
+  --bg: #14171c; --surface: #1d2128; --text: #e6e8eb; --muted: #a3a9b3; --line: #2e333c;
+  --primary: #5b8fe6; --primary-weak: #1f2b47; --nav: #10141a;
+}
+[data-theme="dark"] .btn-primary:hover { background: #4a7fd6; }
