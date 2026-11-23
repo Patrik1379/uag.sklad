@@ -98,7 +98,7 @@
     prev.innerHTML = "";
     prev.appendChild(img);
     zone.querySelector(".formdrop-name").textContent = "✓ " + (file.name || "obrázok") + " – uloží sa po kliknutí na Uložiť";
-    const rm = zone.parentElement.querySelector('input[name="remove_image"]');
+    const rm = zone.parentElement.querySelector('input[type=checkbox][name$="remove_image"]');
     if (rm) rm.checked = false;
   }
   document.querySelectorAll(".formdrop").forEach((zone) => {
@@ -124,7 +124,9 @@
     if (!item) return;  // bežný text sa vkladá normálne
     const f = item.getAsFile();
     const file = new File([f], "schranka." + (f.type.split("/")[1] || "png"), { type: f.type });
-    const form = document.querySelector(".formdrop");
+    // obrázok ide do formulára, v ktorom práve píšete (napr. odpoveď na vylepšenie), inak do prvého
+    const act = document.activeElement && document.activeElement.closest ? document.activeElement.closest("form") : null;
+    const form = (act && act.querySelector(".formdrop")) || document.querySelector(".formdrop");
     const zone = document.querySelector(".imgdrop[data-paste]");
     if (form) { e.preventDefault(); formdropSet(form, file); }
     else if (zone) { e.preventDefault(); uploadTo(zone, file); }

@@ -50,17 +50,21 @@
           <div style="white-space:pre-line;min-width:0">{{ f.text }}
             {%- if f.page %}<div class="small muted">Stránka: <a href="{{ f.page }}">{{ f.page }}</a></div>{% endif %}</div>
         </div>
-        {% if f.reply %}<div class="fb-reply"><b>Odpoveď:</b> <span style="white-space:pre-line">{{ f.reply }}</span></div>{% endif %}
+        {% if f.reply or f.has_reply_image %}<div class="fb-reply"><b>Odpoveď:</b> <span style="white-space:pre-line">{{ f.reply or '' }}</span>
+          {% if f.has_reply_image %}<div style="margin-top:6px"><a href="{{ url_for('main.feedback_image', fid=f.id, odpoved=1) }}" target="_blank" rel="noopener"><img class="fb-img" src="{{ url_for('main.feedback_image', fid=f.id, nahlad=1, odpoved=1) }}" alt="Obrázok k odpovedi" loading="lazy"></a></div>{% endif %}</div>{% endif %}
         {% if current_user.is_admin %}
           <details style="margin-top:8px">
             <summary class="small" style="cursor:pointer;color:var(--primary)">Odpovedať / zmeniť stav</summary>
-            <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" style="margin-top:8px">
+            <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" style="margin-top:8px" enctype="multipart/form-data">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="back" value="{{ request.full_path }}">
               <div class="fb-answer">
                 <select name="status">{% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if k == f.status }}>{{ v }}</option>{% endfor %}</select>
                 <textarea name="reply" rows="2" placeholder="odpoveď pre používateľa (nepovinné)">{{ f.reply or '' }}</textarea>
               </div>
+              <label class="small" style="display:block;margin-top:8px">Obrázok k odpovedi (nepovinné, aj Ctrl+V)</label>
+              <input type="file" name="reply_image" accept="image/*" class="fb-reply-file">
+              {% if f.has_reply_image %}<label class="small" style="display:inline-flex;gap:6px;align-items:center;margin-left:8px"><input type="checkbox" name="remove_reply_image" value="1" style="width:auto;margin:0"> odstrániť obrázok</label>{% endif %}
               <div style="margin-top:8px;display:flex;gap:8px">
                 <button class="btn btn-primary btn-sm">Uložiť</button>
                 <button class="btn btn-danger btn-sm" name="action" value="delete" formnovalidate onclick="return confirm('Zmazať návrh?')">Zmazať</button>
@@ -82,7 +86,8 @@
 <script>
 // vloženie výrezu obrazovky cez Ctrl+V
 document.addEventListener('paste', (e) => {
-  const input = document.getElementById('fb-image'); if (!input || !e.clipboardData) return;
+  const act = document.activeElement && document.activeElement.closest ? document.activeElement.closest('form') : null;
+  const input = (act && act.querySelector('input[type=file]')) || document.getElementById('fb-image'); if (!input || !e.clipboardData) return;
   const file = Array.from(e.clipboardData.files || []).find(f => f.type.startsWith('image/'));
   if (!file) return;
   const dt = new DataTransfer(); dt.items.add(new File([file], 'vyrez.png', {type: file.type})); input.files = dt.files;

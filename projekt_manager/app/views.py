@@ -1484,8 +1484,13 @@ def feedback_update(fid):
     if not g.user["is_admin"]:
         abort(403)
     status = request.form.get("status")
+    image = None
+    f = request.files.get("reply_image")
+    if f and f.filename:
+        image = (f.filename, f.read(), f.mimetype)
     ok, err = sklad.feedback_update(fid, status if status in FEEDBACK_STATUS else None,
-                                    request.form.get("reply", "").strip())
+                                    request.form.get("reply", "").strip(), image,
+                                    bool(request.form.get("remove_reply_image")))
     flash("Uložené." if ok else f"Nepodarilo sa uložiť: {err}", "success" if ok else "error")
     back = request.form.get("back", "")
     return redirect(back if back.startswith("/") and not back.startswith("//") else url_for("main.feedback"))
@@ -1494,7 +1499,7 @@ def feedback_update(fid):
 @bp.route("/vylepsenia/<int:fid>/obrazok")
 @login_required
 def feedback_image(fid):
-    data, ctype = sklad.feedback_image(fid, thumb=bool(request.args.get("nahlad")))
+    data, ctype = sklad.feedback_image(fid, thumb=bool(request.args.get("nahlad")), reply=bool(request.args.get("odpoved")))
     if data is None:
         abort(404)
     return current_app.response_class(data, mimetype=ctype, headers={"Cache-Control": "private, max-age=3600"})

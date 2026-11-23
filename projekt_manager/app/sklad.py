@@ -190,7 +190,12 @@ def feedback_list():
 
 
 def feedback_create(fields, image=None, timeout=20):
-    """Nová pripomienka (multipart, aby mohol ísť aj obrázok)."""
+    """Nový návrh (multipart, aby mohol ísť aj obrázok)."""
+    return _multipart("/pripomienky", fields, image, "image", timeout)
+
+
+def _multipart(path, fields, image=None, image_field="image", timeout=20):
+    """POST multipart/form-data do API skladu (polia + voliteľný obrázok). Vracia (ok, chyba)."""
     import uuid as _uuid
 
     cfg = current_app.config
@@ -202,10 +207,10 @@ def feedback_create(fields, image=None, timeout=20):
     if image:
         name, data, ctype = image
         safe = "".join(ch for ch in (name or "obrazok.jpg") if ch.isalnum() or ch in "._-") or "obrazok.jpg"
-        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"{safe}\"\r\n"
+        parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{image_field}\"; filename=\"{safe}\"\r\n"
                      f"Content-Type: {ctype or 'application/octet-stream'}\r\n\r\n".encode() + data + b"\r\n")
     body = b"".join(parts) + f"--{boundary}--\r\n".encode()
-    req = urllib.request.Request(cfg["SKLAD_URL"].rstrip("/") + "/api/v1/pripomienky", data=body, method="POST",
+    req = urllib.request.Request(cfg["SKLAD_URL"].rstrip("/") + "/api/v1" + path, data=body, method="POST",
                                  headers={"Authorization": "Bearer " + cfg["SKLAD_API_KEY"],
                                           "Content-Type": "multipart/form-data; boundary=" + boundary})
     try:
@@ -222,17 +227,22 @@ def feedback_create(fields, image=None, timeout=20):
         return False, f"Sklad nie je dostupný ({exc})."
 
 
-def feedback_update(fid, status, reply):
-    return _call("POST", f"/pripomienky/{int(fid)}", {"status": status, "reply": reply})
+def feedback_update(fid, status, reply, image=None, remove_image=False):
+    """Odpoveď / stav; image = (názov, dáta, typ) – obrázok k odpovedi."""
+    fields = {"status": status or "", "reply": reply or ""}
+    if remove_image:
+        fields["remove_reply_image"] = "1"
+    return _multipart(f"/pripomienky/{int(fid)}", fields, image, "reply_image")
 
 
 def feedback_delete(fid):
     return _call("DELETE", f"/pripomienky/{int(fid)}")
 
 
-def feedback_image(fid, thumb=False, timeout=15):
+def feedback_image(fid, thumb=False, reply=False, timeout=15):
     cfg = current_app.config
-    url = cfg["SKLAD_URL"].rstrip("/") + f"/api/v1/pripomienky/{int(fid)}/obrazok" + ("?nahlad=1" if thumb else "")
+    q = "&".join(x for x in ("nahlad=1" if thumb else "", "odpoved=1" if reply else "") if x)
+    url = cfg["SKLAD_URL"].rstrip("/") + f"/api/v1/pripomienky/{int(fid)}/obrazok" + ("?" + q if q else "")
     req = urllib.request.Request(url, headers={"Authorization": "Bearer " + cfg["SKLAD_API_KEY"]})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:

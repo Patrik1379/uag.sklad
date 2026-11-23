@@ -270,6 +270,7 @@ def init_db(retries: int = 30):
         _migrate_locations(db)
     _add_column(db, "parts", "ean", "VARCHAR(50)")
     _add_column(db, "project_parts", "integrated", "INTEGER NOT NULL DEFAULT 0")   # diel je už na stroji
+    _add_column(db, "feedback", "reply_image", "VARCHAR(255)")  # obrázok k odpovedi administrátora
     _add_column(db, "feedback", "source", "VARCHAR(20)")       # z ktorej aplikácie (None = sklad, "projekty")
     _add_column(db, "feedback", "author", "VARCHAR(150)")      # meno autora z inej aplikácie
     _add_column(db, "feedback", "ext_user", "VARCHAR(100)")    # id autora v inej aplikácii (napr. "pm:3")

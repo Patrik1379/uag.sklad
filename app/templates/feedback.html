@@ -53,19 +53,22 @@
           <div style="white-space:pre-line;min-width:0">{{ f.text }}
             {%- if f.page %}<div class="small muted">Stránka: <a href="{{ f.page }}">{{ f.page }}</a></div>{% endif %}</div>
         </div>
-        {% if f.reply %}
-          <div class="fb-reply"><b>Odpoveď:</b> <span style="white-space:pre-line">{{ f.reply }}</span></div>
+        {% if f.reply or f.reply_image %}
+          <div class="fb-reply"><b>Odpoveď:</b> <span style="white-space:pre-line">{{ f.reply or '' }}</span>
+            {% if f.reply_image %}<div style="margin-top:0.5rem">{{ thumb(f.reply_image, 'Obrázok k odpovedi', 'md') }}</div>{% endif %}</div>
         {% endif %}
         {% if is_admin %}
           <details class="more" style="margin-top:0.5rem">
             <summary>Odpovedať / zmeniť stav</summary>
-            <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" style="margin-top:0.5rem">
+            <form method="post" action="{{ url_for('main.feedback_update', fid=f.id) }}" style="margin-top:0.5rem" enctype="multipart/form-data">
               <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
               <input type="hidden" name="back" value="{{ request.full_path }}">
               <div style="display:grid;grid-template-columns:12rem 1fr;gap:0.6rem;align-items:start">
                 <select name="status">{% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if k == f.status }}>{{ v }}</option>{% endfor %}</select>
                 <textarea name="reply" placeholder="odpoveď pre používateľa (nepovinné)" style="min-height:3.5rem">{{ f.reply or '' }}</textarea>
               </div>
+              <div style="margin-top:0.6rem"><label class="small" style="margin-bottom:0.3rem">Obrázok k odpovedi (nepovinné)</label>
+                {{ image_field(f.reply_image, 'Obrázok k odpovedi', name='reply_image', remove_name='remove_reply_image') }}</div>
               <div class="form-actions" style="margin-top:0.6rem">
                 <button class="btn sm primary">Uložiť</button>
                 <button class="btn sm danger" name="action" value="delete" formnovalidate onclick="return confirm('Zmazať návrh?')">Zmazať</button>

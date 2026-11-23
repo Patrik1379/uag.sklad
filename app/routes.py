@@ -1465,6 +1465,23 @@ def feedback():
                            status=status, counts=counts, page=ref if ref.startswith("/") else "")
 
 
+def _feedback_reply_image(item, file, remove=False):
+    """Obrázok k odpovedi: nový nahradí starý, „remove“ ho zmaže. Vracia názov súboru (alebo None)."""
+    current = item.get("reply_image")
+    if file and file.filename:
+        try:
+            name = save_image(file)
+        except Exception as exc:
+            flash(f"Obrázok sa nepodarilo uložiť: {exc}", "error")
+            return current
+        delete_image(current)
+        return name
+    if remove:
+        delete_image(current)
+        return None
+    return current
+
+
 @bp.route("/pripomienky/<int:fid>", methods=["POST"])
 @login_required
 def feedback_update(fid):
@@ -1477,14 +1494,16 @@ def feedback_update(fid):
         db.execute("DELETE FROM feedback WHERE id = ?", (fid,))
         db.commit()
         delete_image(item["image"])
+        delete_image(item.get("reply_image"))
         flash("Návrh bol zmazaný.", "ok")
         return redirect(url_for("main.feedback"))
     if me["role"] != "admin":
         abort(403)
     status = request.form.get("status")
     status = status if status in FEEDBACK_STATUS else item["status"]
-    db.execute("UPDATE feedback SET status = ?, reply = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-               (status, request.form.get("reply", "").strip() or None, fid))
+    reply_image = _feedback_reply_image(item, request.files.get("reply_image"), request.form.get("remove_reply_image"))
+    db.execute("UPDATE feedback SET status = ?, reply = ?, reply_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+               (status, request.form.get("reply", "").strip() or None, reply_image, fid))
     db.commit()
     flash("Uložené.", "ok")
     return redirect(request.form.get("back") or url_for("main.feedback"))

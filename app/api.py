@@ -215,7 +215,7 @@ def _feedback_json(f):
         page = _base() + page                         # stránka v sklade – úplná adresa
     return {
         "id": f["id"], "kind": f["kind"], "status": f["status"], "text": f["text"], "reply": f.get("reply"),
-        "page": page or None, "has_image": bool(f.get("image")),
+        "page": page or None, "has_image": bool(f.get("image")), "has_reply_image": bool(f.get("reply_image")),
         "source": f.get("source") or "sklad",
         "author": f.get("author") or f.get("full_name") or f.get("username") or "",
         "ext_user": f.get("ext_user"),
@@ -271,11 +271,14 @@ def feedback_set(fid):
 
     _check_key()
     f = _feedback_or_404(fid)
-    data = request.get_json(silent=True) or {}
+    from .routes import _feedback_reply_image
+
+    data = request.get_json(silent=True) or request.form     # JSON alebo multipart (s obrázkom k odpovedi)
     status = data.get("status") if data.get("status") in FEEDBACK_STATUS else f["status"]
+    reply_image = _feedback_reply_image(f, request.files.get("reply_image"), data.get("remove_reply_image"))
     db = get_db()
-    db.execute("UPDATE feedback SET status = ?, reply = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-               (status, (data.get("reply") or "").strip() or None, fid))
+    db.execute("UPDATE feedback SET status = ?, reply = ?, reply_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+               (status, (data.get("reply") or "").strip() or None, reply_image, fid))
     db.commit()
     return jsonify(ok=True)
 
@@ -290,6 +293,7 @@ def feedback_delete(fid):
     db.execute("DELETE FROM feedback WHERE id = ?", (fid,))
     db.commit()
     delete_image(f.get("image"))
+    delete_image(f.get("reply_image"))
     return jsonify(ok=True)
 
 
@@ -297,7 +301,8 @@ def feedback_delete(fid):
 def feedback_image(fid):
     _check_key()
     f = _feedback_or_404(fid)
-    if not f.get("image"):
+    img = f.get("reply_image") if request.args.get("odpoved") else f.get("image")
+    if not img:
         abort(404)
-    name = ("t_" if request.args.get("nahlad") else "") + f["image"]
+    name = ("t_" if request.args.get("nahlad") else "") + img
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], name, max_age=3600)
