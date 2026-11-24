@@ -830,7 +830,8 @@ def project_lines_integrated(pid):
         flash("Označte aspoň jeden diel.", "error")
         return redirect(url_for("main.project_detail", pid=pid))
     marks = ",".join("?" * len(ids))
-    db.execute(f"UPDATE project_parts SET integrated = ? WHERE project_id = ? AND id IN ({marks})", (on, pid, *ids))
+    db.execute(f"UPDATE project_parts SET integrated = ?, integrated_qty = {'qty_required' if on else '0'} "
+               f"WHERE project_id = ? AND id IN ({marks})", (on, pid, *ids))
     db.commit()
     n = len(ids)
     if on:
@@ -839,6 +840,27 @@ def project_lines_integrated(pid):
     else:
         what = ("položka znova čaká" if n == 1 else "položky znova čakajú" if n < 5 else "položiek znova čaká")
         flash(f"{n} {what} na naskladnenie.", "ok")
+    return redirect(url_for("main.project_detail", pid=pid))
+
+
+@bp.route("/projekty/<int:pid>/diely/<int:pp_id>/na-stroji", methods=["POST"])
+@login_required
+def project_line_integrated_qty(pid, pp_id):
+    """Počet kusov dielu, ktoré sú už zaintegrované na stroji (0 = žiadne, všetky = celý diel na stroji)."""
+    db = get_db()
+    pp = db.query("SELECT * FROM project_parts WHERE id = ? AND project_id = ?", (pp_id, pid), one=True) or abort(404)
+    req = int(pp["qty_required"] or 0)
+    qty = min(max(to_int(request.form.get("qty"), 0), 0), req)
+    db.execute("UPDATE project_parts SET integrated_qty = ?, integrated = ? WHERE id = ?",
+               (qty, 1 if req and qty >= req else 0, pp_id))
+    db.commit()
+    code = db.scalar("SELECT code FROM parts WHERE id = ?", (pp["part_id"],))
+    if qty >= req and req:
+        flash(f"{code}: celý diel ({req} ks) je na stroji – pri príjme sa už neponúka.", "ok")
+    elif qty:
+        flash(f"{code}: {qty} z {req} ks je na stroji – naskladniť treba ešte {req - qty} ks.", "ok")
+    else:
+        flash(f"{code}: žiadne kusy nie sú na stroji.", "ok")
     return redirect(url_for("main.project_detail", pid=pid))
 
 
@@ -1027,7 +1049,7 @@ def project_export(pid):
     ws.append([f"{project['name']} – zákazka {project['order_no']}"])
     ws["A1"].font = Font(bold=True, size=14)
     ws.append([])
-    head = ["Označenie", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Umiestnenie", "Potrebné", "Naskladnené", "Chýba", "Objednané", "Objednať", "Stav"]
+    head = ["Označenie", "Objednávacie číslo", "EAN", "Názov", "Výrobca", "Umiestnenie", "Potrebné", "Na stroji", "Naskladnené", "Chýba", "Objednané", "Objednať", "Stav"]
     ws.append(head)
     for c in ws[3]:
         c.font = Font(bold=True)
@@ -1035,10 +1057,10 @@ def project_export(pid):
     labels = {"ok": "Naskladnené", "partial": "Čiastočne", "missing": "Chýba", "integrated": "Na stroji"}
     for l in lines:
         ws.append([l["code"], l["order_code"], l.get("ean"), l["name"], l["manufacturer"], location_label(l), l["qty_required"],
-                   l["received"], l["missing"], l["ordered"] or None, l["to_order"] or None, labels[l["state"]]])
+                   l["integrated_qty"] or None, l["received"], l["missing"], l["ordered"] or None, l["to_order"] or None, labels[l["state"]]])
         for c in ws[ws.max_row]:
             c.fill = PatternFill("solid", fgColor=fills[l["state"]])
-    for col, w in zip("ABCDEFGHIJKL", (14, 22, 16, 40, 18, 30, 10, 12, 10, 11, 10, 14)):
+    for col, w in zip("ABCDEFGHIJKLM", (14, 22, 16, 40, 18, 30, 10, 10, 12, 10, 11, 10, 14)):
         ws.column_dimensions[col].width = w
     buf = io.BytesIO()
     wb.save(buf)

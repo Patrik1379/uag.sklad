@@ -9,7 +9,7 @@ from flask import current_app
 from .db import get_db
 
 LINES_SQL = """
-SELECT pp.id AS pp_id, pp.project_id, pp.qty_required, pp.note AS pp_note, pp.integrated,
+SELECT pp.id AS pp_id, pp.project_id, pp.qty_required, pp.note AS pp_note, pp.integrated, pp.integrated_qty,
        pp.qty_ordered, pp.ordered_at,
        pa.id AS part_id, pa.code, pa.order_code, pa.ean, pa.name, pa.image, pa.unit,
        pa.manufacturer, pa.supplier, pa.location, pa.location_id, pa.rack_id, pa.shelf,
@@ -28,16 +28,20 @@ def enrich(line):
     req = int(line["qty_required"] or 0)
     rec = int(line["received"] or 0)
     line["received"] = rec
-    line["covered"] = min(rec, req)
-    line["missing"] = max(req - rec, 0)
-    line["surplus"] = max(rec - req, 0)
-    if line.get("integrated"):
-        # diel je už na stroji – berie sa ako kompletný, nenaskladňuje sa a pri príjme sa neponúka
-        line["covered"], line["missing"], line["surplus"] = req, 0, rec
+    # kusy už zaintegrované na stroji sa nenaskladňujú – zmenšujú potrebu zo skladu
+    integ = int(line.get("integrated_qty") or 0) or (req if line.get("integrated") else 0)
+    integ = min(max(integ, 0), req)
+    line["integrated_qty"] = integ
+    need = req - integ
+    line["covered"] = integ + min(rec, need)
+    line["missing"] = max(need - rec, 0)
+    line["surplus"] = max(rec - need, 0)
+    if req and integ >= req:
+        # celý diel je už na stroji – berie sa ako kompletný a pri príjme sa neponúka
         line["state"] = "integrated"
-    elif req and rec >= req:
+    elif req and line["missing"] == 0:
         line["state"] = "ok"
-    elif rec > 0:
+    elif rec > 0 or integ > 0:
         line["state"] = "partial"
     else:
         line["state"] = "missing"
@@ -154,11 +158,13 @@ def demand_for_part(part_id):
     db = get_db()
     rows = db.query(
         LINES_SQL + """ JOIN projects pr ON pr.id = pp.project_id
-        WHERE pp.part_id = ? AND pr.status = 'aktivny' AND COALESCE(pp.integrated, 0) = 0""", (part_id,))
+        WHERE pp.part_id = ? AND pr.status = 'aktivny'""", (part_id,))
     projects = {p["id"]: p for p in db.query("SELECT * FROM projects")}
     out = []
     for r in rows:
         r = enrich(r)
+        if r["state"] == "integrated":
+            continue
         r["project"] = projects[r["project_id"]]
         out.append(r)
     out.sort(key=lambda r: (r["project"]["deadline"] is None, str(r["project"]["deadline"] or ""), r["project_id"]))

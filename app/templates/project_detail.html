@@ -94,10 +94,12 @@
         <td class="num">{% if l.to_order %}<b style="color:var(--bad-ink)">{{ l.to_order }}</b>
           {% if l.free %}<div class="small" style="color:var(--warn-ink, #8a5a00)" title="Skontrolujte voľný sklad a ak tam diel naozaj je, priraďte ho tlačidlom „Priradiť z voľného“">na voľnom sklade {{ l.free }} ks</div>{% endif %}{% endif %}</td>
         <td>{{ state_badge(l.state) }}
-          <form method="post" action="{{ url_for('main.project_lines_integrated', pid=project.id) }}" class="inline-form int-toggle">
-            <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="pp_id" value="{{ l.pp_id }}">
-            {% if l.state == 'integrated' %}<button class="btn-link small" name="action" value="off" title="Diel znova bude čakať na naskladnenie">zrušiť „na stroji“</button>
-            {% else %}<button class="btn-link small" name="action" value="on" title="Diel je už zaintegrovaný na stroji – netreba ho naskladňovať">⚙ už je na stroji</button>{% endif %}
+          <form method="post" action="{{ url_for('main.project_line_integrated_qty', pid=project.id, pp_id=l.pp_id) }}" class="inline-form int-qty"
+                title="Koľko kusov je už zaintegrovaných na stroji – tie sa nenaskladňujú (0 = žiadne, {{ l.qty_required }} = celý diel)">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <span class="small">⚙ na stroji</span>
+            <input type="number" name="qty" min="0" max="{{ l.qty_required }}" value="{{ l.integrated_qty }}" class="int-input" onchange="this.form.submit()">
+            <span class="small muted">/{{ l.qty_required }}</span>
           </form>
           {% if l.missing and l.free %}
           <form method="post" action="{{ url_for('main.assign_from_free', pid=project.id, part_id=l.part_id) }}" class="inline-form">
